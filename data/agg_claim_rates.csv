@@ -1,0 +1,577 @@
+model,primary_failed_part,mileage_bucket,age_bucket,incidents,claims,claim_rate
+Leaf,HV Battery,0-10k,<1yr,54,25,0.46296296296296297
+Leaf,HV Battery,0-10k,1-3yr,30,12,0.4
+Leaf,HV Battery,0-10k,3-5yr,47,27,0.574468085106383
+Leaf,HV Battery,0-10k,5+yr,30,19,0.6333333333333333
+Leaf,HV Battery,10-30k,<1yr,556,263,0.47302158273381295
+Leaf,HV Battery,10-30k,1-3yr,343,196,0.5714285714285714
+Leaf,HV Battery,10-30k,3-5yr,728,440,0.6043956043956044
+Leaf,HV Battery,10-30k,5+yr,36,9,0.25
+Leaf,HV Battery,30-60k,<1yr,347,229,0.659942363112392
+Leaf,HV Battery,30-60k,1-3yr,687,395,0.5749636098981077
+Leaf,HV Battery,30-60k,3-5yr,210,111,0.5285714285714286
+Leaf,HV Battery,30-60k,5+yr,387,246,0.6356589147286822
+Leaf,HV Battery,60k+,<1yr,30,21,0.7
+Leaf,HV Battery,60k+,1-3yr,30,19,0.6333333333333333
+Leaf,HV Battery,60k+,3-5yr,30,22,0.7333333333333333
+Leaf,HV Battery,60k+,5+yr,107,68,0.6355140186915887
+Leaf,12V Battery,0-10k,<1yr,30,10,0.3333333333333333
+Leaf,12V Battery,0-10k,1-3yr,30,16,0.5333333333333333
+Leaf,12V Battery,0-10k,3-5yr,11,9,0.8181818181818182
+Leaf,12V Battery,0-10k,5+yr,37,21,0.5675675675675675
+Leaf,12V Battery,10-30k,<1yr,39,15,0.38461538461538464
+Leaf,12V Battery,10-30k,1-3yr,31,17,0.5483870967741935
+Leaf,12V Battery,10-30k,3-5yr,35,18,0.5142857142857142
+Leaf,12V Battery,10-30k,5+yr,30,16,0.5333333333333333
+Leaf,12V Battery,30-60k,<1yr,30,14,0.4666666666666667
+Leaf,12V Battery,30-60k,1-3yr,134,64,0.47761194029850745
+Leaf,12V Battery,30-60k,3-5yr,30,20,0.6666666666666666
+Leaf,12V Battery,30-60k,5+yr,30,22,0.7333333333333333
+Leaf,12V Battery,60k+,<1yr,30,16,0.5333333333333333
+Leaf,12V Battery,60k+,1-3yr,49,34,0.6938775510204082
+Leaf,12V Battery,60k+,3-5yr,30,20,0.6666666666666666
+Leaf,12V Battery,60k+,5+yr,30,20,0.6666666666666666
+Leaf,Battery Cable,0-10k,<1yr,39,17,0.4358974358974359
+Leaf,Battery Cable,0-10k,1-3yr,74,22,0.2972972972972973
+Leaf,Battery Cable,0-10k,3-5yr,30,10,0.3333333333333333
+Leaf,Battery Cable,0-10k,5+yr,11,7,0.6363636363636364
+Leaf,Battery Cable,10-30k,<1yr,53,17,0.32075471698113206
+Leaf,Battery Cable,10-30k,1-3yr,30,13,0.43333333333333335
+Leaf,Battery Cable,10-30k,3-5yr,30,14,0.4666666666666667
+Leaf,Battery Cable,10-30k,5+yr,30,20,0.6666666666666666
+Leaf,Battery Cable,30-60k,<1yr,78,35,0.44871794871794873
+Leaf,Battery Cable,30-60k,1-3yr,30,12,0.4
+Leaf,Battery Cable,30-60k,3-5yr,30,16,0.5333333333333333
+Leaf,Battery Cable,30-60k,5+yr,107,69,0.6448598130841121
+Leaf,Battery Cable,60k+,<1yr,35,21,0.6
+Leaf,Battery Cable,60k+,1-3yr,30,16,0.5333333333333333
+Leaf,Battery Cable,60k+,3-5yr,58,32,0.5517241379310345
+Leaf,Battery Cable,60k+,5+yr,30,22,0.7333333333333333
+Leaf,Brake Pad,0-10k,<1yr,30,14,0.4666666666666667
+Leaf,Brake Pad,0-10k,1-3yr,30,17,0.5666666666666667
+Leaf,Brake Pad,0-10k,3-5yr,127,66,0.5196850393700787
+Leaf,Brake Pad,0-10k,5+yr,30,17,0.5666666666666667
+Leaf,Brake Pad,10-30k,<1yr,279,144,0.5161290322580645
+Leaf,Brake Pad,10-30k,1-3yr,10,6,0.6
+Leaf,Brake Pad,10-30k,3-5yr,877,524,0.5974914481185861
+Leaf,Brake Pad,10-30k,5+yr,200,111,0.555
+Leaf,Brake Pad,30-60k,<1yr,135,76,0.562962962962963
+Leaf,Brake Pad,30-60k,1-3yr,703,365,0.519203413940256
+Leaf,Brake Pad,30-60k,3-5yr,708,379,0.5353107344632768
+Leaf,Brake Pad,30-60k,5+yr,158,111,0.7025316455696202
+Leaf,Brake Pad,60k+,<1yr,30,17,0.5666666666666667
+Leaf,Brake Pad,60k+,1-3yr,30,21,0.7
+Leaf,Brake Pad,60k+,3-5yr,93,39,0.41935483870967744
+Leaf,Brake Pad,60k+,5+yr,30,21,0.7
+Leaf,Brake Rotor,0-10k,<1yr,30,11,0.36666666666666664
+Leaf,Brake Rotor,0-10k,1-3yr,30,14,0.4666666666666667
+Leaf,Brake Rotor,0-10k,3-5yr,30,19,0.6333333333333333
+Leaf,Brake Rotor,0-10k,5+yr,59,38,0.6440677966101694
+Leaf,Brake Rotor,10-30k,<1yr,33,17,0.5151515151515151
+Leaf,Brake Rotor,10-30k,1-3yr,48,14,0.2916666666666667
+Leaf,Brake Rotor,10-30k,3-5yr,103,61,0.5922330097087378
+Leaf,Brake Rotor,10-30k,5+yr,30,15,0.5
+Leaf,Brake Rotor,30-60k,<1yr,30,19,0.6333333333333333
+Leaf,Brake Rotor,30-60k,1-3yr,30,22,0.7333333333333333
+Leaf,Brake Rotor,30-60k,3-5yr,38,25,0.6578947368421053
+Leaf,Brake Rotor,30-60k,5+yr,30,15,0.5
+Leaf,Brake Rotor,60k+,<1yr,30,18,0.6
+Leaf,Brake Rotor,60k+,1-3yr,30,22,0.7333333333333333
+Leaf,Brake Rotor,60k+,3-5yr,30,20,0.6666666666666666
+Leaf,Brake Rotor,60k+,5+yr,111,74,0.6666666666666666
+Leaf,Brake Caliper,0-10k,<1yr,193,128,0.6632124352331606
+Leaf,Brake Caliper,0-10k,1-3yr,37,22,0.5945945945945946
+Leaf,Brake Caliper,0-10k,3-5yr,34,19,0.5588235294117647
+Leaf,Brake Caliper,0-10k,5+yr,151,67,0.44370860927152317
+Leaf,Brake Caliper,10-30k,<1yr,304,155,0.5098684210526315
+Leaf,Brake Caliper,10-30k,1-3yr,40,23,0.575
+Leaf,Brake Caliper,10-30k,3-5yr,30,12,0.4
+Leaf,Brake Caliper,10-30k,5+yr,139,86,0.6187050359712231
+Leaf,Brake Caliper,30-60k,<1yr,57,30,0.5263157894736842
+Leaf,Brake Caliper,30-60k,1-3yr,30,15,0.5
+Leaf,Brake Caliper,30-60k,3-5yr,46,32,0.6956521739130435
+Leaf,Brake Caliper,30-60k,5+yr,238,141,0.592436974789916
+Leaf,Brake Caliper,60k+,<1yr,30,17,0.5666666666666667
+Leaf,Brake Caliper,60k+,1-3yr,30,17,0.5666666666666667
+Leaf,Brake Caliper,60k+,3-5yr,35,26,0.7428571428571429
+Leaf,Brake Caliper,60k+,5+yr,30,24,0.8
+Leaf,Front Tire,0-10k,<1yr,16,7,0.4375
+Leaf,Front Tire,0-10k,1-3yr,66,40,0.6060606060606061
+Leaf,Front Tire,0-10k,3-5yr,104,61,0.5865384615384616
+Leaf,Front Tire,0-10k,5+yr,46,28,0.6086956521739131
+Leaf,Front Tire,10-30k,<1yr,419,206,0.4916467780429594
+Leaf,Front Tire,10-30k,1-3yr,708,326,0.4604519774011299
+Leaf,Front Tire,10-30k,3-5yr,636,356,0.559748427672956
+Leaf,Front Tire,10-30k,5+yr,243,119,0.4897119341563786
+Leaf,Front Tire,30-60k,<1yr,775,414,0.5341935483870968
+Leaf,Front Tire,30-60k,1-3yr,306,170,0.5555555555555556
+Leaf,Front Tire,30-60k,3-5yr,403,202,0.5012406947890818
+Leaf,Front Tire,30-60k,5+yr,567,333,0.5873015873015873
+Leaf,Front Tire,60k+,<1yr,74,37,0.5
+Leaf,Front Tire,60k+,1-3yr,253,170,0.6719367588932806
+Leaf,Front Tire,60k+,3-5yr,42,27,0.6428571428571429
+Leaf,Front Tire,60k+,5+yr,30,19,0.6333333333333333
+Leaf,Rear Tire,0-10k,<1yr,30,15,0.5
+Leaf,Rear Tire,0-10k,1-3yr,107,45,0.4205607476635514
+Leaf,Rear Tire,0-10k,3-5yr,30,19,0.6333333333333333
+Leaf,Rear Tire,0-10k,5+yr,30,18,0.6
+Leaf,Rear Tire,10-30k,<1yr,80,43,0.5375
+Leaf,Rear Tire,10-30k,1-3yr,30,15,0.5
+Leaf,Rear Tire,10-30k,3-5yr,50,26,0.52
+Leaf,Rear Tire,10-30k,5+yr,128,68,0.53125
+Leaf,Rear Tire,30-60k,<1yr,59,29,0.4915254237288136
+Leaf,Rear Tire,30-60k,1-3yr,30,18,0.6
+Leaf,Rear Tire,30-60k,3-5yr,59,36,0.6101694915254238
+Leaf,Rear Tire,30-60k,5+yr,30,20,0.6666666666666666
+Leaf,Rear Tire,60k+,<1yr,31,16,0.5161290322580645
+Leaf,Rear Tire,60k+,1-3yr,102,58,0.5686274509803921
+Leaf,Rear Tire,60k+,3-5yr,30,22,0.7333333333333333
+Leaf,Rear Tire,60k+,5+yr,30,14,0.4666666666666667
+Leaf,Spare Tire,0-10k,<1yr,92,43,0.4673913043478261
+Leaf,Spare Tire,0-10k,1-3yr,39,24,0.6153846153846154
+Leaf,Spare Tire,0-10k,3-5yr,127,69,0.5433070866141733
+Leaf,Spare Tire,0-10k,5+yr,30,12,0.4
+Leaf,Spare Tire,10-30k,<1yr,90,51,0.5666666666666667
+Leaf,Spare Tire,10-30k,1-3yr,31,15,0.4838709677419355
+Leaf,Spare Tire,10-30k,3-5yr,30,15,0.5
+Leaf,Spare Tire,10-30k,5+yr,38,26,0.6842105263157895
+Leaf,Spare Tire,30-60k,<1yr,30,13,0.43333333333333335
+Leaf,Spare Tire,30-60k,1-3yr,57,24,0.42105263157894735
+Leaf,Spare Tire,30-60k,3-5yr,30,19,0.6333333333333333
+Leaf,Spare Tire,30-60k,5+yr,129,86,0.6666666666666666
+Leaf,Spare Tire,60k+,<1yr,84,60,0.7142857142857143
+Leaf,Spare Tire,60k+,1-3yr,34,20,0.5882352941176471
+Leaf,Spare Tire,60k+,3-5yr,30,16,0.5333333333333333
+Leaf,Spare Tire,60k+,5+yr,31,21,0.6774193548387096
+Leaf,Gearbox,0-10k,<1yr,146,76,0.5205479452054794
+Leaf,Gearbox,0-10k,1-3yr,23,11,0.4782608695652174
+Leaf,Gearbox,0-10k,3-5yr,395,212,0.5367088607594936
+Leaf,Gearbox,0-10k,5+yr,31,21,0.6774193548387096
+Leaf,Gearbox,10-30k,<1yr,65,39,0.6
+Leaf,Gearbox,10-30k,1-3yr,152,135,0.8881578947368421
+Leaf,Gearbox,10-30k,3-5yr,30,13,0.43333333333333335
+Leaf,Gearbox,10-30k,5+yr,172,111,0.6453488372093024
+Leaf,Gearbox,30-60k,<1yr,30,20,0.6666666666666666
+Leaf,Gearbox,30-60k,1-3yr,22,11,0.5
+Leaf,Gearbox,30-60k,3-5yr,53,33,0.6226415094339622
+Leaf,Gearbox,30-60k,5+yr,40,25,0.625
+Leaf,Gearbox,60k+,<1yr,61,32,0.5245901639344263
+Leaf,Gearbox,60k+,1-3yr,30,13,0.43333333333333335
+Leaf,Gearbox,60k+,3-5yr,121,82,0.6776859504132231
+Leaf,Gearbox,60k+,5+yr,30,22,0.7333333333333333
+Leaf,Clutch,0-10k,<1yr,30,11,0.36666666666666664
+Leaf,Clutch,0-10k,1-3yr,32,10,0.3125
+Leaf,Clutch,0-10k,3-5yr,64,44,0.6875
+Leaf,Clutch,0-10k,5+yr,30,18,0.6
+Leaf,Clutch,10-30k,<1yr,58,30,0.5172413793103449
+Leaf,Clutch,10-30k,1-3yr,115,60,0.5217391304347826
+Leaf,Clutch,10-30k,3-5yr,30,23,0.7666666666666667
+Leaf,Clutch,10-30k,5+yr,15,8,0.5333333333333333
+Leaf,Clutch,30-60k,<1yr,28,16,0.5714285714285714
+Leaf,Clutch,30-60k,1-3yr,150,71,0.47333333333333333
+Leaf,Clutch,30-60k,3-5yr,30,29,0.9666666666666667
+Leaf,Clutch,30-60k,5+yr,50,31,0.62
+Leaf,Clutch,60k+,<1yr,163,98,0.6012269938650306
+Leaf,Clutch,60k+,1-3yr,41,28,0.6829268292682927
+Leaf,Clutch,60k+,3-5yr,30,20,0.6666666666666666
+Leaf,Clutch,60k+,5+yr,30,24,0.8
+Leaf,Torque Converter,0-10k,<1yr,89,42,0.47191011235955055
+Leaf,Torque Converter,0-10k,1-3yr,30,18,0.6
+Leaf,Torque Converter,0-10k,3-5yr,30,28,0.9333333333333333
+Leaf,Torque Converter,0-10k,5+yr,30,15,0.5
+Leaf,Torque Converter,10-30k,<1yr,30,12,0.4
+Leaf,Torque Converter,10-30k,1-3yr,64,38,0.59375
+Leaf,Torque Converter,10-30k,3-5yr,30,17,0.5666666666666667
+Leaf,Torque Converter,10-30k,5+yr,116,107,0.9224137931034483
+Leaf,Torque Converter,30-60k,<1yr,30,19,0.6333333333333333
+Leaf,Torque Converter,30-60k,1-3yr,30,14,0.4666666666666667
+Leaf,Torque Converter,30-60k,3-5yr,30,20,0.6666666666666666
+Leaf,Torque Converter,30-60k,5+yr,30,24,0.8
+Leaf,Torque Converter,60k+,<1yr,120,83,0.6916666666666667
+Leaf,Torque Converter,60k+,1-3yr,39,29,0.7435897435897436
+Leaf,Torque Converter,60k+,3-5yr,33,23,0.696969696969697
+Leaf,Torque Converter,60k+,5+yr,30,24,0.8
+Ariya,HV Battery,0-10k,<1yr,45,27,0.6
+Ariya,HV Battery,0-10k,1-3yr,30,17,0.5666666666666667
+Ariya,HV Battery,0-10k,3-5yr,41,24,0.5853658536585366
+Ariya,HV Battery,0-10k,5+yr,203,132,0.6502463054187192
+Ariya,HV Battery,10-30k,<1yr,462,235,0.5086580086580087
+Ariya,HV Battery,10-30k,1-3yr,25,13,0.52
+Ariya,HV Battery,10-30k,3-5yr,332,184,0.5542168674698795
+Ariya,HV Battery,10-30k,5+yr,661,421,0.6369137670196672
+Ariya,HV Battery,30-60k,<1yr,375,189,0.504
+Ariya,HV Battery,30-60k,1-3yr,568,320,0.5633802816901409
+Ariya,HV Battery,30-60k,3-5yr,1254,787,0.6275917065390749
+Ariya,HV Battery,30-60k,5+yr,2000,1397,0.6985
+Ariya,HV Battery,60k+,<1yr,61,44,0.7213114754098361
+Ariya,HV Battery,60k+,1-3yr,30,22,0.7333333333333333
+Ariya,HV Battery,60k+,3-5yr,30,17,0.5666666666666667
+Ariya,HV Battery,60k+,5+yr,30,20,0.6666666666666666
+Ariya,12V Battery,0-10k,<1yr,30,15,0.5
+Ariya,12V Battery,0-10k,1-3yr,30,14,0.4666666666666667
+Ariya,12V Battery,0-10k,3-5yr,71,37,0.5211267605633803
+Ariya,12V Battery,0-10k,5+yr,169,88,0.5207100591715976
+Ariya,12V Battery,10-30k,<1yr,39,25,0.6410256410256411
+Ariya,12V Battery,10-30k,1-3yr,98,52,0.5306122448979592
+Ariya,12V Battery,10-30k,3-5yr,30,22,0.7333333333333333
+Ariya,12V Battery,10-30k,5+yr,59,42,0.711864406779661
+Ariya,12V Battery,30-60k,<1yr,30,13,0.43333333333333335
+Ariya,12V Battery,30-60k,1-3yr,30,19,0.6333333333333333
+Ariya,12V Battery,30-60k,3-5yr,30,14,0.4666666666666667
+Ariya,12V Battery,30-60k,5+yr,64,48,0.75
+Ariya,12V Battery,60k+,<1yr,38,22,0.5789473684210527
+Ariya,12V Battery,60k+,1-3yr,121,65,0.5371900826446281
+Ariya,12V Battery,60k+,3-5yr,30,19,0.6333333333333333
+Ariya,12V Battery,60k+,5+yr,30,19,0.6333333333333333
+Ariya,Battery Cable,0-10k,<1yr,41,23,0.5609756097560976
+Ariya,Battery Cable,0-10k,1-3yr,169,86,0.5088757396449705
+Ariya,Battery Cable,0-10k,3-5yr,42,27,0.6428571428571429
+Ariya,Battery Cable,0-10k,5+yr,31,17,0.5483870967741935
+Ariya,Battery Cable,10-30k,<1yr,30,16,0.5333333333333333
+Ariya,Battery Cable,10-30k,1-3yr,30,22,0.7333333333333333
+Ariya,Battery Cable,10-30k,3-5yr,30,9,0.3
+Ariya,Battery Cable,10-30k,5+yr,30,18,0.6
+Ariya,Battery Cable,30-60k,<1yr,30,12,0.4
+Ariya,Battery Cable,30-60k,1-3yr,30,15,0.5
+Ariya,Battery Cable,30-60k,3-5yr,192,106,0.5520833333333334
+Ariya,Battery Cable,30-60k,5+yr,47,31,0.6595744680851063
+Ariya,Battery Cable,60k+,<1yr,30,18,0.6
+Ariya,Battery Cable,60k+,1-3yr,30,30,1.0
+Ariya,Battery Cable,60k+,3-5yr,41,24,0.5853658536585366
+Ariya,Battery Cable,60k+,5+yr,30,20,0.6666666666666666
+Ariya,Brake Pad,0-10k,<1yr,149,80,0.5369127516778524
+Ariya,Brake Pad,0-10k,1-3yr,30,19,0.6333333333333333
+Ariya,Brake Pad,0-10k,3-5yr,30,14,0.4666666666666667
+Ariya,Brake Pad,0-10k,5+yr,30,19,0.6333333333333333
+Ariya,Brake Pad,10-30k,<1yr,240,144,0.6
+Ariya,Brake Pad,10-30k,1-3yr,561,237,0.42245989304812837
+Ariya,Brake Pad,10-30k,3-5yr,289,172,0.5951557093425606
+Ariya,Brake Pad,10-30k,5+yr,238,131,0.5504201680672269
+Ariya,Brake Pad,30-60k,<1yr,405,200,0.49382716049382713
+Ariya,Brake Pad,30-60k,1-3yr,558,519,0.9301075268817204
+Ariya,Brake Pad,30-60k,3-5yr,94,56,0.5957446808510638
+Ariya,Brake Pad,30-60k,5+yr,943,620,0.6574761399787911
+Ariya,Brake Pad,60k+,<1yr,40,27,0.675
+Ariya,Brake Pad,60k+,1-3yr,31,18,0.5806451612903226
+Ariya,Brake Pad,60k+,3-5yr,30,22,0.7333333333333333
+Ariya,Brake Pad,60k+,5+yr,127,89,0.7007874015748031
+Ariya,Brake Rotor,0-10k,<1yr,70,36,0.5142857142857142
+Ariya,Brake Rotor,0-10k,1-3yr,30,10,0.3333333333333333
+Ariya,Brake Rotor,0-10k,3-5yr,10,5,0.5
+Ariya,Brake Rotor,0-10k,5+yr,45,19,0.4222222222222222
+Ariya,Brake Rotor,10-30k,<1yr,30,17,0.5666666666666667
+Ariya,Brake Rotor,10-30k,1-3yr,400,88,0.22
+Ariya,Brake Rotor,10-30k,3-5yr,11,6,0.5454545454545454
+Ariya,Brake Rotor,10-30k,5+yr,40,24,0.6
+Ariya,Brake Rotor,30-60k,<1yr,30,15,0.5
+Ariya,Brake Rotor,30-60k,1-3yr,30,19,0.6333333333333333
+Ariya,Brake Rotor,30-60k,3-5yr,30,20,0.6666666666666666
+Ariya,Brake Rotor,30-60k,5+yr,30,21,0.7
+Ariya,Brake Rotor,60k+,<1yr,50,25,0.5
+Ariya,Brake Rotor,60k+,1-3yr,30,19,0.6333333333333333
+Ariya,Brake Rotor,60k+,3-5yr,50,29,0.58
+Ariya,Brake Rotor,60k+,5+yr,63,49,0.7777777777777778
+Ariya,Brake Caliper,0-10k,<1yr,30,18,0.6
+Ariya,Brake Caliper,0-10k,1-3yr,30,15,0.5
+Ariya,Brake Caliper,0-10k,3-5yr,21,15,0.7142857142857143
+Ariya,Brake Caliper,0-10k,5+yr,10,5,0.5
+Ariya,Brake Caliper,10-30k,<1yr,30,15,0.5
+Ariya,Brake Caliper,10-30k,1-3yr,10,5,0.5
+Ariya,Brake Caliper,10-30k,3-5yr,107,59,0.5514018691588785
+Ariya,Brake Caliper,10-30k,5+yr,30,20,0.6666666666666666
+Ariya,Brake Caliper,30-60k,<1yr,30,20,0.6666666666666666
+Ariya,Brake Caliper,30-60k,1-3yr,33,18,0.5454545454545454
+Ariya,Brake Caliper,30-60k,3-5yr,30,16,0.5333333333333333
+Ariya,Brake Caliper,30-60k,5+yr,30,20,0.6666666666666666
+Ariya,Brake Caliper,60k+,<1yr,78,55,0.7051282051282052
+Ariya,Brake Caliper,60k+,1-3yr,44,27,0.6136363636363636
+Ariya,Brake Caliper,60k+,3-5yr,30,16,0.5333333333333333
+Ariya,Brake Caliper,60k+,5+yr,220,155,0.7045454545454546
+Ariya,Front Tire,0-10k,<1yr,38,22,0.5789473684210527
+Ariya,Front Tire,0-10k,1-3yr,30,16,0.5333333333333333
+Ariya,Front Tire,0-10k,3-5yr,30,20,0.6666666666666666
+Ariya,Front Tire,0-10k,5+yr,30,22,0.7333333333333333
+Ariya,Front Tire,10-30k,<1yr,231,131,0.5670995670995671
+Ariya,Front Tire,10-30k,1-3yr,1126,590,0.5239786856127886
+Ariya,Front Tire,10-30k,3-5yr,499,271,0.5430861723446894
+Ariya,Front Tire,10-30k,5+yr,752,413,0.5492021276595744
+Ariya,Front Tire,30-60k,<1yr,843,453,0.5373665480427047
+Ariya,Front Tire,30-60k,1-3yr,110,81,0.7363636363636363
+Ariya,Front Tire,30-60k,3-5yr,10,7,0.7
+Ariya,Front Tire,30-60k,5+yr,434,257,0.5921658986175116
+Ariya,Front Tire,60k+,<1yr,30,17,0.5666666666666667
+Ariya,Front Tire,60k+,1-3yr,76,47,0.618421052631579
+Ariya,Front Tire,60k+,3-5yr,30,18,0.6
+Ariya,Front Tire,60k+,5+yr,30,16,0.5333333333333333
+Ariya,Rear Tire,0-10k,<1yr,47,27,0.574468085106383
+Ariya,Rear Tire,0-10k,1-3yr,32,18,0.5625
+Ariya,Rear Tire,0-10k,3-5yr,53,27,0.5094339622641509
+Ariya,Rear Tire,0-10k,5+yr,30,12,0.4
+Ariya,Rear Tire,10-30k,<1yr,367,181,0.49318801089918257
+Ariya,Rear Tire,10-30k,1-3yr,30,17,0.5666666666666667
+Ariya,Rear Tire,10-30k,3-5yr,21,11,0.5238095238095238
+Ariya,Rear Tire,10-30k,5+yr,29,18,0.6206896551724138
+Ariya,Rear Tire,30-60k,<1yr,286,132,0.46153846153846156
+Ariya,Rear Tire,30-60k,1-3yr,30,14,0.4666666666666667
+Ariya,Rear Tire,30-60k,3-5yr,30,17,0.5666666666666667
+Ariya,Rear Tire,30-60k,5+yr,114,74,0.6491228070175439
+Ariya,Rear Tire,60k+,<1yr,51,27,0.5294117647058824
+Ariya,Rear Tire,60k+,1-3yr,177,85,0.480225988700565
+Ariya,Rear Tire,60k+,3-5yr,30,17,0.5666666666666667
+Ariya,Rear Tire,60k+,5+yr,30,19,0.6333333333333333
+Ariya,Spare Tire,0-10k,<1yr,33,17,0.5151515151515151
+Ariya,Spare Tire,0-10k,1-3yr,30,9,0.3
+Ariya,Spare Tire,0-10k,3-5yr,301,151,0.5016611295681063
+Ariya,Spare Tire,0-10k,5+yr,30,16,0.5333333333333333
+Ariya,Spare Tire,10-30k,<1yr,179,87,0.4860335195530726
+Ariya,Spare Tire,10-30k,1-3yr,36,16,0.4444444444444444
+Ariya,Spare Tire,10-30k,3-5yr,40,18,0.45
+Ariya,Spare Tire,10-30k,5+yr,42,19,0.4523809523809524
+Ariya,Spare Tire,30-60k,<1yr,30,16,0.5333333333333333
+Ariya,Spare Tire,30-60k,1-3yr,30,17,0.5666666666666667
+Ariya,Spare Tire,30-60k,3-5yr,30,20,0.6666666666666666
+Ariya,Spare Tire,30-60k,5+yr,30,20,0.6666666666666666
+Ariya,Spare Tire,60k+,<1yr,182,118,0.6483516483516484
+Ariya,Spare Tire,60k+,1-3yr,74,33,0.44594594594594594
+Ariya,Spare Tire,60k+,3-5yr,196,142,0.7244897959183674
+Ariya,Spare Tire,60k+,5+yr,32,23,0.71875
+Ariya,Gearbox,0-10k,<1yr,36,13,0.3611111111111111
+Ariya,Gearbox,0-10k,1-3yr,400,185,0.4625
+Ariya,Gearbox,0-10k,3-5yr,30,17,0.5666666666666667
+Ariya,Gearbox,0-10k,5+yr,119,69,0.5798319327731093
+Ariya,Gearbox,10-30k,<1yr,400,257,0.6425
+Ariya,Gearbox,10-30k,1-3yr,30,20,0.6666666666666666
+Ariya,Gearbox,10-30k,3-5yr,75,52,0.6933333333333334
+Ariya,Gearbox,10-30k,5+yr,37,37,1.0
+Ariya,Gearbox,30-60k,<1yr,197,115,0.583756345177665
+Ariya,Gearbox,30-60k,1-3yr,82,42,0.5121951219512195
+Ariya,Gearbox,30-60k,3-5yr,41,21,0.5121951219512195
+Ariya,Gearbox,30-60k,5+yr,30,17,0.5666666666666667
+Ariya,Gearbox,60k+,<1yr,30,25,0.8333333333333334
+Ariya,Gearbox,60k+,1-3yr,30,18,0.6
+Ariya,Gearbox,60k+,3-5yr,9,5,0.5555555555555556
+Ariya,Gearbox,60k+,5+yr,33,22,0.6666666666666666
+Ariya,Clutch,0-10k,<1yr,30,16,0.5333333333333333
+Ariya,Clutch,0-10k,1-3yr,59,31,0.5254237288135594
+Ariya,Clutch,0-10k,3-5yr,30,17,0.5666666666666667
+Ariya,Clutch,0-10k,5+yr,12,3,0.25
+Ariya,Clutch,10-30k,<1yr,63,36,0.5714285714285714
+Ariya,Clutch,10-30k,1-3yr,42,29,0.6904761904761905
+Ariya,Clutch,10-30k,3-5yr,33,18,0.5454545454545454
+Ariya,Clutch,10-30k,5+yr,58,35,0.603448275862069
+Ariya,Clutch,30-60k,<1yr,79,43,0.5443037974683544
+Ariya,Clutch,30-60k,1-3yr,400,246,0.615
+Ariya,Clutch,30-60k,3-5yr,30,20,0.6666666666666666
+Ariya,Clutch,30-60k,5+yr,64,40,0.625
+Ariya,Clutch,60k+,<1yr,64,47,0.734375
+Ariya,Clutch,60k+,1-3yr,30,18,0.6
+Ariya,Clutch,60k+,3-5yr,30,24,0.8
+Ariya,Clutch,60k+,5+yr,30,23,0.7666666666666667
+Ariya,Torque Converter,0-10k,<1yr,30,20,0.6666666666666666
+Ariya,Torque Converter,0-10k,1-3yr,85,42,0.49411764705882355
+Ariya,Torque Converter,0-10k,3-5yr,30,16,0.5333333333333333
+Ariya,Torque Converter,0-10k,5+yr,76,42,0.5526315789473685
+Ariya,Torque Converter,10-30k,<1yr,30,14,0.4666666666666667
+Ariya,Torque Converter,10-30k,1-3yr,30,21,0.7
+Ariya,Torque Converter,10-30k,3-5yr,33,23,0.696969696969697
+Ariya,Torque Converter,10-30k,5+yr,369,235,0.6368563685636857
+Ariya,Torque Converter,30-60k,<1yr,47,32,0.6808510638297872
+Ariya,Torque Converter,30-60k,1-3yr,30,18,0.6
+Ariya,Torque Converter,30-60k,3-5yr,30,22,0.7333333333333333
+Ariya,Torque Converter,30-60k,5+yr,70,50,0.7142857142857143
+Ariya,Torque Converter,60k+,<1yr,30,22,0.7333333333333333
+Ariya,Torque Converter,60k+,1-3yr,13,11,0.8461538461538461
+Ariya,Torque Converter,60k+,3-5yr,92,61,0.6630434782608695
+Ariya,Torque Converter,60k+,5+yr,30,21,0.7
+Sentra,HV Battery,0-10k,<1yr,104,60,0.5769230769230769
+Sentra,HV Battery,0-10k,1-3yr,37,24,0.6486486486486487
+Sentra,HV Battery,0-10k,3-5yr,155,92,0.5935483870967742
+Sentra,HV Battery,0-10k,5+yr,80,49,0.6125
+Sentra,HV Battery,10-30k,<1yr,609,201,0.33004926108374383
+Sentra,HV Battery,10-30k,1-3yr,928,467,0.5032327586206896
+Sentra,HV Battery,10-30k,3-5yr,1048,651,0.6211832061068703
+Sentra,HV Battery,10-30k,5+yr,733,468,0.6384720327421555
+Sentra,HV Battery,30-60k,<1yr,541,392,0.7245841035120147
+Sentra,HV Battery,30-60k,1-3yr,173,120,0.6936416184971098
+Sentra,HV Battery,30-60k,3-5yr,270,152,0.562962962962963
+Sentra,HV Battery,30-60k,5+yr,368,270,0.7336956521739131
+Sentra,HV Battery,60k+,<1yr,65,53,0.8153846153846154
+Sentra,HV Battery,60k+,1-3yr,138,86,0.6231884057971014
+Sentra,HV Battery,60k+,3-5yr,30,23,0.7666666666666667
+Sentra,HV Battery,60k+,5+yr,30,24,0.8
+Sentra,12V Battery,0-10k,<1yr,95,36,0.37894736842105264
+Sentra,12V Battery,0-10k,1-3yr,30,15,0.5
+Sentra,12V Battery,0-10k,3-5yr,30,22,0.7333333333333333
+Sentra,12V Battery,0-10k,5+yr,37,26,0.7027027027027027
+Sentra,12V Battery,10-30k,<1yr,30,16,0.5333333333333333
+Sentra,12V Battery,10-30k,1-3yr,30,21,0.7
+Sentra,12V Battery,10-30k,3-5yr,53,24,0.4528301886792453
+Sentra,12V Battery,10-30k,5+yr,210,119,0.5666666666666667
+Sentra,12V Battery,30-60k,<1yr,53,28,0.5283018867924528
+Sentra,12V Battery,30-60k,1-3yr,112,73,0.6517857142857143
+Sentra,12V Battery,30-60k,3-5yr,99,70,0.7070707070707071
+Sentra,12V Battery,30-60k,5+yr,81,59,0.7283950617283951
+Sentra,12V Battery,60k+,<1yr,30,18,0.6
+Sentra,12V Battery,60k+,1-3yr,30,21,0.7
+Sentra,12V Battery,60k+,3-5yr,47,35,0.7446808510638298
+Sentra,12V Battery,60k+,5+yr,30,26,0.8666666666666667
+Sentra,Battery Cable,0-10k,<1yr,30,20,0.6666666666666666
+Sentra,Battery Cable,0-10k,1-3yr,30,14,0.4666666666666667
+Sentra,Battery Cable,0-10k,3-5yr,30,15,0.5
+Sentra,Battery Cable,0-10k,5+yr,30,10,0.3333333333333333
+Sentra,Battery Cable,10-30k,<1yr,30,17,0.5666666666666667
+Sentra,Battery Cable,10-30k,1-3yr,30,17,0.5666666666666667
+Sentra,Battery Cable,10-30k,3-5yr,30,22,0.7333333333333333
+Sentra,Battery Cable,10-30k,5+yr,30,18,0.6
+Sentra,Battery Cable,30-60k,<1yr,43,26,0.6046511627906976
+Sentra,Battery Cable,30-60k,1-3yr,96,53,0.5520833333333334
+Sentra,Battery Cable,30-60k,3-5yr,38,21,0.5526315789473685
+Sentra,Battery Cable,30-60k,5+yr,30,18,0.6
+Sentra,Battery Cable,60k+,<1yr,30,16,0.5333333333333333
+Sentra,Battery Cable,60k+,1-3yr,36,17,0.4722222222222222
+Sentra,Battery Cable,60k+,3-5yr,30,23,0.7666666666666667
+Sentra,Battery Cable,60k+,5+yr,207,151,0.7294685990338164
+Sentra,Brake Pad,0-10k,<1yr,30,12,0.4
+Sentra,Brake Pad,0-10k,1-3yr,30,16,0.5333333333333333
+Sentra,Brake Pad,0-10k,3-5yr,197,110,0.5583756345177665
+Sentra,Brake Pad,0-10k,5+yr,76,38,0.5
+Sentra,Brake Pad,10-30k,<1yr,501,265,0.5289421157684631
+Sentra,Brake Pad,10-30k,1-3yr,586,335,0.5716723549488054
+Sentra,Brake Pad,10-30k,3-5yr,253,153,0.6047430830039525
+Sentra,Brake Pad,10-30k,5+yr,476,304,0.6386554621848739
+Sentra,Brake Pad,30-60k,<1yr,374,207,0.553475935828877
+Sentra,Brake Pad,30-60k,1-3yr,232,143,0.6163793103448276
+Sentra,Brake Pad,30-60k,3-5yr,255,159,0.6235294117647059
+Sentra,Brake Pad,30-60k,5+yr,225,141,0.6266666666666667
+Sentra,Brake Pad,60k+,<1yr,30,18,0.6
+Sentra,Brake Pad,60k+,1-3yr,30,17,0.5666666666666667
+Sentra,Brake Pad,60k+,3-5yr,38,21,0.5526315789473685
+Sentra,Brake Pad,60k+,5+yr,30,23,0.7666666666666667
+Sentra,Brake Rotor,0-10k,<1yr,30,16,0.5333333333333333
+Sentra,Brake Rotor,0-10k,1-3yr,30,18,0.6
+Sentra,Brake Rotor,0-10k,3-5yr,30,14,0.4666666666666667
+Sentra,Brake Rotor,0-10k,5+yr,86,82,0.9534883720930233
+Sentra,Brake Rotor,10-30k,<1yr,93,42,0.45161290322580644
+Sentra,Brake Rotor,10-30k,1-3yr,30,13,0.43333333333333335
+Sentra,Brake Rotor,10-30k,3-5yr,30,24,0.8
+Sentra,Brake Rotor,10-30k,5+yr,30,19,0.6333333333333333
+Sentra,Brake Rotor,30-60k,<1yr,30,13,0.43333333333333335
+Sentra,Brake Rotor,30-60k,1-3yr,30,18,0.6
+Sentra,Brake Rotor,30-60k,3-5yr,57,37,0.6491228070175439
+Sentra,Brake Rotor,30-60k,5+yr,30,24,0.8
+Sentra,Brake Rotor,60k+,<1yr,88,61,0.6931818181818182
+Sentra,Brake Rotor,60k+,1-3yr,30,19,0.6333333333333333
+Sentra,Brake Rotor,60k+,3-5yr,229,138,0.6026200873362445
+Sentra,Brake Rotor,60k+,5+yr,30,22,0.7333333333333333
+Sentra,Brake Caliper,0-10k,<1yr,35,26,0.7428571428571429
+Sentra,Brake Caliper,0-10k,1-3yr,361,170,0.4709141274238227
+Sentra,Brake Caliper,0-10k,3-5yr,189,113,0.5978835978835979
+Sentra,Brake Caliper,0-10k,5+yr,65,43,0.6615384615384615
+Sentra,Brake Caliper,10-30k,<1yr,38,19,0.5
+Sentra,Brake Caliper,10-30k,1-3yr,30,20,0.6666666666666666
+Sentra,Brake Caliper,10-30k,3-5yr,30,20,0.6666666666666666
+Sentra,Brake Caliper,10-30k,5+yr,155,103,0.6645161290322581
+Sentra,Brake Caliper,30-60k,<1yr,32,21,0.65625
+Sentra,Brake Caliper,30-60k,1-3yr,30,19,0.6333333333333333
+Sentra,Brake Caliper,30-60k,3-5yr,30,23,0.7666666666666667
+Sentra,Brake Caliper,30-60k,5+yr,30,24,0.8
+Sentra,Brake Caliper,60k+,<1yr,105,71,0.6761904761904762
+Sentra,Brake Caliper,60k+,1-3yr,44,44,1.0
+Sentra,Brake Caliper,60k+,3-5yr,32,20,0.625
+Sentra,Brake Caliper,60k+,5+yr,102,75,0.7352941176470589
+Sentra,Front Tire,0-10k,<1yr,32,12,0.375
+Sentra,Front Tire,0-10k,1-3yr,38,14,0.3684210526315789
+Sentra,Front Tire,0-10k,3-5yr,37,25,0.6756756756756757
+Sentra,Front Tire,0-10k,5+yr,30,18,0.6
+Sentra,Front Tire,10-30k,<1yr,946,441,0.46617336152219874
+Sentra,Front Tire,10-30k,1-3yr,322,173,0.5372670807453416
+Sentra,Front Tire,10-30k,3-5yr,113,60,0.5309734513274337
+Sentra,Front Tire,10-30k,5+yr,332,234,0.7048192771084337
+Sentra,Front Tire,30-60k,<1yr,272,172,0.6323529411764706
+Sentra,Front Tire,30-60k,1-3yr,275,193,0.7018181818181818
+Sentra,Front Tire,30-60k,3-5yr,537,294,0.547486033519553
+Sentra,Front Tire,30-60k,5+yr,623,399,0.6404494382022472
+Sentra,Front Tire,60k+,<1yr,30,16,0.5333333333333333
+Sentra,Front Tire,60k+,1-3yr,30,19,0.6333333333333333
+Sentra,Front Tire,60k+,3-5yr,243,163,0.6707818930041153
+Sentra,Front Tire,60k+,5+yr,56,43,0.7678571428571429
+Sentra,Rear Tire,0-10k,<1yr,110,57,0.5181818181818182
+Sentra,Rear Tire,0-10k,1-3yr,30,14,0.4666666666666667
+Sentra,Rear Tire,0-10k,3-5yr,30,20,0.6666666666666666
+Sentra,Rear Tire,0-10k,5+yr,39,19,0.48717948717948717
+Sentra,Rear Tire,10-30k,<1yr,30,13,0.43333333333333335
+Sentra,Rear Tire,10-30k,1-3yr,30,12,0.4
+Sentra,Rear Tire,10-30k,3-5yr,400,220,0.55
+Sentra,Rear Tire,10-30k,5+yr,75,41,0.5466666666666666
+Sentra,Rear Tire,30-60k,<1yr,58,31,0.5344827586206896
+Sentra,Rear Tire,30-60k,1-3yr,30,20,0.6666666666666666
+Sentra,Rear Tire,30-60k,3-5yr,30,20,0.6666666666666666
+Sentra,Rear Tire,30-60k,5+yr,77,57,0.7402597402597403
+Sentra,Rear Tire,60k+,<1yr,30,14,0.4666666666666667
+Sentra,Rear Tire,60k+,1-3yr,30,19,0.6333333333333333
+Sentra,Rear Tire,60k+,3-5yr,30,17,0.5666666666666667
+Sentra,Rear Tire,60k+,5+yr,370,251,0.6783783783783783
+Sentra,Spare Tire,0-10k,<1yr,86,32,0.37209302325581395
+Sentra,Spare Tire,0-10k,1-3yr,31,17,0.5483870967741935
+Sentra,Spare Tire,0-10k,3-5yr,40,18,0.45
+Sentra,Spare Tire,0-10k,5+yr,32,17,0.53125
+Sentra,Spare Tire,10-30k,<1yr,30,21,0.7
+Sentra,Spare Tire,10-30k,1-3yr,30,14,0.4666666666666667
+Sentra,Spare Tire,10-30k,3-5yr,38,23,0.6052631578947368
+Sentra,Spare Tire,10-30k,5+yr,34,22,0.6470588235294118
+Sentra,Spare Tire,30-60k,<1yr,30,17,0.5666666666666667
+Sentra,Spare Tire,30-60k,1-3yr,30,8,0.26666666666666666
+Sentra,Spare Tire,30-60k,3-5yr,30,20,0.6666666666666666
+Sentra,Spare Tire,30-60k,5+yr,30,18,0.6
+Sentra,Spare Tire,60k+,<1yr,107,68,0.6355140186915887
+Sentra,Spare Tire,60k+,1-3yr,30,21,0.7
+Sentra,Spare Tire,60k+,3-5yr,55,42,0.7636363636363637
+Sentra,Spare Tire,60k+,5+yr,57,32,0.5614035087719298
+Sentra,Gearbox,0-10k,<1yr,31,19,0.6129032258064516
+Sentra,Gearbox,0-10k,1-3yr,245,161,0.6571428571428571
+Sentra,Gearbox,0-10k,3-5yr,30,20,0.6666666666666666
+Sentra,Gearbox,0-10k,5+yr,39,23,0.5897435897435898
+Sentra,Gearbox,10-30k,<1yr,56,38,0.6785714285714286
+Sentra,Gearbox,10-30k,1-3yr,30,23,0.7666666666666667
+Sentra,Gearbox,10-30k,3-5yr,18,14,0.7777777777777778
+Sentra,Gearbox,10-30k,5+yr,30,15,0.5
+Sentra,Gearbox,30-60k,<1yr,234,136,0.5811965811965812
+Sentra,Gearbox,30-60k,1-3yr,327,319,0.9755351681957186
+Sentra,Gearbox,30-60k,3-5yr,30,22,0.7333333333333333
+Sentra,Gearbox,30-60k,5+yr,30,17,0.5666666666666667
+Sentra,Gearbox,60k+,<1yr,30,19,0.6333333333333333
+Sentra,Gearbox,60k+,1-3yr,30,21,0.7
+Sentra,Gearbox,60k+,3-5yr,30,21,0.7
+Sentra,Gearbox,60k+,5+yr,269,185,0.6877323420074349
+Sentra,Clutch,0-10k,<1yr,58,8,0.13793103448275862
+Sentra,Clutch,0-10k,1-3yr,11,6,0.5454545454545454
+Sentra,Clutch,0-10k,3-5yr,88,47,0.5340909090909091
+Sentra,Clutch,0-10k,5+yr,69,46,0.6666666666666666
+Sentra,Clutch,10-30k,<1yr,30,12,0.4
+Sentra,Clutch,10-30k,1-3yr,32,17,0.53125
+Sentra,Clutch,10-30k,3-5yr,96,66,0.6875
+Sentra,Clutch,10-30k,5+yr,30,23,0.7666666666666667
+Sentra,Clutch,30-60k,<1yr,280,165,0.5892857142857143
+Sentra,Clutch,30-60k,1-3yr,30,22,0.7333333333333333
+Sentra,Clutch,30-60k,3-5yr,64,41,0.640625
+Sentra,Clutch,30-60k,5+yr,30,22,0.7333333333333333
+Sentra,Clutch,60k+,<1yr,30,23,0.7666666666666667
+Sentra,Clutch,60k+,1-3yr,36,21,0.5833333333333334
+Sentra,Clutch,60k+,3-5yr,30,20,0.6666666666666666
+Sentra,Clutch,60k+,5+yr,30,19,0.6333333333333333
+Sentra,Torque Converter,0-10k,<1yr,30,15,0.5
+Sentra,Torque Converter,0-10k,1-3yr,30,13,0.43333333333333335
+Sentra,Torque Converter,0-10k,3-5yr,98,71,0.7244897959183674
+Sentra,Torque Converter,0-10k,5+yr,132,78,0.5909090909090909
+Sentra,Torque Converter,10-30k,<1yr,47,27,0.574468085106383
+Sentra,Torque Converter,10-30k,1-3yr,30,17,0.5666666666666667
+Sentra,Torque Converter,10-30k,3-5yr,30,29,0.9666666666666667
+Sentra,Torque Converter,10-30k,5+yr,104,70,0.6730769230769231
+Sentra,Torque Converter,30-60k,<1yr,50,43,0.86
+Sentra,Torque Converter,30-60k,1-3yr,94,55,0.5851063829787234
+Sentra,Torque Converter,30-60k,3-5yr,101,68,0.6732673267326733
+Sentra,Torque Converter,30-60k,5+yr,30,19,0.6333333333333333
+Sentra,Torque Converter,60k+,<1yr,153,93,0.6078431372549019
+Sentra,Torque Converter,60k+,1-3yr,30,20,0.6666666666666666
+Sentra,Torque Converter,60k+,3-5yr,30,19,0.6333333333333333
+Sentra,Torque Converter,60k+,5+yr,30,27,0.9
