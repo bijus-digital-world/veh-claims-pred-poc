@@ -543,7 +543,7 @@ st.markdown(
 
       <div style="display:flex;align-items:center;gap:18px; font-size:12px; color:#374151;">
         <a href="?page=dashboard" style="text-decoration:none; color:inherit;">Dashboard</a>
-        <a href="?page=inference" style="text-decoration:none; color:inherit;">Inference Log</a>
+        <a href="?page=inference" style="text-decoration:none; color:inherit;">Real-Time Vehicle Feed</a>
         <a href="?page=architecture" style="text-decoration:none; color:inherit;">Architecture</a>
         <img src="data:image/svg+xml;base64,{logo_b64}" style="height:26px"/>
       </div>
@@ -1319,7 +1319,7 @@ def render_col2():
 
     if os.path.isfile(LOG_FILE_LOCAL):
         with open(LOG_FILE_LOCAL, "rb") as f:
-            st.download_button(label="⬇️ Download Inference Log", data=f, file_name="inference_log.csv", mime="text/csv")
+            st.download_button(label="⬇️ Download Real-Time Vehicle Feed", data=f, file_name="inference_log.csv", mime="text/csv")
 
     st.markdown("</div>", unsafe_allow_html=True)
 
