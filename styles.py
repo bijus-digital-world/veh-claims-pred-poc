@@ -19,6 +19,14 @@ def apply_style():
         .navbar::before { content:""; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,#c3002f,#000000); }
         .navbar::after { content:""; position:absolute; bottom:0; left:0; right:0; height:3px; background:linear-gradient(90deg,#000000,#c3002f); }
         .navbar .title { font-weight:600; font-size:16px; color:#111827; }
+        .title-column { display:flex; flex-direction:column; gap:2px; }
+        .subtitle {
+            font-size:12px;
+            color:#6b7280;            /* slightly muted gray */
+            font-weight:500;
+            margin-top:2px;
+            letter-spacing:0.1px;
+        }
 
         .card { background:#0b0f13; border-radius:8px; padding:8px 10px; margin-bottom:8px; border:1px solid rgba(255,255,255,0.03); box-shadow:0 2px 6px rgba(0,0,0,0.6); }
         .card-header { font-weight:600; font-size:14px; color:#e6eef8; margin-bottom:8px; background:rgba(255,255,255,0.03); padding:8px 12px; border-radius:6px; }
