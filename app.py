@@ -45,7 +45,7 @@ from helper import (
 from chat_helper import (
     build_tf_idf_index,
     generate_reply as chat_generate_reply,
-    parse_model_part_from_text
+    ensure_failures_column
 )
 
 try:
@@ -98,7 +98,7 @@ IS_POC = False
 # ------------------------
 # Page config and styles
 # ------------------------
-st.set_page_config(page_title="Nissan POC - Claim Probability (POC)", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="Nissan - Vehicle Predictive Insights (POC)", page_icon="images/maintenance_icon.svg", layout="wide", initial_sidebar_state="collapsed")
 # apply_style is in styles.py; we assume it's already imported/used as before
 from styles import apply_style
 apply_style()
@@ -291,7 +291,9 @@ def render_summary_ui(model_name, part_name, mileage_bucket, age_bucket, claim_p
 
 @st.cache_data(show_spinner=False)
 def load_history_cached(use_s3=USE_S3, s3_bucket=S3_BUCKET, s3_key=S3_KEY, local_path="data/vehicle_claims_extended.csv"):
-    return load_history_data(use_s3=use_s3, s3_bucket=s3_bucket, s3_key=s3_key, local_path=local_path)
+    df_history = load_history_data(use_s3=use_s3, s3_bucket=s3_bucket, s3_key=s3_key, local_path=local_path)
+    df_history = ensure_failures_column(df_history)
+    return df_history
 
 @st.cache_data(show_spinner=False)
 def build_rag_index_cached(df):
@@ -529,7 +531,10 @@ st.markdown(
     <div class="navbar">
       <div style="display:flex;align-items:center;gap:10px;">
         <img src="data:image/svg+xml;base64,{icon_b64}" style="height:22px"/>
-        <div class="title">Vehicle Predictive Maintenance</div>
+        <div class="title-column" style="display:flex;flex-direction:column;line-height:1;">
+          <div class="title">Vehicle Predictive Insights</div>
+          <div class="subtitle">Turning diagnostics into foresight</div>
+        </div>
       </div>
 
       <div style="display:flex;align-items:center;gap:18px; font-size:12px; color:#374151;">
@@ -593,7 +598,7 @@ def render_col1():
     if part != "All":
         mask &= df_history["primary_failed_part"] == part
     filtered = df_history.loc[mask].copy()
-    filtered["failure_count"] = (
+    filtered["failures_count"] = (
                                     filtered[["claims_count", "repairs_count", "recalls_count"]]
                                     .fillna(0)
                                     .sum(axis=1)
@@ -609,7 +614,7 @@ def render_col1():
     total_incidents = int(filtered.shape[0])
 
     # Total failure events (sum of claims + repairs + recalls)
-    total_failures = int(filtered["failure_count"].sum())
+    total_failures = int(filtered["failures_count"].sum())
 
     #  claims
     total_claims = int(filtered["claims_count"].sum())
@@ -718,10 +723,10 @@ def render_col1():
         )
     st.markdown('<div style="height:3px; margin:12px 0; background: linear-gradient(90deg, #c3002f, #000000); border-radius:2px;"></div>', unsafe_allow_html=True)
 
-    mileage_grp = filtered.groupby("mileage_bucket").agg(incidents=("failure_count", "size"), failures=("failure_count", "sum")).reindex(MILEAGE_BUCKETS, fill_value=0).reset_index()
+    mileage_grp = filtered.groupby("mileage_bucket").agg(incidents=("failures_count", "size"), failures=("failures_count", "sum")).reindex(MILEAGE_BUCKETS, fill_value=0).reset_index()
     mileage_grp["rate_per_100"] = mileage_grp.apply(lambda r: (r["failures"] / r["incidents"] * 100.0) if r["incidents"] > 0 else 0.0, axis=1)
 
-    age_grp = filtered.groupby("age_bucket").agg(incidents=("failure_count", "size"), failures=("failure_count", "sum")).reindex(AGE_BUCKETS, fill_value=0).reset_index()
+    age_grp = filtered.groupby("age_bucket").agg(incidents=("failures_count", "size"), failures=("failures_count", "sum")).reindex(AGE_BUCKETS, fill_value=0).reset_index()
     age_grp["rate_per_100"] = age_grp.apply(lambda r: (r["failures"] / r["incidents"] * 100.0) if r["incidents"] > 0 else 0.0, axis=1)
 
     r1c1, r1c2 = st.columns(2, gap="small")
@@ -756,7 +761,7 @@ def render_col1():
         st.plotly_chart(fig_age, use_container_width=True)
 
     st.markdown('<div class="chart-header">Age vs. Mileage:</div>', unsafe_allow_html=True)
-    pivot = filtered.groupby(["age_bucket", "mileage_bucket"]).agg(incidents=("failure_count", "size"), failures=("failure_count", "sum")).reset_index()
+    pivot = filtered.groupby(["age_bucket", "mileage_bucket"]).agg(incidents=("failures_count", "size"), failures=("failures_count", "sum")).reset_index()
     all_cells = [{"age_bucket": a, "mileage_bucket": m} for a in AGE_BUCKETS for m in MILEAGE_BUCKETS]
     pivot = pd.DataFrame(all_cells).merge(pivot, on=["age_bucket", "mileage_bucket"], how="left").fillna(0)
     pivot["rate_per_100"] = pivot.apply(lambda r: (r["failures"] / r["incidents"] * 100.0) if r["incidents"] > 0 else 0.0, axis=1)
@@ -782,7 +787,7 @@ def render_col1():
     st.plotly_chart(fig_heat, use_container_width=True)
 
     st.markdown('<div class="chart-header">Failure Trend:</div>', unsafe_allow_html=True)
-    daily = filtered.groupby("date").agg(incidents=("failure_count", "size"), failures=("failure_count", "sum")).reset_index().sort_values("date")
+    daily = filtered.groupby("date").agg(incidents=("failures_count", "size"), failures=("failures_count", "sum")).reset_index().sort_values("date")
     if daily.empty:
         st.markdown("<div style='padding:6px;color:#94a3b8;'>No trend data available for this selection.</div>", unsafe_allow_html=True)
     else:
@@ -807,7 +812,7 @@ def render_col1():
     else:
         sev_df = df_history[df_history["primary_failed_part"] == part].copy()
 
-    sev_df["failure_count"] = (
+    sev_df["failures_count"] = (
                                     sev_df[["claims_count", "repairs_count", "recalls_count"]]
                                     .fillna(0)
                                     .sum(axis=1)
@@ -815,7 +820,7 @@ def render_col1():
                                 )
                                  
 
-    sev_grp = sev_df.groupby("model").agg(incidents=("failure_count", "size"), failures=("failure_count", "sum")).reset_index()
+    sev_grp = sev_df.groupby("model").agg(incidents=("failures_count", "size"), failures=("failures_count", "sum")).reset_index()
     sev_grp["rate_per_100"] = sev_grp.apply(lambda r: (r["failures"] / r["incidents"] * 100.0) if r["incidents"] > 0 else 0.0, axis=1)
     sev_grp = sev_grp.set_index("model").reindex(MODELS).reset_index()
 
