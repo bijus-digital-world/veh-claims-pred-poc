@@ -210,10 +210,10 @@ def render_summary_ui(model_name, part_name, mileage_bucket, age_bucket, claim_p
         print('claim_pct`', claim_pct)
         print('predictive_threshold_pct', st.session_state.get('predictive_threshold_pct'))   
         if claim_pct >= int(st.session_state.get('predictive_threshold_pct', 80)):
+            print("Hello")
             summary_html = get_bedrock_summary(model_name, part_name, mileage_bucket, age_bucket, claim_pct, 
                                             llm_model_id=llm_model_id, region=region)
             st.write(summary_html)
-            print("Hello")
             print(summary_html)
         else:
             # Show hardcoded value
