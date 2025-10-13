@@ -719,7 +719,7 @@ def render_col1():
         st.markdown(
             f"""
             <div class="stat-centered">
-              <div class="stat-label">Claims</div>
+              <div class="stat-label">Recalls</div>
               <div class="stat-value">{total_recalls}</div>
             </div>
             """,
