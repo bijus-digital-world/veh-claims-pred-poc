@@ -48,8 +48,8 @@ def load_svg_as_base64(path: str) -> str:
 
 def load_history_data(use_s3: bool = True,
                       s3_bucket: str = "veh-poc-207567760844-us-east-1",
-                      s3_key: str = "data/vehicle_claims_extended.csv",
-                      local_path: str = "data/vehicle_claims_extended.csv") -> pd.DataFrame:
+                      s3_key: str = "data/vehicle_claims.csv",
+                      local_path: str = "data/vehicle_claims.csv") -> pd.DataFrame:
     """
     Try S3 first (if use_s3 True and s3fs supported), otherwise fallback to local file.
     """
@@ -69,14 +69,14 @@ def load_history_data(use_s3: bool = True,
         df = pd.read_csv(local_path, parse_dates=["date"])
     return df
 
-# def compute_rate_per_100(df: pd.DataFrame, group_cols):
-#     grouped = df.groupby(group_cols).agg(incidents=("claims_count", "size"),
-#                                          claims=("claims_count", "sum")).reset_index()
-#     grouped["rate_per_100"] = grouped.apply(
-#         lambda r: (r["claims"] / r["incidents"] * 100.0) if r["incidents"] > 0 else 0.0,
-#         axis=1,
-#     )
-#     return grouped
+def compute_rate_per_100(df: pd.DataFrame, group_cols):
+    grouped = df.groupby(group_cols).agg(incidents=("claims_count", "size"),
+                                         claims=("claims_count", "sum")).reset_index()
+    grouped["rate_per_100"] = grouped.apply(
+        lambda r: (r["claims"] / r["incidents"] * 100.0) if r["incidents"] > 0 else 0.0,
+        axis=1,
+    )
+    return grouped
 
 def load_model(path: str):
     try:
@@ -566,7 +566,6 @@ def fetch_nearest_dealers(current_lat: float,
     nearest = find_nearest_dealers(current_lat=current_lat, current_lon=current_lon, dealers=dealers, top_n=top_n)
     return nearest, False
 
-
 # ---- Bedrock helper ----
 def get_bedrock_summary(model, part, mileage, age, claim_pct,
                        llm_model_id=None, region="us-east-1"):
@@ -702,6 +701,7 @@ def get_bedrock_summary(model, part, mileage, age, claim_pct,
 
     except ClientError as e:
         err_info = e.response.get("Error", {}) if hasattr(e, "response") else {"Message": str(e)}
+        print(err_info)
         raise RuntimeError(f"InvokeModel failed for model_id '{model_id_to_call}': {err_info.get('Message') or str(e)}")
 
     if resp_json is None:
@@ -777,3 +777,68 @@ def get_bedrock_summary(model, part, mileage, age, claim_pct,
     return assistant_text
 
 
+# def plot_stacked_bars(df_long, x_col, y_col="count", color_col="type",
+#                       category_orders=None, height=240, showlegend=True):
+#     """
+#     df_long: long-form DataFrame with columns [x_col, color_col, y_col, share_pct (optional)]
+#     Returns a Plotly Figure styled for the dashboard.
+#     """
+#     import plotly.express as px
+
+#     # Use the STACK_COLORS dict defined near the top of helper.py
+#     fig = px.bar(
+#         df_long,
+#         x=x_col,
+#         y=y_col,
+#         color=color_col,
+#         category_orders=category_orders or {},
+#         color_discrete_map=STACK_COLORS,
+#         template="plotly_dark",
+#         labels={x_col: x_col.replace("_", " ").title(), y_col: "Count", color_col: "Failure Type"},
+#     )
+
+#     # Thin separators, soft opacity so stacks are readable on dark bg
+#     fig.update_traces(marker_line_width=0.35, marker_line_color="rgba(255,255,255,0.12)", opacity=0.88)
+
+#     # Legend centered, single-row, and compact
+#     fig.update_layout(
+#         barmode="stack",
+#         bargap=0.36,
+#         height=height,
+#         # increase top margin a bit so the raised legend has room
+#         margin=dict(l=6, r=6, t=32, b=6),
+#         plot_bgcolor="rgba(0,0,0,0)",
+#         paper_bgcolor="rgba(0,0,0,0)",
+#         showlegend=showlegend,
+#         legend=dict(
+#             orientation="h",
+#             yanchor="bottom",
+#             # raise the legend so it has horizontal room and stays one row
+#             y=1.12,
+#             xanchor="center",
+#             x=0.1,
+#             font=dict(size=11, color="#e6eef8"),
+#             bgcolor="rgba(0,0,0,0)",
+#             traceorder="normal",
+#             itemsizing="constant",  # prevents each item from reserving large padding
+#             tracegroupgap=0,        # minimize horizontal gap between groups
+#             itemwidth=30,           # tighten marker-text spacing (lower => tighter)
+#         ),
+#     )
+
+#     # Axis fonts to match the design
+#     fig.update_xaxes(tickfont=dict(size=11, color="#94a3b8"))
+#     fig.update_yaxes(tickfont=dict(size=11, color="#94a3b8"))
+
+#     # hovertemplate: show count and share% if provided
+#     hovertemplate = (
+#         "<b>%{x}</b><br>"
+#         + "%{fullData.name}: %{y}<br>"
+#         + "<extra></extra>"
+#     )
+
+#     # Apply hovertemplate to each trace and ensure share_pct (if present) is shown
+#     for trace in fig.data:
+#         trace.hovertemplate = hovertemplate
+
+#     return fig
