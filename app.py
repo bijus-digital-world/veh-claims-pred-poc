@@ -539,7 +539,6 @@ st.markdown(
       <div style="display:flex;align-items:center;gap:18px; font-size:12px; color:#374151;">
         <a href="?page=dashboard" style="text-decoration:none; color:inherit;">Dashboard</a>
         <a href="?page=inference" style="text-decoration:none; color:inherit;">Real-Time Vehicle Feed</a>
-        <a href="?page=architecture" style="text-decoration:none; color:inherit;">Architecture</a>
         <img src="data:image/svg+xml;base64,{logo_b64}" style="height:26px"/>
       </div>
     </div>
@@ -551,7 +550,8 @@ st.markdown(
 # Routing
 # ------------------------
 query_params = st.query_params
-page = query_params.get("page", ["dashboard"])[0]
+page = query_params.get("page", "dashboard")
+
 
 # ------------------------
 # Layout columns
@@ -1312,6 +1312,7 @@ def render_col2():
     # if st.button("📅 Schedule inspection / Contact dealer"):
     #     st.info("Open scheduling modal or handoff to dealer booking flow (todo).")
 
+
     if os.path.isfile(LOG_FILE_LOCAL):
         with open(LOG_FILE_LOCAL, "rb") as f:
             st.download_button(label="⬇️ Download Real-Time Vehicle Feed", data=f, file_name="inference_log.csv", mime="text/csv")
@@ -1495,25 +1496,15 @@ def render_col3():
     st.markdown("</div>", unsafe_allow_html=True)
 
 
-# Render all columns
-with col1:
-    render_col1()
-
-with col2:
-    render_col2()
-
-with col3:
-    render_col3()
-
 # ------------------------
 # Inference page (separate route)
 # ------------------------
 if page == "inference":
     st.markdown('<div style="height:12px;"></div>', unsafe_allow_html=True)
-    st.markdown('<div class="card"><div class="card-header">Inference Log</div>', unsafe_allow_html=True)
+    st.markdown('<div class="card"><div class="card-header">Real-Time Vehicle Feed</div>', unsafe_allow_html=True)
 
     if not os.path.isfile(LOG_FILE_LOCAL):
-        st.markdown("<div style='padding:12px; color:#94a3b8;'>No inference log found yet. Predictions will be logged as they run.</div>", unsafe_allow_html=True)
+        st.markdown("<div style='padding:12px; color:#94a3b8;'>No real-time vehicle information found yet. Predictions will be logged as they run.</div>", unsafe_allow_html=True)
     else:
         df_log = pd.read_csv(LOG_FILE_LOCAL, parse_dates=["timestamp"])
         c1, c2, c3 = st.columns([1.5, 1.2, 1], gap="small")
@@ -1553,9 +1544,17 @@ if page == "inference":
 
     st.markdown("</div>", unsafe_allow_html=True)
     st.markdown('<div style="height:8px;"></div>', unsafe_allow_html=True)
-    st.markdown('<div style="text-align:left;"><a href="/?page=dashboard" style="text-decoration:none; color:#94a3b8;">⟵ Back to Dashboard</a></div>', unsafe_allow_html=True)
     st.stop()
+else:
+    # Render all columns
+    with col1:
+        render_col1()
 
+    with col2:
+        render_col2()
+
+    with col3:
+        render_col3()
 
 # Footer
 st.markdown(
