@@ -74,7 +74,7 @@ def load_history_data(use_s3: Optional[bool] = None,
             df = pd.read_csv(s3_path, parse_dates=["date"], storage_options={"anon": False})
             
             duration_ms = (time.time() - start_time) * 1000
-            logger.info(f"✅ Loaded {len(df)} records from S3 in {duration_ms:.2f}ms")
+            logger.info(f"Loaded {len(df)} records from S3 in {duration_ms:.2f}ms")
             return df
         except Exception as e:
             logger.warning(f"S3 load failed, falling back to local file: {e}")
@@ -92,7 +92,7 @@ def load_history_data(use_s3: Optional[bool] = None,
         df = pd.read_csv(local_path, parse_dates=["date"])
         
         duration_ms = (time.time() - start_time) * 1000
-        logger.info(f"✅ Loaded {len(df)} records from local file in {duration_ms:.2f}ms")
+        logger.info(f"Loaded {len(df)} records from local file in {duration_ms:.2f}ms")
     
     return df
 
@@ -110,7 +110,7 @@ def load_model(path: str):
     try:
         logger.info(f"Loading model from {path}")
         model = joblib.load(path)
-        logger.info(f"✅ Model loaded successfully from {path}")
+        logger.info(f"Model loaded successfully from {path}")
         return model
     except Exception as e:
         logger.warning(f"Model load failed from {path}: {e}")
@@ -359,7 +359,7 @@ def reverse_geocode(lat, lon, place_index: Optional[str] = None, region: Optiona
         results = resp.get("Results", [])
         if results and "Place" in results[0]:
             place_name = results[0]["Place"].get("Label", "Unknown Location")
-            logger.debug(f"✅ Reverse geocode result: {place_name}")
+            logger.debug(f"Reverse geocode result: {place_name}")
             return place_name
         logger.debug("No results from reverse geocode")
     except Exception as e:
@@ -422,7 +422,7 @@ def fetch_dealers_from_aws_location(current_lat: float, current_lon: float,
                 lon, lat = float(pt[0]), float(pt[1])
                 results.append({"name": label, "lat": lat, "lon": lon, "raw": place})
         
-        logger.info(f"✅ Fetched {len(results)} dealers from AWS Location (query='{text_query}')")
+        logger.info(f"Fetched {len(results)} dealers from AWS Location (query='{text_query}')")
         return results
         
     except ClientError as e:
@@ -713,7 +713,7 @@ def get_bedrock_summary(model, part, mileage, age, claim_pct,
             try:
                 resp_json = json.loads(raw)
                 duration_ms = (time.time() - start_time) * 1000
-                logger.info(f"✅ Bedrock API call successful ({model_id_to_call}) in {duration_ms:.2f}ms")
+                logger.info(f"Bedrock API call successful ({model_id_to_call}) in {duration_ms:.2f}ms")
             except Exception:
                 resp_json = {"__raw": raw.decode() if isinstance(raw, (bytes, bytearray)) else str(raw)}
 

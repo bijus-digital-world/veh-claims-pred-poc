@@ -425,7 +425,7 @@ def retrieve_with_faiss_or_tfidf(query: str,
                     results.append(row)
                 if results:
                     duration_ms = (time.time() - start_time) * 1000
-                    logger.info(f"✅ FAISS retrieval returned {len(results)} results in {duration_ms:.2f}ms")
+                    logger.info(f"FAISS retrieval returned {len(results)} results in {duration_ms:.2f}ms")
                     return results
     except Exception as e:
         logger.warning(f"FAISS retrieval failed, falling back to TF-IDF: {e}")
@@ -447,7 +447,7 @@ def retrieve_with_faiss_or_tfidf(query: str,
             results.append(r)
         
         duration_ms = (time.time() - start_time) * 1000
-        logger.info(f"✅ TF-IDF retrieval returned {len(results)} results in {duration_ms:.2f}ms")
+        logger.info(f"TF-IDF retrieval returned {len(results)} results in {duration_ms:.2f}ms")
         return results
     except Exception as e:
         logger.error(f"TF-IDF retrieval failed: {e}", exc_info=True)
@@ -688,15 +688,28 @@ def _compute_model_trends(df_history: pd.DataFrame,
 # Missing-column helper
 # -------------------------
 _COLUMN_SYNONYMS = {
-    "region": ["region", "area", "zone", "territory"],
-    "dealer": ["dealer", "dealer_name", "dealer id", "dealerid"],
-    "service_center": ["service center", "service_center", "servicecentre", "service center name"],
+    "region": ["region", "area", "zone", "territory", "city"],
+    "dealer": ["dealer", "dealer_name", "dealer id", "dealerid", "service center"],
+    "service_center": ["service center", "service_center", "servicecentre", "service center name", "dealer"],
     "claim_cost": ["claim cost", "claim_cost", "cost", "warranty_cost", "claim_amount"],
     "model": ["model", "vehicle model", "variant"],
     "primary_failed_part": ["part", "failed part", "primary_failed_part", "failure part", "pfp"],
     "repairs_count": ["repair", "repairs", "repairs_count", "repair_count"],
     "recalls_count": ["recall", "recalls", "recalls_count", 'recall_count'],
     "time_to_resolution": ["time to resolution", "resolution_time", "time_to_resolution", "days_to_resolve", "resolution_days"],
+    
+    # NEW: Enhanced columns for comprehensive chat support
+    "vin": ["vin", "vehicle identification", "vehicle id", "vehicle number", "vehicle identification number"],
+    "supplier_name": ["supplier", "supplier_name", "vendor", "manufacturer", "supplier name"],
+    "supplier_id": ["supplier id", "supplier_id", "vendor id", "manufacturer id"],
+    "supplier_quality_score": ["quality", "supplier quality", "supplier_quality_score", "quality score", "supplier rating"],
+    "defect_rate": ["defect rate", "defect_rate", "failure rate", "quality issue rate", "supplier defect rate"],
+    "failure_description": ["failure description", "failure_description", "reason", "root cause", "failure reason", "why failed"],
+    "current_lat": ["latitude", "lat", "current_lat", "vehicle latitude"],
+    "current_lon": ["longitude", "lon", "current_lon", "vehicle longitude"],
+    "city": ["city", "location", "current city", "current location"],
+    "dealer_name": ["dealer", "dealer_name", "service center", "nearest dealer", "dealer name"],
+    "dealer_distance_km": ["dealer distance", "dealer_distance_km", "distance to dealer", "how far"],
 }
 
 

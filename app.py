@@ -40,20 +40,11 @@ from chat_helper import (
 
 try:
     import faiss
-    # from sentence_transformers import SentenceTransformer
     HAS_FAISS = True
-    HAS_ST_MODEL = True
 except Exception as e:
     HAS_FAISS = False
-    HAS_ST_MODEL = False
-    st.warning("FAISS or sentence-transformers not installed — falling back to TF-IDF. To enable vector store, pip install faiss-cpu sentence-transformers numpy")
+    st.warning("FAISS not installed — falling back to TF-IDF. To enable vector store, pip install faiss-cpu")
 
-# # config: where to persist index + metadata
-# VECTOR_DIR = Path("./vector_store")
-# VECTOR_DIR.mkdir(exist_ok=True)
-# FAISS_INDEX_PATH = VECTOR_DIR / "claims_index.faiss"
-# EMB_ARRAY_PATH = VECTOR_DIR / "claim_embs.npy"
-# META_PATH = VECTOR_DIR / "claim_meta.npy"   # numpy-serialized list of dicts using np.object_
 
 # Load configuration paths and constants
 VECTOR_DIR = config.paths.vector_dir
@@ -173,7 +164,7 @@ def load_persisted_faiss():
         d = embs.shape[1]
         duration_ms = (time.time() - start_time) * 1000
         
-        logger.info(f"✅ Loaded FAISS index: {len(meta)} vectors, dim={d} in {duration_ms:.2f}ms")
+        logger.info(f"Loaded FAISS index: {len(meta)} vectors, dim={d} in {duration_ms:.2f}ms")
         
         return {
             "available": True,
@@ -197,20 +188,6 @@ def load_persisted_faiss():
 # call this once at startup
 faiss_res = load_persisted_faiss()
 
-# def load_persisted_faiss():
-#     if not IDX_PATH.exists() or not META_PATH.exists() or not EMB_PATH.exists():
-#         return {"available": False, "message": "Persisted FAISS files missing. Run build_faiss_index.py first."}
-#     try:
-#         index = faiss.read_index(str(IDX_PATH))
-#         embs = np.load(EMB_PATH)
-#         meta = list(np.load(META_PATH, allow_pickle=True))
-#         d = embs.shape[1]
-#         return {"available": True, "index": index, "embs": embs, "meta": meta, "d": d, "message": f"Loaded index: {len(meta)} vectors, dim={d}"}
-#     except Exception as e:
-#         return {"available": False, "message": f"Failed to load persisted FAISS: {e}"}
-
-# faiss_res = load_persisted_faiss()
-# # then use faiss_res['index'], faiss_res['meta'] in retrieval code (same retrieve_top_k_faiss as before)
 
 def _extract_plain_and_bullets(summary_html):
     """
@@ -257,11 +234,13 @@ def render_summary_ui(model_name, part_name, mileage_bucket, age_bucket, claim_p
             summary_html = get_bedrock_summary(model_name, part_name, mileage_bucket, age_bucket, claim_pct, 
                                             llm_model_id=llm_model_id, region=region)
         else:
-            # Show hardcoded value
+            # Show hardcoded value (for predictions below threshold)
+            risk_token = calculate_risk_level(claim_pct)
+            pct = f"{round(claim_pct)}%"
             fallback = (
-            f"The predicted claim probability is {round(claim_pct,1)}% for {part_name} in {model_name}. "
-            "No immediate action recommended; monitor for trend changes."
-        )
+                f"The predicted claim probability is {round(claim_pct,1)}% for {part_name} in {model_name}. "
+                "No immediate action recommended; monitor for trend changes."
+            )
             summary_html = f"<strong>{risk_token} risk ({pct})</strong>: {_html.escape(fallback)}"
 
         if not summary_html:
@@ -329,9 +308,9 @@ def render_summary_ui(model_name, part_name, mileage_bucket, age_bucket, claim_p
         if bullets_html:
             # with st.expander("Details / Analyst Evidence", expanded=False):
             st.markdown(bullets_html, unsafe_allow_html=True)
-        else:
-            # with st.expander("Details / Analyst Evidence", expanded=False):
-            st.markdown("<div style='color:#94a3b8;'>No additional details.</div>", unsafe_allow_html=True)
+        # else:
+        #     # with st.expander("Details / Analyst Evidence", expanded=False):
+        #     st.markdown("<div style='color:#94a3b8;'>No additional details.</div>", unsafe_allow_html=True)
 
 @st.cache_data(show_spinner=False)
 def load_history_cached(use_s3=None, s3_bucket=None, s3_key=None, local_path=None):
@@ -368,7 +347,7 @@ start_time = time.time()
 try:
     df_history = load_history_cached()
     duration_ms = (time.time() - start_time) * 1000
-    logger.info(f"✅ Loaded {len(df_history)} historical records in {duration_ms:.2f}ms")
+    logger.info(f"Loaded {len(df_history)} historical records in {duration_ms:.2f}ms")
     log_dataframe_info(logger, "df_history", df_history)
 except FileNotFoundError as e:
     logger.critical(f"Data load failed - file not found: {e}", exc_info=True)
@@ -387,7 +366,7 @@ if not REQUIRED_COLS.issubset(df_history.columns):
     st.error(f"CSV data missing required columns: {missing_cols}. Please check your data file.")
     st.stop()
 else:
-    logger.info(f"✅ Data validation passed - all required columns present")
+    logger.info(f"Data validation passed - all required columns present")
 
 # Note: FAISS index is already loaded via load_persisted_faiss() at line ~152
 # and stored in faiss_res global variable. No need to rebuild here.
@@ -441,7 +420,9 @@ page = query_params.get("page", "dashboard")
 # ------------------------
 # Layout columns
 # ------------------------
-col1, col2, col3 = st.columns([2, 1.8, 1.2], gap="medium")
+# Using 2 columns: Col1 (historical) and Col2 (predictive + map)
+# Col2 is wider to accommodate both predictive analysis and map side by side
+col1, col2 = st.columns([2, 3], gap="medium")
 # col1_container = col1.empty()
 
 # ------------------------
@@ -690,46 +671,6 @@ def render_col1():
         fig_trend.update_yaxes(tickfont=dict(size=11, color="#94a3b8"))
         st.plotly_chart(fig_trend, use_container_width=True)
 
-    st.markdown('<div class="chart-header">Failures by Model:</div>', unsafe_allow_html=True)
-    if part == "All":
-        sev_df = df_history.copy()
-    else:
-        sev_df = df_history[df_history["primary_failed_part"] == part].copy()
-
-    sev_df["failures_count"] = (
-                                    sev_df[["claims_count", "repairs_count", "recalls_count"]]
-                                    .fillna(0)
-                                    .sum(axis=1)
-                                    .astype(int)   
-                                )
-                                 
-
-    sev_grp = sev_df.groupby("model").agg(incidents=("failures_count", "size"), failures=("failures_count", "sum")).reset_index()
-    sev_grp["rate_per_100"] = sev_grp.apply(lambda r: (r["failures"] / r["incidents"] * 100.0) if r["incidents"] > 0 else 0.0, axis=1)
-    sev_grp = sev_grp.set_index("model").reindex(MODELS).reset_index()
-
-    if sev_abs:
-        y_col = "failures"
-        y_label = "Failures"
-    else:
-        y_col = "rate_per_100"
-        y_label = "Failure rate"
-
-    colors = ["#9aa3ad" if (m != st.session_state.model_sel and st.session_state.model_sel != "All") else NISSAN_RED if m == st.session_state.model_sel else "#9aa3ad" for m in sev_grp["model"].tolist()]
-    fig_sev = px.bar(sev_grp, x="model", y=y_col, labels={"model": "Model", y_col: y_label}, template="plotly_dark")
-    fig_sev.update_traces(marker_color=colors, width=0.5)
-    fig_sev.update_layout(margin=dict(l=4, r=4, t=6, b=4), height=220, showlegend=False, plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
-    fig_sev.update_xaxes(tickfont=dict(size=11, color="#94a3b8"))
-    if not sev_abs:
-        fig_sev.update_yaxes(tickformat=".1f")
-    fig_sev.update_yaxes(tickfont=dict(size=11, color="#94a3b8"))
-
-    max_y = max(sev_grp[y_col].max(), 1)
-    for i, row in sev_grp.iterrows():
-        ann_text = f"{int(row['failures'])}f / {int(row['incidents'])}i"
-        y_pos = row[y_col] + max_y * 0.03
-        fig_sev.add_annotation(x=i, y=y_pos, text=ann_text, showarrow=False, font=dict(size=10), align="center", yanchor="bottom", xanchor="center", opacity=0.9)
-    st.plotly_chart(fig_sev, use_container_width=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -741,77 +682,20 @@ from components_col2 import (
     render_predictive_controls,
     generate_prediction,
     log_inference,
-    render_vehicle_info_left,
-    render_vehicle_info_right,
-    render_divider,
-    render_prediction_kpi,
     render_prescriptive_section,
     build_map_points,
-    render_map_visualization,
-    render_download_button
+    render_map_visualization
 )
 
 @st.fragment
-def render_col2():
+def render_chat_interface():
     """
-    Render Column 2: Predictive & Prescriptive Analysis.
-    
-    This orchestrates the modular components for:
-    - Predictive analysis controls and KPIs
-    - Prescriptive summary with dealer recommendations
-    - Interactive map with dealer locations
-    - Download inference log
+    Render chat interface as a separate fragment to minimize reruns.
+    This will only refresh the chat section when chat interactions occur.
     """
-    # Load model
-    model_pipe = load_model(MODEL_PATH)
+    st.markdown('<div style="height:12px;"></div>', unsafe_allow_html=True)
     
-    # Card container for predictive analysis
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-
-    # 1. Render controls and get refresh interval
-    refresh_interval = render_predictive_controls()
-    st_autorefresh(interval=refresh_interval * 1000, key="predictive_autorefresh")
-
-    # 2. Generate prediction
-    inf_row, pred_prob = generate_prediction(df_history, model_pipe)
-    
-    # 3. Log inference
-    log_inference(inf_row, pred_prob)
-    
-    # 4. Display vehicle info and prediction KPI side by side
-    # Create flat layout: info_left, info_right, divider, kpi (no nesting!)
-    info_l_col, info_r_col, divider_col, kpi_col = st.columns([1, 0.60, 0.25, 1], gap="small")
-    
-    with info_l_col:
-        render_vehicle_info_left(inf_row)
-    
-    with info_r_col:
-        render_vehicle_info_right(inf_row)
-    
-    with divider_col:
-        render_divider()
-    
-    with kpi_col:
-        render_prediction_kpi(pred_prob)
-
-    st.markdown('<div style="height:4px;"></div>', unsafe_allow_html=True)
-
-    # 5. Render prescriptive summary section
-    nearest_dealers = render_prescriptive_section(inf_row, pred_prob, render_summary_ui)
-
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    # 6. Render map with dealers and current location
-    map_points, dealers_to_plot = build_map_points(inf_row, nearest_dealers, pred_prob)
-    render_map_visualization(map_points, dealers_to_plot)
-    
-    # 7. Render download button
-    render_download_button()
-
-
-@st.fragment
-def render_col3():
-
+    # Render chat interface
     st.markdown('<div class="card"><div class="card-header">Vehicle Insights Companion</div>', unsafe_allow_html=True)
 
     # show faiss status 
@@ -895,6 +779,7 @@ def render_col3():
             padding:8px;
             background:#0b1220;
             border-radius:6px;
+            border: 1px solid #334155;
             font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
         ">
             {messages_html}
@@ -914,17 +799,132 @@ def render_col3():
 
     # -------- form (input) --------
     with st.form("chat_form_col3", clear_on_submit=True):
-        user_q = st.text_input(
-            "Ask something about the data:",
-            key="chat_input_col3",
-            placeholder="e.g. 'claim rate for model Sentra' or 'show recent incidents'",
-            label_visibility="collapsed",
-        )
-        col_clear, col_send = st.columns([1, 1])
-        with col_clear:
-            clear = st.form_submit_button("Clear chat", use_container_width=True)
-        with col_send:
-            submitted = st.form_submit_button("Send", use_container_width=True)
+        # Use Streamlit columns to create the layout we want
+        input_col, button_send, button_clear = st.columns([3, .5, .5], gap="small")
+        
+        with input_col:
+            user_q = st.text_input(
+                "Ask something about the data:",
+                key="chat_input_col3",
+                placeholder="e.g. 'claim rate for model Sentra' or 'show recent incidents'",
+                label_visibility="collapsed",
+            )
+        
+        with button_send:
+            submitted = st.form_submit_button("Send", use_container_width=False)
+            
+        with button_clear:
+            clear = st.form_submit_button("Clear", use_container_width=False)
+
+        # Minimalist expert design for chat input and buttons
+        st.markdown("""
+        <style>
+        /* Chat input styling - minimalist and elegant */
+        div[data-testid="stForm"] input[data-testid="textInput"] {
+            background: #1e293b !important;
+            border: 2px solid #334155 !important;
+            border-radius: 12px !important;
+            color: #f1f5f9 !important;
+            padding: 12px 16px !important;
+            font-size: 14px !important;
+            font-weight: 400 !important;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+        }
+        
+        div[data-testid="stForm"] input[data-testid="textInput"]:focus {
+            border-color: #3b82f6 !important;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+            outline: none !important;
+        }
+        
+        div[data-testid="stForm"] input[data-testid="textInput"]:hover {
+            border-color: #475569 !important;
+        }
+        
+        div[data-testid="stForm"] input[data-testid="textInput"]::placeholder {
+            color: #64748b !important;
+            font-style: italic !important;
+        }
+        
+        /* Button styling - clean and modern */
+        div[data-testid="stForm"] button[kind="formSubmit"] {
+            width: auto !important;
+            min-width: 70px !important;
+            padding: 8px 16px !important;
+            font-size: 13px !important;
+            font-weight: 500 !important;
+            height: 36px !important;
+            border-radius: 8px !important;
+            border: none !important;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            cursor: pointer !important;
+            position: relative !important;
+            overflow: hidden !important;
+        }
+        
+        /* Send button - primary action */
+        div[data-testid="stForm"] button[kind="formSubmit"]:first-of-type {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+            color: white !important;
+            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2) !important;
+        }
+        
+        div[data-testid="stForm"] button[kind="formSubmit"]:first-of-type:hover {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+            transform: translateY(-1px) !important;
+            box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3) !important;
+        }
+        
+        div[data-testid="stForm"] button[kind="formSubmit"]:first-of-type:active {
+            transform: translateY(0) !important;
+            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2) !important;
+        }
+        
+        /* Clear button - secondary action */
+        div[data-testid="stForm"] button[kind="formSubmit"]:last-of-type {
+            background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%) !important;
+            color: white !important;
+            box-shadow: 0 2px 4px rgba(107, 114, 128, 0.2) !important;
+        }
+        
+        div[data-testid="stForm"] button[kind="formSubmit"]:last-of-type:hover {
+            background: linear-gradient(135deg, #4b5563 0%, #374151 100%) !important;
+            transform: translateY(-1px) !important;
+            box-shadow: 0 4px 8px rgba(107, 114, 128, 0.3) !important;
+        }
+        
+        div[data-testid="stForm"] button[kind="formSubmit"]:last-of-type:active {
+            transform: translateY(0) !important;
+            box-shadow: 0 2px 4px rgba(107, 114, 128, 0.2) !important;
+        }
+        
+        /* Form container improvements */
+        div[data-testid="stForm"] {
+            background: rgba(15, 23, 42, 0.3) !important;
+            border-radius: 16px !important;
+            padding: 16px !important;
+            border: 1px solid rgba(51, 65, 85, 0.3) !important;
+            backdrop-filter: blur(10px) !important;
+        }
+        
+        /* Subtle animation for form */
+        div[data-testid="stForm"] {
+            animation: slideInUp 0.3s ease-out !important;
+        }
+        
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        </style>
+        """, unsafe_allow_html=True)
 
     # -------- handlers (no rendering here) --------
     if clear:
@@ -1006,6 +1006,157 @@ def render_col3():
     st.markdown("</div>", unsafe_allow_html=True)
 
 
+@st.fragment
+def render_col2():
+    """
+    Render Column 2: Predictive & Prescriptive Analysis + Chat.
+    
+    This orchestrates the modular components for:
+    - Predictive analysis controls and KPIs
+    - Prescriptive summary with dealer recommendations
+    - Download inference log
+    - Chat interface below everything
+    """
+    # Load model
+    model_pipe = load_model(MODEL_PATH)
+    
+    # Card container for predictive analysis
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+
+    # 1. Render controls and get refresh interval
+    refresh_interval = render_predictive_controls()
+    st_autorefresh(interval=refresh_interval * 1000, key="predictive_autorefresh")
+
+    # 2. Generate prediction
+    inf_row, pred_prob = generate_prediction(df_history, model_pipe)
+    
+    # 3. Log inference
+    log_inference(inf_row, pred_prob)
+    
+    # 4. Get nearest dealers data FIRST (outside any column context to avoid nesting)
+    nearest_dealers = None
+    if inf_row and pred_prob is not None:
+        # Get the data without rendering (to avoid column nesting)
+        from helper import fetch_nearest_dealers
+        from components_col2 import get_constants
+        
+        constants = get_constants()
+        current_lat = inf_row.get("lat", 38.4405)
+        current_lon = inf_row.get("lon", -122.7144)
+        
+        try:
+            nearest_dealers, from_aws = fetch_nearest_dealers(
+                current_lat=current_lat,
+                current_lon=current_lon,
+                place_index_name=constants['PLACE_INDEX_NAME'],
+                aws_region=constants['AWS_REGION'],
+                fallback_dealers=None,
+                text_query="Nissan Service Center",
+                top_n=3,
+            )
+        except Exception as e:
+            logger.error(f"fetch_nearest_dealers failed: {e}")
+            nearest_dealers = []
+    
+    # 5. Create side-by-side layout with Predictive Information and Map
+    pred_col, map_col = st.columns([1.5, 1], gap="medium")
+    
+    with pred_col:
+        # Render vehicle info and KPI as pure HTML (no nested columns)
+        pct_text = f"{pred_prob*100:.1f}%"
+        
+        # For POC, override with fixed value
+        if config.ui.is_poc:
+            pct_text = f"{80.8:.1f}%"
+        
+        # Get threshold from session state
+        threshold_pct = st.session_state.get('predictive_threshold_pct', 80)
+        
+        # Determine KPI color based on threshold
+        kpi_color = config.colors.nissan_red if pred_prob * 100 >= threshold_pct else '#10b981'
+        
+        # Handle POC mode vs regular mode for display values
+        if config.ui.is_poc:
+            model_display = inf_row['model']
+            part_display = inf_row['primary_failed_part']
+            mileage_display = "10,200 miles"
+            age_display = "6 months"
+        else:
+            model_display = inf_row['model']
+            part_display = inf_row['primary_failed_part']
+            mileage_display = f"{inf_row['mileage']:,.1f} mi"
+            age_display = f"{inf_row['age']:.1f} yrs"
+        
+        # Build the HTML for vehicle info and KPI side by side (no HTML comments to avoid display issues)
+        vehicle_info_html = f"""<div style="display: flex; gap: 16px; align-items: stretch; margin-top: -24px;">
+            <div style="flex: 1;">
+                <div style="font-size: 12px; color: #cbd5e1; margin-bottom: 3px;">Model</div>
+                <div style="font-size: 14px; font-weight: 700; color: #e6eef8; margin-bottom: 12px;">{model_display}</div>
+                <div style="font-size: 12px; color: #cbd5e1; margin-bottom: 3px;">Part</div>
+                <div style="font-size: 14px; font-weight: 700; color: #e6eef8;">{part_display}</div>
+            </div>
+            <div style="flex: 0.6;">
+                <div style="font-size: 12px; color: #cbd5e1; margin-bottom: 3px;">Mileage</div>
+                <div style="font-size: 14px; font-weight: 700; color: #e6eef8; margin-bottom: 12px;">{mileage_display}</div>
+                <div style="font-size: 12px; color: #cbd5e1; margin-bottom: 3px;">Age</div>
+                <div style="font-size: 14px; font-weight: 700; color: #e6eef8;">{age_display}</div>
+            </div>
+            <div style="width: 1px; background: linear-gradient(to bottom, transparent, #334155 20%, #334155 80%, transparent); margin: 0 8px;"></div>
+            <div style="flex: 1; display: flex; flex-direction: column; justify-content: center;">
+                <div style="font-size: 13px; color: #cbd5e1; margin-bottom: 2px; text-align: center;">Predicted Claim Probability</div>
+                <div style="font-size: 34px; font-weight: 700; color: {kpi_color}; text-align: center; line-height: 1;">{pct_text}</div>
+                <div style="font-size: 11px; color: #94a3b8; margin-top: 4px; text-align: center;">Alert if ≥ {int(threshold_pct)}%</div>
+            </div>
+        </div>"""
+        
+        st.markdown(vehicle_info_html, unsafe_allow_html=True)
+        st.markdown('<div style="height:2px;"></div>', unsafe_allow_html=True)
+        
+        # Render prescriptive summary below the predictive information (left side)
+        st.markdown('<div style="height:8px;"></div>', unsafe_allow_html=True)
+        
+        if inf_row and pred_prob is not None and nearest_dealers is not None:
+            # Render prescriptive summary (this creates its own columns internally)
+            render_prescriptive_section(inf_row, pred_prob, render_summary_ui)
+        else:
+            st.markdown('<div class="card"><div class="card-header">Prescriptive Summary</div>', unsafe_allow_html=True)
+            # st.markdown("<div style='padding:12px; color:#94a3b8;'>Waiting for prediction data...</div>", unsafe_allow_html=True)
+            # st.markdown('</div>', unsafe_allow_html=True)
+    
+    with map_col:
+        # Render map on the right side of Predictive Information
+        if inf_row and pred_prob is not None and nearest_dealers is not None:
+            # Render map with dealers and current location
+            map_points, dealers_to_plot = build_map_points(inf_row, nearest_dealers, pred_prob)
+            render_map_visualization(map_points, dealers_to_plot)
+        else:
+            # Show placeholder when no data available
+            st.markdown('<div class="card"><div class="card-header">Vehicle Location & Nearest Dealers</div>', unsafe_allow_html=True)
+            # st.markdown("<div style='padding:12px; color:#94a3b8;'>Waiting for prediction data...</div>", unsafe_allow_html=True)
+            # st.markdown('</div>', unsafe_allow_html=True)
+        
+
+    # Prescriptive summary is now rendered inside pred_col (left side)
+
+    # st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Add custom CSS to override Streamlit's default expander spacing and reduce gaps
+    # st.markdown("""
+    # <style>
+    # .streamlit-expander {
+    #     margin-top: -20px !important;
+    #     margin-bottom: -10px !important;
+    # }
+    # .streamlit-expander > div {
+    #     margin-top: -15px !important;
+    #     margin-bottom: -5px !important;
+    # }
+    # .stPydeckChart {
+    #     margin-bottom: -15px !important;
+    # }
+    # </style>
+    # """, unsafe_allow_html=True)
+
 # ------------------------
 # Inference page (separate route)
 # ------------------------
@@ -1078,15 +1229,28 @@ if page == "inference":
     st.markdown('<div style="height:8px;"></div>', unsafe_allow_html=True)
     st.stop()
 else:
-    # Render all columns
+    # Render all three columns
     with col1:
         render_col1()
 
     with col2:
         render_col2()
 
-    with col3:
-        render_col3()
+        st.markdown('<div style="height:3px; margin:0px 0; background: linear-gradient(90deg, #c3002f, #000000); border-radius:2px;"></div>', unsafe_allow_html=True)
+        
+        # Chat function below column 2, right adjacent to column 1, stretching till the end
+        render_chat_interface()
+        
+    # 
+    # chat_col1, chat_col2 = st.columns([2, 3], gap="medium")
+    
+    # with chat_col1:
+    #     # Empty space to align with column 1
+    #     st.markdown('<div style="height: 20px;"></div>', unsafe_allow_html=True)
+    
+    # with chat_col2:
+    #     # Chat interface in the remaining space
+    #     render_chat_interface()
 
 # Footer
 st.markdown(

@@ -50,7 +50,7 @@ def render_predictive_controls():
     """
     constants = get_constants()
     
-    header_col, slider_col, dropdown_col = st.columns([2, 2.5, 1.25], gap="medium")
+    header_col, slider_col, dropdown_col = st.columns([2.75, 1.25, 1], gap="medium")
     
     with header_col:
         st.markdown(
@@ -347,7 +347,7 @@ def render_prescriptive_section(inf_row: Dict, pred_prob: float, render_summary_
             text_query="Nissan Service Center",
             top_n=3,
         )
-        logger.info(f"✅ Found {len(nearest)} dealers (from_aws={from_aws})")
+        logger.info(f"Found {len(nearest)} dealers (from_aws={from_aws})")
     except Exception as e:
         logger.error(f"fetch_nearest_dealers failed: {e}", exc_info=True)
         if config.debug:
@@ -549,8 +549,8 @@ def compute_map_center_and_zoom(map_points: List[Dict], viewport_width_px: int =
     d1 = _haversine_km(min_lat, min_lon, max_lat, max_lon)
     max_dist_km = max(d1, 0.0)
     
-    if max_dist_km < 0.02:
-        return center_lat, center_lon, 14
+    if max_dist_km < 0.02:  # Lower threshold for wider view
+        return center_lat, center_lon, 9
     
     max_dist_m = max_dist_km * 1000.0
     meters_per_pixel_required = max_dist_m / (viewport_width_px * 0.85)
@@ -559,9 +559,9 @@ def compute_map_center_and_zoom(map_points: List[Dict], viewport_width_px: int =
     
     try:
         zoom = math.log2(meters_per_pixel_at_zoom0 / meters_per_pixel_required)
-        zoom = max(3, min(14, int(round(zoom))))
+        zoom = max(6, min(10, int(round(zoom - 2))))  # Zoom OUT by 2 levels for wider view
     except Exception:
-        zoom = 10
+        zoom = 8  # Lower default zoom for wider view
     
     return center_lat, center_lon, zoom
 
@@ -577,7 +577,7 @@ def render_map_visualization(map_points: List[Dict], dealers_to_plot: List[Dict]
     constants = get_constants()
     
     st.markdown(
-        '<div class="card"><div class="card-header">Current Location of Vehicle & Nearest Dealers</div>',
+        '<div class="card" style="margin-top:-5px;"><div class="card-header">Vehicle Location & Nearest Dealers</div>',
         unsafe_allow_html=True
     )
     
@@ -608,7 +608,7 @@ def render_map_visualization(map_points: List[Dict], dealers_to_plot: List[Dict]
     st.markdown(legend_html, unsafe_allow_html=True)
     
     # Compute map center and zoom
-    center_lat, center_lon, zoom_level = compute_map_center_and_zoom(map_points, viewport_width_px=520)
+    center_lat, center_lon, zoom_level = compute_map_center_and_zoom(map_points, viewport_width_px=400)
     
     # Render map with pydeck
     try:
@@ -621,7 +621,7 @@ def render_map_visualization(map_points: List[Dict], dealers_to_plot: List[Dict]
             get_line_color="_line_color",
             pickable=True,
             stroked=True,
-            radius_min_pixels=6,
+            radius_min_pixels=8,
             radius_max_pixels=60,
         )
         
@@ -634,8 +634,8 @@ def render_map_visualization(map_points: List[Dict], dealers_to_plot: List[Dict]
             get_line_color="_line_color",
             pickable=True,
             stroked=True,
-            radius_min_pixels=8,
-            radius_max_pixels=90,
+            radius_min_pixels=10,
+            radius_max_pixels=80,
         )
         
         text_layer = pdk.Layer(
@@ -644,7 +644,7 @@ def render_map_visualization(map_points: List[Dict], dealers_to_plot: List[Dict]
             get_position="position",
             get_text="short_name",
             get_color=[230, 230, 230],
-            get_size=14,
+            get_size=16,
             get_angle=0,
             get_text_anchor="start",
             get_alignment_baseline="center",
@@ -674,14 +674,14 @@ def render_map_visualization(map_points: List[Dict], dealers_to_plot: List[Dict]
             tooltip=tooltip,
             map_style='dark'
         )
-        st.pydeck_chart(deck, use_container_width=True, height=360)
+        st.pydeck_chart(deck, use_container_width=True, height=250)
     
     except Exception as e:
         st.write("Debug: pydeck failed, falling back to st.map — error:", e)
         map_df = pd.DataFrame([{"lat": p["lat"], "lon": p["lon"]} for p in map_points])
         st.map(map_df)
     
-    st.markdown('<div style="height:8px;"></div>', unsafe_allow_html=True)
+    st.markdown('<div style="height:-5px;"></div>', unsafe_allow_html=True)
     
     # Dealer list expander
     with st.expander("Nearest dealers", expanded=False):

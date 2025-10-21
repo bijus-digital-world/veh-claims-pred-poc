@@ -16,7 +16,7 @@ class AWSConfig:
     region: str = "us-east-1"
     s3_bucket: str = "veh-poc-207567760844-us-east-1"
     place_index_name: str = "NissanPlaceIndex"
-    use_s3: bool = True
+    use_s3: bool = False  # Changed to False to load from local data folder
     
     @classmethod
     def from_env(cls):
@@ -24,7 +24,7 @@ class AWSConfig:
             region=os.getenv("AWS_REGION", "us-east-1"),
             s3_bucket=os.getenv("S3_BUCKET", "veh-poc-207567760844-us-east-1"),
             place_index_name=os.getenv("PLACE_INDEX_NAME", "NissanPlaceIndex"),
-            use_s3=os.getenv("USE_S3", "true").lower() == "true"
+            use_s3=os.getenv("USE_S3", "false").lower() == "true"  # Changed default from "true" to "false"
         )
 
 
@@ -147,8 +147,16 @@ class DataConfig:
     """Data-related configuration"""
     # Required columns (historical data may have buckets, inference uses continuous)
     required_columns: set = field(default_factory=lambda: {
+        # Original columns
         "model", "primary_failed_part", "mileage_bucket", "age_bucket",
-        "date", "claims_count", "repairs_count", "recalls_count"
+        "date", "claims_count", "repairs_count", "recalls_count",
+        
+        # Enhanced columns for comprehensive chat support
+        "vin",  # Vehicle identification
+        "supplier_name", "supplier_id", "supplier_quality_score", "defect_rate",  # Supplier data
+        "failure_description",  # Root cause analysis
+        "current_lat", "current_lon", "city",  # Location data
+        "dealer_name", "dealer_lat", "dealer_lon", "dealer_distance_km"  # Service center data
     })
     
     # Note: Inference rows use 'mileage' and 'age' (continuous values)
