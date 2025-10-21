@@ -17,6 +17,13 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timezone
 import math
+import time
+
+# Import configuration
+from config import config
+
+# Logging
+from utils.logger import chat_logger as logger
 
 # TF-IDF fallback
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -32,7 +39,7 @@ except Exception:
     HAS_ST = False
     HAS_FAISS = False
 
-EMBED_MODEL_NAME = "all-MiniLM-L6-v2"
+EMBED_MODEL_NAME = config.model.embedding_model_name
 
 # --- add this near other detection helpers (e.g. _detect_count_or_average_intent) ---
 def _detect_incident_or_failure_request(text: str) -> Optional[str]:
@@ -81,8 +88,8 @@ def _detect_incident_or_failure_request(text: str) -> Optional[str]:
 def summarize_overall_metric(df: pd.DataFrame, metric_col: str, top_n: int = 6) -> str:
     """
     Canonical overall summary for a metric column. Returns HTML with:
-      - total metric (sum)
-      - total rows (denominator)
+      - total metric
+      - total rows
       - incident rows (rows with >=1 metric)
       - average per row and per incident
       - top models by metric
@@ -120,7 +127,7 @@ def summarize_overall_metric(df: pd.DataFrame, metric_col: str, top_n: int = 6) 
             f"<p><strong>Summary for {_html.escape(label)}:</strong></p>",
             "<ul style='margin-top:6px;'>",
             f"<li><strong>Total ({label}):</strong> {total_metric}</li>",
-            f"<li><strong>Rows (denominator):</strong> {total_rows}</li>",
+            f"<li><strong>Rows:</strong> {total_rows}</li>",
             f"<li><strong>Rows with ≥1 {label} (incidents):</strong> {incident_count}</li>",
             f"<li><strong>Average per row:</strong> {avg_per_row:.2f} {'' if metric_col!='failures_count' else 'failures'}</li>",
             f"<li><strong>Average per incident:</strong> {avg_per_incident:.2f} {'' if metric_col!='failures_count' else 'failures'}</li>",
@@ -266,7 +273,7 @@ def compute_count_and_average_html(df: pd.DataFrame,
         f"<p><strong>Summary for {_html.escape(label)}:</strong></p>",
         f"<ul style='margin-top:6px;'>",
         f"<li><strong>Total ({label}):</strong> {int(total_sum)}</li>",
-        f"<li><strong>Rows (denominator):</strong> {total_rows}</li>",
+        f"<li><strong>Rows:</strong> {total_rows}</li>",
         f"<li><strong>Rows with ≥1 {label} (incidents):</strong> {incident_count}</li>",
         f"<li><strong>Average per row:</strong> {avg_per_row:.2f} {'' if metric_col!='failures_count' else 'failures'}</li>",
         f"<li><strong>Average per incident:</strong> {avg_per_incident:.2f} {'' if metric_col!='failures_count' else 'failures'}</li>",
@@ -364,7 +371,9 @@ def _row_to_doc(r: dict) -> str:
     return "; ".join(parts)
 
 
-def build_tf_idf_index(df: pd.DataFrame, max_features: int = 6000):
+def build_tf_idf_index(df: pd.DataFrame, max_features: Optional[int] = None):
+    """Build TF-IDF index for retrieval. Uses config default for max_features if not provided."""
+    max_features = max_features or config.data.tfidf_max_features
     docs = [_row_to_doc(r) for _, r in df.iterrows()]
     if not docs:
         return None, None, []
@@ -387,11 +396,18 @@ def retrieve_with_faiss_or_tfidf(query: str,
                                  tfidf_vect,
                                  tfidf_X,
                                  tfidf_rows,
-                                 top_k: int = 6) -> List[dict]:
-    """Try FAISS retrieval if available, otherwise TF-IDF fallback."""
+                                 top_k: Optional[int] = None) -> List[dict]:
+    """Try FAISS retrieval if available, otherwise TF-IDF fallback. Uses config default for top_k if not provided."""
+    # Apply config default
+    top_k = top_k or config.data.rag_top_k
+    
+    logger.debug(f"Retrieving top-{top_k} results for query: '{query[:50]}...'")
+    start_time = time.time()
+    
     # FAISS path
     try:
         if faiss_res and faiss_res.get("available") and HAS_ST and HAS_FAISS:
+            logger.debug("Using FAISS retrieval")
             index = faiss_res.get("index")
             meta = faiss_res.get("meta", [])
             if index is not None and meta is not None:
@@ -408,14 +424,19 @@ def retrieve_with_faiss_or_tfidf(query: str,
                     row["score"] = float(sim)
                     results.append(row)
                 if results:
+                    duration_ms = (time.time() - start_time) * 1000
+                    logger.info(f"✅ FAISS retrieval returned {len(results)} results in {duration_ms:.2f}ms")
                     return results
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"FAISS retrieval failed, falling back to TF-IDF: {e}")
 
     # TF-IDF fallback
     if tfidf_vect is None or tfidf_X is None or not tfidf_rows:
+        logger.warning("TF-IDF retrieval unavailable - no index available")
         return []
+    
     try:
+        logger.debug("Using TF-IDF retrieval fallback")
         qv = tfidf_vect.transform([query])
         sims = cosine_similarity(qv, tfidf_X).flatten()
         top_idx = sims.argsort()[::-1][:top_k]
@@ -424,8 +445,12 @@ def retrieve_with_faiss_or_tfidf(query: str,
             r = dict(tfidf_rows[i])
             r["score"] = float(sims[i])
             results.append(r)
+        
+        duration_ms = (time.time() - start_time) * 1000
+        logger.info(f"✅ TF-IDF retrieval returned {len(results)} results in {duration_ms:.2f}ms")
         return results
-    except Exception:
+    except Exception as e:
+        logger.error(f"TF-IDF retrieval failed: {e}", exc_info=True)
         return []
 
 
@@ -720,7 +745,7 @@ def _requested_missing_columns(user_text: str, df_cols) -> dict:
 
 
 # -------------------------
-# Top-level generator
+# Top-level generator (NEW - Using Handler Pattern)
 # -------------------------
 def generate_reply(user_text: str,
                    df_history: pd.DataFrame,
@@ -729,15 +754,22 @@ def generate_reply(user_text: str,
                    tfidf_X,
                    tfidf_rows,
                    get_bedrock_summary_callable,
-                   top_k: int = 6) -> str:
+                   top_k: Optional[int] = None) -> str:
     """
     Main entry used by app.py to produce assistant HTML reply.
+    
+    NEW: Uses modular handler pattern for better maintainability.
     Ensures overall-first, breakdown-second presentation.
+    Uses config default for top_k if not provided.
     """
+    from chat.handlers import QueryRouter, QueryContext
+    
+    # Apply config default
+    top_k = top_k or config.data.rag_top_k
+    
     ut = (user_text or "").strip()
-    if df_history is None or (hasattr(df_history, "empty") and df_history.empty):
-        return "<p>No historical data is loaded. Please upload a dataset.</p>"
-
+    logger.info(f"Processing chat query: '{ut[:100]}...'")
+    
     # Guard: missing columns requested explicitly
     miss = _requested_missing_columns(ut, df_history.columns)
     if miss:
@@ -747,7 +779,43 @@ def generate_reply(user_text: str,
             pretty_missing = ", ".join(missing)
             return (f"<p>It looks like you're asking about {pretty_missing}, but your data does not contain that column. "
                     f"Available columns include: <strong>{available}</strong>. Try asking about one of those instead.</p>")
+    
+    # Create context and use handler pattern
+    context = QueryContext(
+        query=ut,
+        df_history=df_history,
+        faiss_res=faiss_res,
+        tfidf_vect=tfidf_vect,
+        tfidf_X=tfidf_X,
+        tfidf_rows=tfidf_rows,
+        get_bedrock_summary_callable=get_bedrock_summary_callable,
+        top_k=top_k
+    )
+    
+    # Route to appropriate handler
+    router = QueryRouter()
+    return router.route(context)
 
+
+# -------------------------
+# ARCHIVED: Old generate_reply implementation (499 lines)
+# Keeping for reference during migration, will be removed after testing
+# -------------------------
+def generate_reply_old(user_text: str,
+                      df_history: pd.DataFrame,
+                      faiss_res: dict,
+                      tfidf_vect,
+                      tfidf_X,
+                      tfidf_rows,
+                      get_bedrock_summary_callable,
+                      top_k: Optional[int] = None) -> str:
+    """OLD IMPLEMENTATION - Use generate_reply() instead"""
+    top_k = top_k or config.data.rag_top_k
+    ut = (user_text or "").strip()
+    
+    if df_history is None or (hasattr(df_history, "empty") and df_history.empty):
+        return "<p>No historical data is loaded. Please upload a dataset.</p>"
+    
     if not ut:
         return "<p>Please ask a question about the historical data (e.g. 'failure rate for model Sentra').</p>"
 
