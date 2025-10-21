@@ -8,6 +8,7 @@ import os
 import csv
 from datetime import datetime
 import pandas as pd
+import numpy as np
 import joblib
 import random
 import io
@@ -17,19 +18,19 @@ import html as _html
 import base64
 import boto3
 from botocore.exceptions import ClientError
+import time
 
-# Nissan Brand Color Palette (kept for consistency)
-NISSAN_RED = "#c3002f"
-NISSAN_DARK = "#0b0f13"
-NISSAN_GRAY = "#94a3b8"
-NISSAN_GOLD = "#f59e0b"
+# Import configuration
+from config import config
 
-# --- stacking palette + plot helper (add to helper.py) ---
-# STACK_COLORS = {
-#     "claims": "#D24D57",   # muted crimson (claims)
-#     "repairs": "#E3B341",  # warm amber/gold (repairs)
-#     "recalls": "#4DB6AC",  # teal blue-green (recalls)
-# }
+# Logging
+from utils.logger import helper_logger as logger, log_function_call
+
+# Nissan Brand Color Palette (imported from config for consistency)
+NISSAN_RED = config.colors.nissan_red
+NISSAN_DARK = config.colors.nissan_dark
+NISSAN_GRAY = config.colors.nissan_gray
+NISSAN_GOLD = config.colors.nissan_gold
 
 # Optional s3fs (not required)
 try:
@@ -37,51 +38,82 @@ try:
 except Exception:
     s3fs = None  # s3fs may not be available in all environments
 
-MODELS: List[str] = ["Leaf", "Ariya", "Sentra"]
-MILEAGE_BUCKETS: List[str] = ["0-10k", "10-30k", "30-60k", "60k+"]
-AGE_BUCKETS: List[str] = ["<1yr", "1-3yr", "3-5yr", "5+yr"]
-NISSAN_HEATMAP_SCALE = ["#ffffff", "#ffecec", "#ffd1d1", "#ff9b9b", "#ff7070", "#c3002f", "#7a0000", "#000000"]
+# Data constants (imported from config)
+MODELS: List[str] = config.data.models
+MILEAGE_BUCKETS: List[str] = config.data.mileage_buckets
+AGE_BUCKETS: List[str] = config.data.age_buckets
+NISSAN_HEATMAP_SCALE = config.colors.heatmap_scale
 
 def load_svg_as_base64(path: str) -> str:
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode("utf-8")
 
-def load_history_data(use_s3: bool = True,
-                      s3_bucket: str = "veh-poc-207567760844-us-east-1",
-                      s3_key: str = "data/vehicle_claims.csv",
-                      local_path: str = "data/vehicle_claims.csv") -> pd.DataFrame:
+def load_history_data(use_s3: Optional[bool] = None,
+                      s3_bucket: Optional[str] = None,
+                      s3_key: Optional[str] = None,
+                      local_path: Optional[str] = None) -> pd.DataFrame:
     """
     Try S3 first (if use_s3 True and s3fs supported), otherwise fallback to local file.
+    Uses config defaults when parameters are not provided.
     """
+    # Apply config defaults
+    use_s3 = use_s3 if use_s3 is not None else config.aws.use_s3
+    s3_bucket = s3_bucket or config.aws.s3_bucket
+    s3_key = s3_key or config.paths.s3_data_key
+    local_path = local_path or config.paths.local_data_file
+    
+    logger.info(f"Loading historical data (use_s3={use_s3})")
+    
     df = None
     if use_s3 and s3fs is not None:
         s3_path = f"s3://{s3_bucket}/{s3_key}"
         try:
-            # storage_options may be required in some environments; remove if you get auth issues
+            logger.info(f"Attempting to load from S3: {s3_path}")
+            start_time = time.time()
+            
             df = pd.read_csv(s3_path, parse_dates=["date"], storage_options={"anon": False})
+            
+            duration_ms = (time.time() - start_time) * 1000
+            logger.info(f"✅ Loaded {len(df)} records from S3 in {duration_ms:.2f}ms")
             return df
-        except Exception:
+        except Exception as e:
+            logger.warning(f"S3 load failed, falling back to local file: {e}")
             # fall back to local
             pass
+    
     if df is None:
         if not os.path.isfile(local_path):
+            logger.error(f"Data file not found at {local_path}")
             raise FileNotFoundError(f"Could not find data at S3 or local path ({local_path}).")
+        
+        logger.info(f"Loading from local file: {local_path}")
+        start_time = time.time()
+        
         df = pd.read_csv(local_path, parse_dates=["date"])
+        
+        duration_ms = (time.time() - start_time) * 1000
+        logger.info(f"✅ Loaded {len(df)} records from local file in {duration_ms:.2f}ms")
+    
     return df
 
-def compute_rate_per_100(df: pd.DataFrame, group_cols):
-    grouped = df.groupby(group_cols).agg(incidents=("claims_count", "size"),
-                                         claims=("claims_count", "sum")).reset_index()
-    grouped["rate_per_100"] = grouped.apply(
-        lambda r: (r["claims"] / r["incidents"] * 100.0) if r["incidents"] > 0 else 0.0,
-        axis=1,
-    )
-    return grouped
+# def compute_rate_per_100(df: pd.DataFrame, group_cols):
+#     grouped = df.groupby(group_cols).agg(incidents=("claims_count", "size"),
+#                                          claims=("claims_count", "sum")).reset_index()
+#     grouped["rate_per_100"] = grouped.apply(
+#         lambda r: (r["claims"] / r["incidents"] * 100.0) if r["incidents"] > 0 else 0.0,
+#         axis=1,
+#     )
+#     return grouped
 
 def load_model(path: str):
+    """Load ML model from disk with logging."""
     try:
-        return joblib.load(path)
-    except Exception:
+        logger.info(f"Loading model from {path}")
+        model = joblib.load(path)
+        logger.info(f"✅ Model loaded successfully from {path}")
+        return model
+    except Exception as e:
+        logger.warning(f"Model load failed from {path}: {e}")
         return None
 
 DUP_TOL = 1e-3
@@ -103,8 +135,8 @@ def append_inference_log(inf_row: dict, pred_prob: float, filepath: str = "infer
         "timestamp": ts,
         "model": inf_row.get("model"),
         "primary_failed_part": inf_row.get("primary_failed_part"),
-        "mileage_bucket": inf_row.get("mileage_bucket"),
-        "age_bucket": inf_row.get("age_bucket"),
+        "mileage": float(inf_row.get("mileage", 0)),
+        "age": float(inf_row.get("age", 0)),
         "pred_prob": float(round(pred_prob, 6)),
         "pred_prob_pct": float(round(pred_prob * 100.0, 4)),
     }
@@ -114,8 +146,8 @@ def append_inference_log(inf_row: dict, pred_prob: float, filepath: str = "infer
             same_inputs = (
                 str(last.get("model")) == row["model"] and
                 str(last.get("primary_failed_part")) == row["primary_failed_part"] and
-                str(last.get("mileage_bucket")) == row["mileage_bucket"] and
-                str(last.get("age_bucket")) == row["age_bucket"]
+                abs(float(last.get("mileage", 0)) - row["mileage"]) < 100 and  # Within 100 miles
+                abs(float(last.get("age", 0)) - row["age"]) < 0.1  # Within 0.1 years
             )
             last_prob = float(last.get("pred_prob", 0.0))
             if same_inputs and abs(last_prob - row["pred_prob"]) <= DUP_TOL:
@@ -131,13 +163,18 @@ def append_inference_log(inf_row: dict, pred_prob: float, filepath: str = "infer
     return True
 
 def append_inference_log_s3(inf_row: dict, pred_prob: float,
-                            s3_bucket: str = "veh-poc-207567760844-us-east-1",
-                            s3_key: str = "logs/inference_log.csv",
-                            local_fallback: str = "inference_log.csv") -> bool:
+                            s3_bucket: Optional[str] = None,
+                            s3_key: Optional[str] = None,
+                            local_fallback: Optional[str] = None) -> bool:
     """
     Attempt to append to a CSV stored in S3 using s3fs. If not available or any error occurs,
-    fallback to local append.
+    fallback to local append. Uses config defaults when parameters are not provided.
     """
+    # Apply config defaults
+    s3_bucket = s3_bucket or config.aws.s3_bucket
+    s3_key = s3_key or config.paths.inference_log_s3_key
+    local_fallback = local_fallback or config.paths.inference_log_local
+    
     if s3fs is None:
         return append_inference_log(inf_row, pred_prob, filepath=local_fallback)
 
@@ -145,8 +182,8 @@ def append_inference_log_s3(inf_row: dict, pred_prob: float,
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "model": inf_row.get("model"),
         "primary_failed_part": inf_row.get("primary_failed_part"),
-        "mileage_bucket": inf_row.get("mileage_bucket"),
-        "age_bucket": inf_row.get("age_bucket"),
+        "mileage": float(inf_row.get("mileage", 0)),
+        "age": float(inf_row.get("age", 0)),
         "pred_prob": float(round(pred_prob, 6)),
         "pred_prob_pct": float(round(pred_prob * 100.0, 4)),
     }
@@ -166,8 +203,8 @@ def append_inference_log_s3(inf_row: dict, pred_prob: float,
             same_inputs = (
                 str(last.get("model")) == row["model"] and
                 str(last.get("primary_failed_part")) == row["primary_failed_part"] and
-                str(last.get("mileage_bucket")) == row["mileage_bucket"] and
-                str(last.get("age_bucket")) == row["age_bucket"]
+                abs(float(last.get("mileage", 0)) - row["mileage"]) < 100 and  # Within 100 miles
+                abs(float(last.get("age", 0)) - row["age"]) < 0.1  # Within 0.1 years
             )
             last_prob = float(last.get("pred_prob", 0.0))
             if same_inputs and abs(last_prob - row["pred_prob"]) <= DUP_TOL:
@@ -186,11 +223,19 @@ def random_inference_row_from_df(df: pd.DataFrame) -> dict:
     Create a simple POC inference row using observed categorical values in df.
     Produces randomized coordinates across North America (mix of major city seeds +
     uniform continental sampling) so UI/map shows varied locations.
+    Generates continuous mileage and age values instead of buckets.
     """
     model = random.choice(df["model"].unique().tolist())
     part = random.choice(df["primary_failed_part"].unique().tolist())
-    mileage = random.choice(MILEAGE_BUCKETS)
-    age = random.choice(AGE_BUCKETS)
+    
+    # Generate continuous values using realistic distributions
+    # Log-normal for mileage (most vehicles have lower mileage)
+    mileage = float(np.clip(np.random.lognormal(mean=10.0, sigma=0.7), 0, 150000))
+    mileage = round(mileage, 1)  # Round to 1 decimal place
+    
+    # Gamma distribution for age (skewed toward newer vehicles)
+    age = float(np.clip(np.random.gamma(shape=2.0, scale=2.5), 0, 15))
+    age = round(age, 2)  # Round to 2 decimal places
 
     # Major North American cities (lat, lon) sample pool for more realistic points
     major_cities = [
@@ -242,8 +287,8 @@ def random_inference_row_from_df(df: pd.DataFrame) -> dict:
     return {
         "model": model,
         "primary_failed_part": part,
-        "mileage_bucket": mileage,
-        "age_bucket": age,
+        "mileage": mileage,  # Continuous value (miles)
+        "age": age,          # Continuous value (years)
         "lat": lat,
         "lon": lon
     }
@@ -296,7 +341,14 @@ def estimate_repair_cost_range(model: str, part: str) -> Tuple[int, int]:
     return int(100 + base), int(800 + base)
 
 # --- Reverse geocode current location to get a place name (AWS Location Service) ---
-def reverse_geocode(lat, lon, place_index="NissanPlaceIndex", region="us-east-1"):
+def reverse_geocode(lat, lon, place_index: Optional[str] = None, region: Optional[str] = None):
+    """Reverse geocode coordinates to place name. Uses config defaults when parameters are not provided."""
+    # Apply config defaults
+    place_index = place_index or config.aws.place_index_name
+    region = region or config.aws.region
+    
+    logger.debug(f"Reverse geocoding coordinates: lat={lat}, lon={lon}")
+    
     try:
         client = boto3.client("location", region_name=region)
         resp = client.search_place_index_for_position(
@@ -306,9 +358,12 @@ def reverse_geocode(lat, lon, place_index="NissanPlaceIndex", region="us-east-1"
         )
         results = resp.get("Results", [])
         if results and "Place" in results[0]:
-            return results[0]["Place"].get("Label", "Unknown Location")
+            place_name = results[0]["Place"].get("Label", "Unknown Location")
+            logger.debug(f"✅ Reverse geocode result: {place_name}")
+            return place_name
+        logger.debug("No results from reverse geocode")
     except Exception as e:
-        print("Debug: reverse geocode failed:", e)
+        logger.warning(f"Reverse geocode failed for lat={lat}, lon={lon}: {e}")
     return "Unknown Location"
 
 
@@ -316,28 +371,37 @@ def fetch_dealers_from_aws_location(current_lat: float, current_lon: float,
                                     place_index_name: Optional[str] = None,
                                     text_query: str = "Nissan Service Center",
                                     max_results: int = 10,
-                                    region_name: str = "us-east-1",
+                                    region_name: Optional[str] = None,
                                     filter_countries: Optional[List[str]] = None,
                                     debug: bool = False) -> List[Dict]:
     """
     Query AWS Location Service Place Index for nearby Nissan service centers.
     Returns list of dicts with keys: name, lat, lon, raw (original item).
     On any error or missing config, returns empty list.
+    Uses config defaults when parameters are not provided.
 
     Important:
       - AWS expects BiasPosition as [lon, lat]
       - FilterCountries is ISO-3166 alpha-3 codes, e.g. ["USA"].
     """
+    # Apply config defaults
+    place_index_name = place_index_name or config.aws.place_index_name
+    region_name = region_name or config.aws.region
+    
     if place_index_name is None:
         return []
 
     fc = filter_countries or ["USA"]
+    
+    logger.debug(f"Fetching dealers from AWS Location: query='{text_query}', bias=[{current_lat}, {current_lon}]")
+    
     try:
         client = boto3.client("location", region_name=region_name)
         # bias position expects [lon, lat] per API
         bias_pos = [current_lon, current_lat]
+        
         if debug:
-            print(f"Debug: fetch_dealers_from_aws_location Index={place_index_name} Text={text_query} Bias={bias_pos} Filter={fc}")
+            logger.debug(f"AWS Location params: Index={place_index_name}, Text={text_query}, Bias={bias_pos}, Filter={fc}")
 
         resp = client.search_place_index_for_text(
             IndexName=place_index_name,
@@ -357,16 +421,15 @@ def fetch_dealers_from_aws_location(current_lat: float, current_lon: float,
             if len(pt) >= 2:
                 lon, lat = float(pt[0]), float(pt[1])
                 results.append({"name": label, "lat": lat, "lon": lon, "raw": place})
-        if debug:
-            print(f"Debug: fetched {len(results)} dealers from AWS Location (query={text_query})")
+        
+        logger.info(f"✅ Fetched {len(results)} dealers from AWS Location (query='{text_query}')")
         return results
+        
     except ClientError as e:
-        if debug:
-            print(f"ClientError calling AWS Location: {e}")
+        logger.error(f"AWS Location ClientError: {e}", exc_info=debug)
         return []
     except Exception as e:
-        if debug:
-            print(f"Error calling AWS Location: {e}")
+        logger.error(f"AWS Location error: {e}", exc_info=debug)
         return []
 
 def robust_fetch_dealers(current_lat: float,
@@ -424,8 +487,7 @@ def robust_fetch_dealers(current_lat: float,
                 debug=debug,
             )
         except Exception as e:
-            if debug:
-                print("fetch_dealers_from_aws_location failed for query", q, e)
+            logger.debug(f"Dealer fetch failed for query '{q}': {e}")
             aws_items = []
 
         if not aws_items:
@@ -482,8 +544,7 @@ def robust_fetch_dealers(current_lat: float,
                 debug=debug,
             )
         except Exception as e:
-            if debug:
-                print("fetch_dealers_from_aws_location failed for query (second pass)", q, e)
+            logger.debug(f"Dealer fetch failed for query '{q}' (second pass): {e}")
             aws_items = []
 
         for it in aws_items:
@@ -547,8 +608,7 @@ def fetch_nearest_dealers(current_lat: float,
             if nearest:
                 return nearest, from_aws
     except Exception as e:
-        if debug:
-            print("robust_fetch_dealers failed:", e)
+        logger.warning(f"Robust fetch dealers failed: {e}", exc_info=debug)
         # fall through to fallback behavior
 
     # Fallback to provided dealers or local list
@@ -566,6 +626,7 @@ def fetch_nearest_dealers(current_lat: float,
     nearest = find_nearest_dealers(current_lat=current_lat, current_lon=current_lon, dealers=dealers, top_n=top_n)
     return nearest, False
 
+
 # ---- Bedrock helper ----
 def get_bedrock_summary(model, part, mileage, age, claim_pct,
                        llm_model_id=None, region="us-east-1"):
@@ -574,6 +635,8 @@ def get_bedrock_summary(model, part, mileage, age, claim_pct,
     exact model_id being called (detects 'titan' vs 'claude'/ 'anthropic'). 
     Output formatting/styling is unchanged (HTML-safe with <strong> labels and gold Recommended action).
     """
+    logger.info(f"Generating Bedrock summary for {model}/{part} (claim_pct={claim_pct:.1f}%)")
+    
     # --- Setup / context (unchanged) ---
     if claim_pct >= 75:
         risk_label = "High risk"
@@ -627,9 +690,13 @@ def get_bedrock_summary(model, part, mileage, age, claim_pct,
     # Prepare to call Bedrock with the correct schema
     resp_json = None
     last_diag = []
+    
+    logger.debug(f"Calling Bedrock API with model_id={model_id_to_call}")
+    start_time = time.time()
 
     try:
         if is_claude:
+            logger.debug("Using Claude message format")
             body = {
                 "anthropic_version": "bedrock-2023-05-31",
                 "max_tokens": 320,
@@ -645,6 +712,8 @@ def get_bedrock_summary(model, part, mileage, age, claim_pct,
             raw = response["body"].read()
             try:
                 resp_json = json.loads(raw)
+                duration_ms = (time.time() - start_time) * 1000
+                logger.info(f"✅ Bedrock API call successful ({model_id_to_call}) in {duration_ms:.2f}ms")
             except Exception:
                 resp_json = {"__raw": raw.decode() if isinstance(raw, (bytes, bytearray)) else str(raw)}
 
@@ -701,8 +770,9 @@ def get_bedrock_summary(model, part, mileage, age, claim_pct,
 
     except ClientError as e:
         err_info = e.response.get("Error", {}) if hasattr(e, "response") else {"Message": str(e)}
-        print(err_info)
-        raise RuntimeError(f"InvokeModel failed for model_id '{model_id_to_call}': {err_info.get('Message') or str(e)}")
+        error_msg = f"InvokeModel failed for model_id '{model_id_to_call}': {err_info.get('Message') or str(e)}"
+        logger.error(f"Bedrock API ClientError: {error_msg}", exc_info=True)
+        raise RuntimeError(error_msg)
 
     if resp_json is None:
         raise RuntimeError(
@@ -777,68 +847,3 @@ def get_bedrock_summary(model, part, mileage, age, claim_pct,
     return assistant_text
 
 
-# def plot_stacked_bars(df_long, x_col, y_col="count", color_col="type",
-#                       category_orders=None, height=240, showlegend=True):
-#     """
-#     df_long: long-form DataFrame with columns [x_col, color_col, y_col, share_pct (optional)]
-#     Returns a Plotly Figure styled for the dashboard.
-#     """
-#     import plotly.express as px
-
-#     # Use the STACK_COLORS dict defined near the top of helper.py
-#     fig = px.bar(
-#         df_long,
-#         x=x_col,
-#         y=y_col,
-#         color=color_col,
-#         category_orders=category_orders or {},
-#         color_discrete_map=STACK_COLORS,
-#         template="plotly_dark",
-#         labels={x_col: x_col.replace("_", " ").title(), y_col: "Count", color_col: "Failure Type"},
-#     )
-
-#     # Thin separators, soft opacity so stacks are readable on dark bg
-#     fig.update_traces(marker_line_width=0.35, marker_line_color="rgba(255,255,255,0.12)", opacity=0.88)
-
-#     # Legend centered, single-row, and compact
-#     fig.update_layout(
-#         barmode="stack",
-#         bargap=0.36,
-#         height=height,
-#         # increase top margin a bit so the raised legend has room
-#         margin=dict(l=6, r=6, t=32, b=6),
-#         plot_bgcolor="rgba(0,0,0,0)",
-#         paper_bgcolor="rgba(0,0,0,0)",
-#         showlegend=showlegend,
-#         legend=dict(
-#             orientation="h",
-#             yanchor="bottom",
-#             # raise the legend so it has horizontal room and stays one row
-#             y=1.12,
-#             xanchor="center",
-#             x=0.1,
-#             font=dict(size=11, color="#e6eef8"),
-#             bgcolor="rgba(0,0,0,0)",
-#             traceorder="normal",
-#             itemsizing="constant",  # prevents each item from reserving large padding
-#             tracegroupgap=0,        # minimize horizontal gap between groups
-#             itemwidth=30,           # tighten marker-text spacing (lower => tighter)
-#         ),
-#     )
-
-#     # Axis fonts to match the design
-#     fig.update_xaxes(tickfont=dict(size=11, color="#94a3b8"))
-#     fig.update_yaxes(tickfont=dict(size=11, color="#94a3b8"))
-
-#     # hovertemplate: show count and share% if provided
-#     hovertemplate = (
-#         "<b>%{x}</b><br>"
-#         + "%{fullData.name}: %{y}<br>"
-#         + "<extra></extra>"
-#     )
-
-#     # Apply hovertemplate to each trace and ensure share_pct (if present) is shown
-#     for trace in fig.data:
-#         trace.hovertemplate = hovertemplate
-
-#     return fig
