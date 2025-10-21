@@ -748,9 +748,10 @@ def render_showcase() -> None:
     base_idle_events = rng.randint(30, 90)
     idle_events = max(1, int(base_idle_events * period_scale))
     
-    # Driver Experience: Qualitative rating out of 5.0 - doesn't scale with period
-    # This is like a Lyft/Uber driver rating
-    driver_experience = rng.uniform(3.5, 5.0)
+    # Driver Experience: Years of driving experience - doesn't scale with period
+    # Realistic range: 2-40 years (new drivers to very experienced)
+    # Most drivers: 5-25 years
+    driver_experience = round(rng.uniform(5.0, 30.0), 1)
     
     # Driver Accident History: Very rare for most drivers
     # 85% of drivers: 0 accidents per month
@@ -970,8 +971,29 @@ def render_showcase() -> None:
     driver_score -= (norm_night_driving * 0.50) # Night driving: -0.50 points per hour (HIGH risk)
     driver_score -= (norm_accidents * 20.0)     # Accidents: -20 points each (SEVERE penalty)
     
-    # Bonus from Driver Experience (this is the qualitative assessment)
-    driver_score += ((driver_experience - 3.5) * 8)  # Scale experience to points (up to +12 for 5.0)
+    # Impact of Driver Experience (years of driving) on risk
+    # Based on insurance actuarial data - follows U-shaped risk curve
+    # Young/inexperienced drivers (< 5 years) = HIGH risk → penalty
+    # Prime experienced drivers (10-25 years) = LOW risk → bonus
+    # Very senior drivers (30+ years) = MODERATE risk → smaller bonus (slower reflexes)
+    
+    if driver_experience < 3:
+        # Very new drivers: 0-3 years (HIGH risk - inexperienced)
+        experience_adjustment = -8.0
+    elif driver_experience < 5:
+        # New drivers: 3-5 years (MODERATE risk - still learning)
+        experience_adjustment = -3.0
+    elif driver_experience < 10:
+        # Developing experience: 5-10 years (gaining skill)
+        experience_adjustment = (driver_experience - 5.0) * 0.8  # 0 to +4 pts
+    elif driver_experience < 25:
+        # Prime experience: 10-25 years (LOWEST risk - peak performance)
+        experience_adjustment = 4.0 + ((driver_experience - 10.0) / 15.0) * 6.0  # +4 to +10 pts
+    else:
+        # Senior drivers: 25+ years (MODERATE risk - experience vs age effects)
+        experience_adjustment = 8.0  # Cap at +8 (still good, but not peak)
+    
+    driver_score += experience_adjustment
     
     # Ensure score stays within 0-100 range
     driver_score = max(0, min(100, round(driver_score, 1)))
@@ -1131,8 +1153,8 @@ def render_showcase() -> None:
                     </div>
                     <div class="metric-content">
                         <div class="metric-label">Driver Experience</div>
-                        <div class="metric-value">{driver_experience:.1f}/5.0</div>
-                        <div class="metric-change positive">+{rng.uniform(0.1,0.5):.2f}</div>
+                        <div class="metric-value">{driver_experience:.1f}<span style="font-size: 14px; opacity: 0.7;"> yrs</span></div>
+                        <div class="metric-change positive">Experienced</div>
                     </div>
                 </div>
                 <div class="metric-card">
