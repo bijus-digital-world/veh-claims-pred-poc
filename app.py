@@ -1,43 +1,32 @@
 import os
-from click import clear
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 import pydeck as pdk
-# from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
 import re
 import html as _html
 from datetime import datetime, timezone
 import numpy as np  
 import math
-# import uuid
 import streamlit.components.v1 as components
-
-
-# Imports for chat/RAG
 from pathlib import Path
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
+import time
+
+# Configuration
+from config import config
+
+# Logging
+from utils.logger import app_logger as logger, log_dataframe_info, log_performance
 
 # Local helper imports
 from helper import (
     load_history_data,
-    # compute_rate_per_100,
-    MODELS,
-    MILEAGE_BUCKETS,
-    AGE_BUCKETS,
-    NISSAN_HEATMAP_SCALE,
-    NISSAN_RED,
-    NISSAN_GOLD,
     load_model,
     append_inference_log,
     append_inference_log_s3,
     random_inference_row_from_df,
-    # find_nearest_dealers,
-    # estimate_repair_cost_range,
     get_bedrock_summary,
-    # fetch_dealers_from_aws_location,
     fetch_nearest_dealers,
     reverse_geocode
 )
@@ -45,7 +34,8 @@ from helper import (
 from chat_helper import (
     build_tf_idf_index,
     generate_reply as chat_generate_reply,
-    ensure_failures_column
+    ensure_failures_column,
+    retrieve_with_faiss_or_tfidf
 )
 
 try:
@@ -65,40 +55,56 @@ except Exception as e:
 # EMB_ARRAY_PATH = VECTOR_DIR / "claim_embs.npy"
 # META_PATH = VECTOR_DIR / "claim_meta.npy"   # numpy-serialized list of dicts using np.object_
 
-VECTOR_DIR = Path("./vector_store")
-IDX_PATH = VECTOR_DIR / "historical_data_index.faiss"
-EMB_PATH = VECTOR_DIR / "historical_data_embs.npy"
-META_PATH = VECTOR_DIR / "historical_data_meta.npy"
-JSON_META = VECTOR_DIR / "historical_data_meta.json"
+# Load configuration paths and constants
+VECTOR_DIR = config.paths.vector_dir
+IDX_PATH = config.paths.faiss_index_path
+EMB_PATH = config.paths.embeddings_path
+META_PATH = config.paths.metadata_path
+JSON_META = config.paths.metadata_json_path
 
-# embedding model name 
-EMBED_MODEL_NAME = "all-MiniLM-L6-v2"
+# Embedding model name
+EMBED_MODEL_NAME = config.model.embedding_model_name
 
+# AWS and S3 configuration
+USE_S3 = config.aws.use_s3
+S3_BUCKET = config.aws.s3_bucket
+S3_KEY = config.paths.s3_data_key
+AWS_REGION = config.aws.region
+PLACE_INDEX_NAME = config.aws.place_index_name
 
-# Optional config - change as needed
-USE_S3 = True
-S3_BUCKET = "veh-poc-207567760844-us-east-1"
-S3_KEY = "data/vehicle_claims_extended.csv"
-MODEL_PATH = "models/claim_rate_model.joblib"
-LOG_FILE_LOCAL = "inference_log.csv"
-LOG_FILE_S3_KEY = "logs/inference_log.csv"
+# Model and log paths
+MODEL_PATH = config.paths.model_path
+LOG_FILE_LOCAL = config.paths.inference_log_local
+LOG_FILE_S3_KEY = config.paths.inference_log_s3_key
 
 # Chat log path
-LOG_DIR = Path("./logs")
-LOG_DIR.mkdir(exist_ok=True)
-CHAT_LOG_PATH = LOG_DIR / "chat_history.csv"
+LOG_DIR = config.paths.logs_dir
+CHAT_LOG_PATH = Path(config.paths.chat_log_file)
 
-LOCATION_PROB_THRESHOLD = 0.5  # threshold to show nearby dealers
-PLACE_INDEX_NAME = "NissanPlaceIndex"
-AWS_REGION = "us-east-1"
+# Location and UI settings
+LOCATION_PROB_THRESHOLD = config.data.location_prob_threshold
+SHOW_REPAIR_COST = config.ui.show_repair_cost
+IS_POC = config.ui.is_poc
 
-SHOW_REPAIR_COST = False
-IS_POC = False
+# Data constants
+MODELS = config.data.models
+MILEAGE_BUCKETS = config.data.mileage_buckets
+AGE_BUCKETS = config.data.age_buckets
+
+# Color constants
+NISSAN_RED = config.colors.nissan_red
+NISSAN_GOLD = config.colors.nissan_gold
+NISSAN_HEATMAP_SCALE = config.colors.heatmap_scale
 
 # ------------------------
 # Page config and styles
 # ------------------------
-st.set_page_config(page_title="Nissan - Vehicle Predictive Insights (POC)", page_icon="images/maintenance_icon.svg", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(
+    page_title=config.ui.page_title,
+    page_icon=config.ui.page_icon,
+    layout=config.ui.layout,
+    initial_sidebar_state=config.ui.initial_sidebar_state
+)
 # apply_style is in styles.py; we assume it's already imported/used as before
 from styles import apply_style
 apply_style()
@@ -107,15 +113,49 @@ apply_style()
 # Helper UI functions (added)
 # ------------------------
 def safe_sorted_unique(series):
+    """Return sorted unique string values from a pandas Series."""
     vals = [v for v in pd.unique(series) if pd.notna(v)]
     # cast to str for consistent comparisons and sort case-insensitively
     vals = [str(v) for v in vals]
     return sorted(vals, key=lambda s: s.lower())
 
+
+def calculate_risk_level(claim_pct: float) -> str:
+    """
+    Calculate risk level from claim percentage using configured thresholds.
+    
+    Args:
+        claim_pct: Claim percentage (0-100)
+    
+    Returns:
+        Risk level: "High", "Medium", or "Low"
+    """
+    if claim_pct >= config.risk.high_threshold:
+        return "High"
+    elif claim_pct >= config.risk.medium_threshold:
+        return "Medium"
+    return "Low"
+
 @st.cache_resource(show_spinner=True)
 def load_persisted_faiss():
     """Load FAISS index, embeddings, and metadata if available on disk."""
+    logger.info("Attempting to load persisted FAISS index...")
+    
+    # Check if FAISS is available before attempting to load
+    if not HAS_FAISS:
+        logger.warning("FAISS library not installed - vector search will use TF-IDF fallback")
+        return {
+            "available": False,
+            "index": None,
+            "embs": None,
+            "meta": None,
+            "d": None,
+            "message": "FAISS library not installed. Install with: pip install faiss-cpu"
+        }
+    
     if not IDX_PATH.exists() or not EMB_PATH.exists() or not META_PATH.exists():
+        logger.warning(f"FAISS index files not found at {VECTOR_DIR}")
+        logger.info("Run build_faiss_index.py to create FAISS index for faster retrieval")
         return {
             "available": False,
             "index": None,
@@ -126,10 +166,15 @@ def load_persisted_faiss():
         }
 
     try:
+        start_time = time.time()
         index = faiss.read_index(str(IDX_PATH))
         embs = np.load(EMB_PATH)
         meta = list(np.load(META_PATH, allow_pickle=True))
         d = embs.shape[1]
+        duration_ms = (time.time() - start_time) * 1000
+        
+        logger.info(f"✅ Loaded FAISS index: {len(meta)} vectors, dim={d} in {duration_ms:.2f}ms")
+        
         return {
             "available": True,
             "index": index,
@@ -139,6 +184,7 @@ def load_persisted_faiss():
             "message": f"Loaded persisted FAISS index: {len(meta)} vectors · dim={d}"
         }
     except Exception as e:
+        logger.error(f"Failed to load persisted FAISS index: {e}", exc_info=True)
         return {
             "available": False,
             "index": None,
@@ -220,17 +266,16 @@ def render_summary_ui(model_name, part_name, mileage_bucket, age_bucket, claim_p
 
         if not summary_html:
             raise ValueError("Empty summary returned from LLM")
-    except Exception:
+    except Exception as e:
+        logger.error(f"Bedrock summary generation failed for {model_name}/{part_name}: {e}", exc_info=config.debug)
+        if config.debug:
+            st.warning(f"Bedrock summary generation failed: {e}")
+        
         fallback = (
             f"The predicted claim probability is {round(claim_pct,1)}% for {part_name} in {model_name}. "
             "No immediate action recommended; monitor for trend changes."
         )
-        if claim_pct >= 75:
-            risk_token = "High"
-        elif claim_pct >= 50:
-            risk_token = "Medium"
-        else:
-            risk_token = "Low"
+        risk_token = calculate_risk_level(claim_pct)
         pct = f"{round(claim_pct)}%"
         # summary_html = f"<strong>{risk_token} risk ({pct})</strong>: {_html.escape(fallback)}"
         summary_html = f"{_html.escape(fallback)}"
@@ -240,7 +285,7 @@ def render_summary_ui(model_name, part_name, mileage_bucket, age_bucket, claim_p
     bullets_html = split_html[1].strip() if len(split_html) > 1 else ""
 
     m = re.search(r'\b(Low|Medium|High)\b', re.sub(r'<[^>]+>', '', first_para_html), flags=re.IGNORECASE)
-    risk_token = (m.group(1).capitalize() if m else ("High" if claim_pct>=75 else "Medium" if claim_pct>=50 else "Low"))
+    risk_token = (m.group(1).capitalize() if m else calculate_risk_level(claim_pct))
     pct_match = re.search(r'\((\d{1,3})%\)', re.sub(r'<[^>]+>', '', first_para_html))
     pct = f"{pct_match.group(1)}%" if pct_match else f"{round(claim_pct)}%"
 
@@ -289,195 +334,25 @@ def render_summary_ui(model_name, part_name, mileage_bucket, age_bucket, claim_p
             st.markdown("<div style='color:#94a3b8;'>No additional details.</div>", unsafe_allow_html=True)
 
 @st.cache_data(show_spinner=False)
-def load_history_cached(use_s3=USE_S3, s3_bucket=S3_BUCKET, s3_key=S3_KEY, local_path="data/vehicle_claims_extended.csv"):
+def load_history_cached(use_s3=None, s3_bucket=None, s3_key=None, local_path=None):
+    """Load historical data with config defaults"""
+    use_s3 = use_s3 if use_s3 is not None else config.aws.use_s3
+    s3_bucket = s3_bucket or config.aws.s3_bucket
+    s3_key = s3_key or config.paths.s3_data_key
+    local_path = local_path or config.paths.local_data_file
+    
     df_history = load_history_data(use_s3=use_s3, s3_bucket=s3_bucket, s3_key=s3_key, local_path=local_path)
     df_history = ensure_failures_column(df_history)
     return df_history
 
-@st.cache_data(show_spinner=False)
-def build_rag_index_cached(df):
-    return build_rag_index(df)
-
-# ------------------------
-# Reusable utilities for chat
-# ------------------------
-# helper: convert a history row (pandas Series or dict) to document text
-def _row_to_doc(r):
-    # same as you used earlier but ensure string
-    parts = [
-        f"model: {r.get('model','')}",
-        f"part: {r.get('primary_failed_part','')}",
-        f"mileage_bucket: {r.get('mileage_bucket','')}",
-        f"age_bucket: {r.get('age_bucket','')}",
-        f"date: {r.get('date','')}",
-        f"claims: {int(r.get('claims_count',0))}"
-    ]
-    return "; ".join(parts)
-
-
-# cached loader for sentence-transformers model
-@st.cache_resource(show_spinner=False)
-def get_embedding_model(model_name=EMBED_MODEL_NAME):
-    if not HAS_ST_MODEL:
-        raise RuntimeError("sentence-transformers not available")
-    return SentenceTransformer(model_name)
-
-
-# build (or load) FAISS index and metadata
-@st.cache_resource(show_spinner=True)
-def build_faiss_index(hist_df, force_rebuild: bool = False):
-    """
-    Returns: index (faiss.IndexFlatIP), embeddings (np.array NxD), meta (list of dict rows)
-    - Builds embedding matrix for each row document and creates FAISS index (inner product similarity on normalized vectors).
-    - Persists index and embeddings to disk for subsequent loads.
-    """
-    # prepare docs
-    rows = hist_df.to_dict(orient="records")
-    docs = [_row_to_doc(r) for r in rows]
-
-    # If persisted files exist and not forced, try loading
-    try:
-        if not force_rebuild and HAS_FAISS and FAISS_INDEX_PATH.exists() and EMB_ARRAY_PATH.exists() and META_PATH.exists():
-            # load meta and embeddings and index
-            meta = list(np.load(META_PATH, allow_pickle=True))
-            emb_array = np.load(EMB_ARRAY_PATH)
-            # build index from numpy embs
-            d = emb_array.shape[1]
-            index = faiss.IndexFlatIP(d)
-            # ensure normalized embeddings for cosine-like similarity
-            faiss.normalize_L2(emb_array)
-            index.add(emb_array)
-            return index, emb_array, meta
-    except Exception:
-        # fallback to rebuild
-        pass
-
-    # If FAISS or sentence-transformers not installed, raise to allow upper-level fallback
-    if not (HAS_FAISS and HAS_ST_MODEL):
-        raise RuntimeError("FAISS or sentence-transformers not available for building vector index")
-
-    model = get_embedding_model()
-    # compute embeddings in batches to avoid memory spikes
-    BATCH = 256
-    embs = []
-    for i in range(0, len(docs), BATCH):
-        batch_docs = docs[i:i+BATCH]
-        batch_emb = model.encode(batch_docs, show_progress_bar=False, convert_to_numpy=True)
-        embs.append(batch_emb)
-    emb_array = np.vstack(embs).astype("float32")
-
-    # normalize (so inner-product == cosine similarity)
-    faiss.normalize_L2(emb_array)
-
-    d = emb_array.shape[1]
-    index = faiss.IndexFlatIP(d)  # inner-product on normalized vectors => cosine similarity
-    index.add(emb_array)
-
-    # persist
-    try:
-        faiss.write_index(index, str(FAISS_INDEX_PATH))
-        np.save(EMB_ARRAY_PATH, emb_array)
-        np.save(META_PATH, np.array(rows, dtype=object))
-    except Exception as e:
-        st.warning(f"Failed to persist FAISS index: {e}")
-
-    return index, emb_array, rows
-
-# retrieval: returns top-k rows with similarity score
-def retrieve_top_k_faiss(query, index, emb_array, meta_rows, k=6):
-    """
-    query -> embed -> search -> return list of row dicts with 'score'
-    """
-    if not (HAS_FAISS and HAS_ST_MODEL):
-        return []
-
-    model = get_embedding_model()
-    q_emb = model.encode([query], convert_to_numpy=True).astype("float32")
-    faiss.normalize_L2(q_emb)
-    D, I = index.search(q_emb, k)  # D: similarities, I: indices
-    sims = D[0].tolist()
-    idxs = I[0].tolist()
-    results = []
-    for idx, sim in zip(idxs, sims):
-        if idx < 0 or idx >= len(meta_rows):
-            continue
-        row = dict(meta_rows[idx]) if isinstance(meta_rows[idx], dict) else dict(meta_rows[idx].item() if hasattr(meta_rows[idx],'item') else meta_rows[idx])
-        row["score"] = float(sim)
-        results.append(row)
-    return results
-
-# fallback wrappers that mimic original function signatures
-def build_rag_index_faiss(df):
-    try:
-        idx, embs, rows = build_faiss_index(df, force_rebuild=False)
-        return idx, embs, rows
-    except Exception as e:
-        st.warning(f"FAISS build failed: {e}. Falling back to TF-IDF index.")
-        return None, None, df.to_dict(orient='records')
-
-
-def retrieve_top_k(query, vect, X, rows, k=6):
-    """
-    Compatibility wrapper: if FAISS index present, use it; else use TF-IDF (existing vect/X).
-    We assume earlier code calls retrieve_top_k(query, VECT, X_INDEX, HISTORY_ROWS)
-    """
-    # If vect is None but we have FAISS saved state, try to use FAISS stored resource
-    if HAS_FAISS:
-        # attempt to load persisted index (cached resource will return quickly)
-        try:
-            index, emb_array, meta = build_faiss_index_cached_wrapper(df_history)
-            if index is not None:
-                return retrieve_top_k_faiss(query, index, emb_array, meta, k=k)
-        except Exception:
-            pass
-
-    # fallback to TF-IDF behaviour (original)
-    if vect is None or X is None or len(rows) == 0:
-        return []
-    qv = vect.transform([query])
-    sims = cosine_similarity(qv, X).flatten()
-    top_idx = sims.argsort()[::-1][:k]
-    results = []
-    for i in top_idx:
-        results.append({**rows[i], "score": float(sims[i])})
-    return results
-
-# small cached wrapper to avoid repeated index creation during reruns
-@st.cache_resource
-def build_faiss_index_cached_wrapper(df):
-    # returns index, emb_array, meta_rows or (None, None, [])
-    try:
-        return build_faiss_index(df, force_rebuild=False)
-    except Exception as e:
-        return (None, None, [])
-    
-
-def build_rag_index(df: pd.DataFrame):
-    """Build a simple TF-IDF index over the historical rows. Returns vectorizer and matrix and list of row dicts.
-    This is intentionally lightweight (no external vector DB) and fast for small-to-medium datasets."""
-    docs = [_row_to_doc(r) for _, r in df.iterrows()]
-    if not docs:
-        return None, None, []
-    vect = TfidfVectorizer(stop_words="english", ngram_range=(1,2), max_features=6000)
-    X = vect.fit_transform(docs)
-    rows = df.to_dict(orient="records")
-    return vect, X, rows
-
-
-def retrieve_top_k(query: str, vect, X, rows, k=5):
-    """Return top-k rows (as dicts) most similar to query using cosine similarity over TF-IDF."""
-    if vect is None or X is None or len(rows) == 0:
-        return []
-    qv = vect.transform([query])
-    sims = cosine_similarity(qv, X).flatten()
-    top_idx = sims.argsort()[::-1][:k]
-    results = []
-    for i in top_idx:
-        results.append({**rows[i], "score": float(sims[i])})
-    return results
-
 
 def persist_chat_to_disk(history):
+    """
+    Persist chat history to disk as CSV.
+    
+    Args:
+        history: List of chat message dictionaries
+    """
     df = pd.DataFrame(history)
     try:
         df.to_csv(CHAT_LOG_PATH, index=False)
@@ -487,26 +362,36 @@ def persist_chat_to_disk(history):
 # ------------------------
 # Load data (S3 fallback to local)
 # ------------------------
+logger.info("Starting application - loading historical data...")
+start_time = time.time()
+
 try:
-    # df_history = load_history_data(use_s3=USE_S3, s3_bucket=S3_BUCKET, s3_key=S3_KEY, local_path="data/vehicle_claims.csv")
     df_history = load_history_cached()
-    # st.write(len(df_history))
+    duration_ms = (time.time() - start_time) * 1000
+    logger.info(f"✅ Loaded {len(df_history)} historical records in {duration_ms:.2f}ms")
+    log_dataframe_info(logger, "df_history", df_history)
 except FileNotFoundError as e:
+    logger.critical(f"Data load failed - file not found: {e}", exc_info=True)
     st.error(f"❌ Data load failed: {e}")
     st.stop()
-
-REQUIRED_COLS = {"model", "primary_failed_part", "mileage_bucket", "age_bucket", "date", "claims_count", "repairs_count", "recalls_count"}
-if not REQUIRED_COLS.issubset(df_history.columns):
-    st.error("CSV data missing required columns. Please check vehicle_claims.csv.")
+except Exception as e:
+    logger.critical(f"Unexpected error loading data: {e}", exc_info=True)
+    st.error(f"❌ Unexpected error loading data: {e}")
     st.stop()
 
-# Build RAG index once per app run
-# VECT, X_INDEX, HISTORY_ROWS = build_rag_index_cached(df_history)
+REQUIRED_COLS = config.data.required_columns
+if not REQUIRED_COLS.issubset(df_history.columns):
+    missing_cols = REQUIRED_COLS - set(df_history.columns)
+    logger.error(f"Data validation failed - missing required columns: {missing_cols}")
+    logger.error(f"Available columns: {list(df_history.columns)}")
+    st.error(f"CSV data missing required columns: {missing_cols}. Please check your data file.")
+    st.stop()
+else:
+    logger.info(f"✅ Data validation passed - all required columns present")
 
-# prefer FAISS — we still keep VECT/X_INDEX for fallback TF-IDF if needed
-VECT, X_INDEX, HISTORY_ROWS = None, None, df_history.to_dict(orient='records')
-# build faiss cached resource (this takes care of caching)
-faiss_idx, faiss_embs, faiss_meta = build_faiss_index_cached_wrapper(df_history)
+# Note: FAISS index is already loaded via load_persisted_faiss() at line ~152
+# and stored in faiss_res global variable. No need to rebuild here.
+# For TF-IDF fallback, chat helper will build it on-demand when needed.
 
 
 # ------------------------
@@ -851,479 +736,83 @@ def render_col1():
 # ------------------------
 # Column 2: Predictive + Prescriptive
 # ------------------------
+# Import modular components
+from components_col2 import (
+    render_predictive_controls,
+    generate_prediction,
+    log_inference,
+    render_vehicle_info_left,
+    render_vehicle_info_right,
+    render_divider,
+    render_prediction_kpi,
+    render_prescriptive_section,
+    build_map_points,
+    render_map_visualization,
+    render_download_button
+)
+
 @st.fragment
 def render_col2():
-    # Load the model (may be None)
+    """
+    Render Column 2: Predictive & Prescriptive Analysis.
+    
+    This orchestrates the modular components for:
+    - Predictive analysis controls and KPIs
+    - Prescriptive summary with dealer recommendations
+    - Interactive map with dealer locations
+    - Download inference log
+    """
+    # Load model
     model_pipe = load_model(MODEL_PATH)
+    
+    # Card container for predictive analysis
     st.markdown('<div class="card">', unsafe_allow_html=True)
 
-    header_col, slider_col, dropdown_col = st.columns([2, 2.5, 1.25], gap="medium")
-    with header_col:
-        st.markdown('<div class="card-header" style="height:34px; display:flex; align-items:center;">Predictive Analysis</div>', unsafe_allow_html=True)
-
-    interval_map = {"15s": 15, "30s": 30, "1m": 60, "5m": 300, "15m": 900}
-    if "predictive_interval_label" not in st.session_state:
-        st.session_state.predictive_interval_label = "15m"
-    with slider_col:
-        st.select_slider(
-            "⏱️",
-            options=list(interval_map.keys()),
-            # value=st.session_state.predictive_interval_label,
-            key="predictive_interval_label",
-            format_func=lambda x: f"⏱ {x}",
-            label_visibility="collapsed",
-            help="Inference data generation",
-        )
-
-    threshold_options = [50, 60, 70, 75, 80, 85, 90, 95, 98, 99]
-    if "predictive_threshold_pct" not in st.session_state:
-        st.session_state.predictive_threshold_pct = 80
-    # with dropdown_col:
-    #     sel_index = threshold_options.index(st.session_state.predictive_threshold_pct) if st.session_state.predictive_threshold_pct in threshold_options else 4
-    #     st.selectbox("⚠️", options=threshold_options, index=sel_index, key="predictive_threshold_pct", label_visibility="collapsed", help="Show actionable summary when predicted claim probability ≥ this value")
-    with dropdown_col:
-        st.selectbox(
-            "⚠️",
-            options=threshold_options,
-            key="predictive_threshold_pct",
-            label_visibility="collapsed",
-            help="Show actionable summary when predicted claim probability ≥ this value",
-        )
-    refresh_interval = interval_map.get(st.session_state.predictive_interval_label, 900)
+    # 1. Render controls and get refresh interval
+    refresh_interval = render_predictive_controls()
     st_autorefresh(interval=refresh_interval * 1000, key="predictive_autorefresh")
 
-    inf_row = random_inference_row_from_df(df_history)
-
-    pred_prob = None
-    if model_pipe is not None:
-        try:
-            test_df = pd.DataFrame([{
-                "model": inf_row["model"],
-                "primary_failed_part": inf_row["primary_failed_part"],
-                "mileage_bucket": inf_row["mileage_bucket"],
-                "age_bucket": inf_row["age_bucket"],
-            }])
-            pred_val = model_pipe.predict(test_df)[0]
-            pred_prob = float(max(0.0, min(1.0, pred_val)))
-        except Exception:
-            pred_prob = None
-
-    if pred_prob is None:
-        model_risk = {"Leaf": 0.03, "Ariya": 0.04, "Sentra": 0.06}
-        mileage_risk = {"0-10k": 0.02, "10-30k": 0.03, "30-60k": 0.06, "60k+": 0.10}
-        unique_parts = safe_sorted_unique(df_history["primary_failed_part"])
-        part_risk = {p: 0.03 + (idx % 5) * 0.01 for idx, p in enumerate(unique_parts)}
-        base = (
-            0.5 * model_risk.get(inf_row["model"], 0.04)
-            + 0.8 * mileage_risk.get(inf_row["mileage_bucket"], 0.03)
-            + 0.6 * part_risk.get(inf_row["primary_failed_part"], 0.03)
-        )
-        pred_prob = float(max(0.0, min(0.99, base + (0.02 * (0.5 - 0.5)))) )
-
-    pct_text = f"{pred_prob*100:.1f}%"
-
-    try:
-        if USE_S3:
-            try:
-                appended = append_inference_log_s3(inf_row, pred_prob, s3_bucket=S3_BUCKET, s3_key=LOG_FILE_S3_KEY, local_fallback=LOG_FILE_LOCAL)
-            except Exception:
-                appended = append_inference_log(inf_row, pred_prob, filepath=LOG_FILE_LOCAL)
-        else:
-            appended = append_inference_log(inf_row, pred_prob, filepath=LOG_FILE_LOCAL)
-    except Exception:
-        appended = False
-
-    info_l_col, info_r_col, divider_col, kpi_col = st.columns([1, .60, 0.25, 1], gap="small")
-
-    if IS_POC:
-        with info_l_col:
-            st.markdown(f"""<div style="font-size:12px; color:#cbd5e1; margin-bottom:4px;">Model</div>
-                            <div style="font-weight:700; font-size:14px; color:#e6eef8; margin-bottom:8px;">Sentra</div>""", unsafe_allow_html=True)
-            st.markdown(f"""<div style="font-size:12px; color:#cbd5e1; margin-bottom:4px;">Part</div>
-                            <div style="font-weight:700; font-size:14px; color:#e6eef8;">Engine Coolant System</div>""", unsafe_allow_html=True)
-
-        with info_r_col:
-            st.markdown(f"""<div style="font-size:12px; color:#cbd5e1; margin-bottom:4px;">Mileage</div>
-                            <div style="font-weight:700; font-size:14px; color:#e6eef8; margin-bottom:8px;">10,200 miles</div>""", unsafe_allow_html=True)
-            st.markdown(f"""<div style="font-size:12px; color:#cbd5e1; margin-bottom:4px;">Age</div>
-                            <div style="font-weight:700; font-size:14px; color:#e6eef8;">6 months</div>""", unsafe_allow_html=True)
-    else:
-        with info_l_col:
-            st.markdown(f"""<div style="font-size:12px; color:#cbd5e1; margin-bottom:4px;">Model</div>
-                            <div style="font-weight:700; font-size:14px; color:#e6eef8; margin-bottom:8px;">{inf_row['model']}</div>""", unsafe_allow_html=True)
-            st.markdown(f"""<div style="font-size:12px; color:#cbd5e1; margin-bottom:4px;">Part</div>
-                            <div style="font-weight:700; font-size:14px; color:#e6eef8;">{inf_row['primary_failed_part']}</div>""", unsafe_allow_html=True)
-
-        with info_r_col:
-            st.markdown(f"""<div style="font-size:12px; color:#cbd5e1; margin-bottom:4px;">Mileage</div>
-                            <div style="font-weight:700; font-size:14px; color:#e6eef8; margin-bottom:8px;">{inf_row['mileage_bucket']}</div>""", unsafe_allow_html=True)
-            st.markdown(f"""<div style="font-size:12px; color:#cbd5e1; margin-bottom:4px;">Age</div>
-                            <div style="font-weight:700; font-size:14px; color:#e6eef8;">{inf_row['age_bucket']}</div>""", unsafe_allow_html=True)
-
+    # 2. Generate prediction
+    inf_row, pred_prob = generate_prediction(df_history, model_pipe)
+    
+    # 3. Log inference
+    log_inference(inf_row, pred_prob)
+    
+    # 4. Display vehicle info and prediction KPI side by side
+    # Create flat layout: info_left, info_right, divider, kpi (no nesting!)
+    info_l_col, info_r_col, divider_col, kpi_col = st.columns([1, 0.60, 0.25, 1], gap="small")
+    
+    with info_l_col:
+        render_vehicle_info_left(inf_row)
+    
+    with info_r_col:
+        render_vehicle_info_right(inf_row)
+    
     with divider_col:
-        st.markdown("""
-            <div style="display:flex; align-items:center; height:100%; justify-content:center;">
-                <div style="
-                    width:3px; 
-                    height:86px;
-                    border-radius:3px;
-                    background:linear-gradient(to bottom, rgba(255,255,255,0.35), rgba(255,255,255,0.08));
-                    box-shadow:0 0 8px rgba(255,255,255,0.15);
-                ">
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-
+        render_divider()
+    
     with kpi_col:
-        if IS_POC:
-            pct_text = f"{80.8:.1f}%"
-            st.markdown(
-                f"""
-                <div style="padding:10px; border-radius:8px; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));">
-                <div style="text-align:center;">
-                    <div class="kpi-label">Predicted Claim Probability</div>
-                    <div class="kpi-wrap" style="margin-top:6px;">
-                    <div class="kpi-num" style="color:{NISSAN_RED}; font-size:34px; line-height:1;">{pct_text}</div>
-                    </div>
-                    <div style="font-size:11px; color:#94a3b8; margin-top:6px;">
-                        Alert if ≥ {int(st.session_state.get('predictive_threshold_pct', 80))}%
-                    </div>
-                </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-        else:
-            st.markdown(
-                f"""
-                <div style="padding:10px; border-radius:8px; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));">
-                <div style="text-align:center;">
-                    <div class="kpi-label">Predicted Claim Probability</div>
-                    <div class="kpi-wrap" style="margin-top:6px;">
-                    <div class="kpi-num" style="color:{NISSAN_RED}; font-size:34px; line-height:1;">{pct_text}</div>
-                    </div>
-                    <div style="font-size:11px; color:#94a3b8; margin-top:6px;">
-                        Alert if ≥ {int(st.session_state.get('predictive_threshold_pct', 80))}%
-                    </div>
-                </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+        render_prediction_kpi(pred_prob)
 
     st.markdown('<div style="height:4px;"></div>', unsafe_allow_html=True)
 
-    st.markdown('<div class="card-header" style="height:34px; display:flex; align-items:center;">Prescriptive Summary</div>', unsafe_allow_html=True)
-    
-    # ------------------------
-    # Fetch nearest dealers (AWS Location fallback to local)
-    # ------------------------
-    current_lat = inf_row.get("lat", 38.4405)
-    current_lon = inf_row.get("lon", -122.7144)
-
-    try:
-        nearest, from_aws = fetch_nearest_dealers(
-            current_lat=current_lat,
-            current_lon=current_lon,
-            place_index_name=PLACE_INDEX_NAME,
-            aws_region=AWS_REGION,
-            fallback_dealers=None,
-            text_query="Nissan Service Center",
-            top_n=3,
-        )
-    except Exception as e:
-        st.write("Debug: fetch_nearest_dealers failed:", e)
-        nearest = []
-
-    if IS_POC:
-        render_summary_ui('Sentra',
-                      'Engine Cooling System',
-                      '10200 miles',
-                      '6 months',
-                      80.8)
-    else:
-        render_summary_ui(inf_row['model'],
-                      inf_row['primary_failed_part'],
-                      inf_row['mileage_bucket'],
-                      inf_row['age_bucket'],
-                      pred_prob*100,
-                      nearest[0]['name'])
+    # 5. Render prescriptive summary section
+    nearest_dealers = render_prescriptive_section(inf_row, pred_prob, render_summary_ui)
 
     st.markdown("</div>", unsafe_allow_html=True)
 
-     
-    # ------------------------
-    # Map card (improved tooltip + legend + readable labels)
-    # ------------------------
-    st.markdown('<div class="card"><div class="card-header">Current Location of Vehicle & Nearest Dealers</div>', unsafe_allow_html=True)
+    # 6. Render map with dealers and current location
+    map_points, dealers_to_plot = build_map_points(inf_row, nearest_dealers, pred_prob)
+    render_map_visualization(map_points, dealers_to_plot)
     
-    # Filter dealers within 20 miles (approx 32.1869 km)
-    MAX_KM_20_MILES = 32.1869
-    nearby_dealers = [d for d in nearest if d.get("distance_km", 99999) <= MAX_KM_20_MILES]
-    has_nearby = len(nearby_dealers) > 0
-
-    if not has_nearby:
-        # If none within 20 miles, we will still show nearest but flag to the user.
-        st.markdown(f"<div style='font-size:14px; color:{NISSAN_GOLD};'>No dealers found within 20 miles. Showing nearest results.</div>", unsafe_allow_html=True)
-        st.markdown('<div style="height:4px;"></div>', unsafe_allow_html=True)
-
-    # Legend
-    legend_html = """
-    <div style="display:flex; gap:12px; align-items:center; margin-bottom:8px;">
-      <div style="display:flex; gap:8px; align-items:center;">
-        <div style="width:14px; height:14px; border-radius:50%; background:#1da05b; border:2px solid rgba(255,255,255,0.08);"></div>
-        <div style="color:#94a3b8; font-size:13px;">Current vehicle</div>
-      </div>
-      <div style="display:flex; gap:8px; align-items:center;">
-        <div style="width:14px; height:14px; border-radius:50%; background:#d32f2f; border:2px solid rgba(255,255,255,0.08);"></div>
-        <div style="color:#94a3b8; font-size:13px;">Dealer (service center)</div>
-      </div>
-    </div>
-    """
-    st.markdown(legend_html, unsafe_allow_html=True)
-
-    # Build points (dealers first if we have nearby, else nearest)
-    map_points = []
-    dealers_to_plot = nearby_dealers if has_nearby else nearest[:3]
-
-    # Dealer points (red)
-    if IS_POC:
-        tooltip_html = (
-                f"<div style='padding:8px; max-width:260px;'>"
-                f"<div style='font-weight:700; font-size:14px; margin-bottom:6px;'>United Nissan</div>"
-                f"<div style='font-size:13px; color:#d1d5db; margin-bottom:6px;'>"
-                f"United Nissan, 3025 E Sahara Ave, Las Vegas, NV 89104, United States</div>"
-                f"<div style='font-size:12px; color:#94a3b8;'>Distance: 19 mi — ETA: 5 min</div>"
-                f"</div>"
-            )
-        map_points.append({
-                "name": "United Nissan",
-                "short_name": "United Nissan",
-                "lat": 36.1434,
-                "lon": -115.108,
-                "distance_km": 19,
-                "eta_min": 5,
-                "type": "Dealer",
-                "tooltip": tooltip_html
-            })
-    else:
-        for d in dealers_to_plot:
-            try:
-                lat = float(d.get("lat"))
-                lon = float(d.get("lon"))
-            except Exception:
-                continue
-            name_full = d.get("name", "Nissan Dealer")
-            # short name (first segment of label) for on-map text
-            short_name = name_full.split(",")[0]
-            dist_km = d.get("distance_km", "N/A")
-            eta = d.get("eta_min", "N/A")
-            tooltip_html = (
-                f"<div style='padding:8px; max-width:260px;'>"
-                f"<div style='font-weight:700; font-size:14px; margin-bottom:6px;'>{_html.escape(short_name)}</div>"
-                f"<div style='font-size:13px; color:#d1d5db; margin-bottom:6px;'>"
-                f"{_html.escape(name_full)}</div>"
-                f"<div style='font-size:12px; color:#94a3b8;'>Distance: {dist_km} km — ETA: {eta} min</div>"
-                f"</div>"
-            )
-            map_points.append({
-                "name": name_full,
-                "short_name": short_name,
-                "lat": lat,
-                "lon": lon,
-                "distance_km": dist_km,
-                "eta_min": eta,
-                "type": "Dealer",
-                "tooltip": tooltip_html
-            })
-
-    # Resolve readable place name for current vehicle (city/town)
-    place_name = reverse_geocode(current_lat, current_lon)
-    inf_row["place_name"] = place_name or "Current Location"
-
-    # Current vehicle tooltip (green)
-    if IS_POC:
-        vehicle_tooltip = (
-            f"<div style='padding:8px; max-width:260px;'>"
-            f"<div style='font-weight:700; font-size:14px; margin-bottom:6px;'>Current Location</div>"
-            f"<div style='font-size:13px; color:#d1d5db; margin-bottom:6px;'>73WJ+PP2 North Las Vegas, Nevada, USA</div>"
-            f"<div style='font-size:12px; color:#94a3b8; line-height:1.45;'>"
-            f"<b>Vehicle:</b> Sentra<br/>"
-            f"<b>Part:</b> Engine Coolant System<br/>"
-            f"<b>Mileage:</b> 10,200 miles<br/>"
-            f"<b>Age:</b> 6 months<br/>"
-            f"<b>Claim Prob:</b> 80.8%"
-        )
-    else:
-        vehicle_tooltip = (
-            f"<div style='padding:8px; max-width:260px;'>"
-            f"<div style='font-weight:700; font-size:14px; margin-bottom:6px;'>Current Location</div>"
-            f"<div style='font-size:13px; color:#d1d5db; margin-bottom:6px;'>{_html.escape(inf_row.get('place_name','Current Location'))}</div>"
-            f"<div style='font-size:12px; color:#94a3b8; line-height:1.45;'>"
-            f"<b>Vehicle:</b> {_html.escape(str(inf_row.get('model','N/A')))}<br/>"
-            f"<b>Part:</b> {_html.escape(str(inf_row.get('primary_failed_part','N/A')))}<br/>"
-            f"<b>Mileage:</b> {_html.escape(str(inf_row.get('mileage_bucket','N/A')))}<br/>"
-            f"<b>Age:</b> {_html.escape(str(inf_row.get('age_bucket','N/A')))}<br/>"
-            f"<b>Claim Prob:</b> {pred_prob*100:.1f}%"
-            f"</div></div>"
-        )
-    # display label: prefer city-like label; truncate to keep map tidy
-    display_label = inf_row.get("place_name", "Current Location").split(",")[0]
-
-    if IS_POC:
-        current_lat = 36.20
-        current_lon = -115.05
-    map_points.append({
-        "name": "Current Location",
-        "short_name": display_label,
-        "lat": float(current_lat),
-        "lon": float(current_lon),
-        "type": "Current",
-        "tooltip": vehicle_tooltip
-    })
-
-    # Defensive fallback: ensure at least current exists
-    if not map_points:
-        map_points = [{
-            "name": "Current Location",
-            "short_name": "Current",
-            "lat": float(current_lat),
-            "lon": float(current_lon),
-            "type": "Current",
-            "tooltip": vehicle_tooltip
-        }]
-
-    # Helper fields for pydeck
-    for p in map_points:
-        p["position"] = [p["lon"], p["lat"]]
-        # radius meters tuned to col width; display current slightly larger
-        p["_radius_m"] = 900 if p.get("type") == "Current" else 520
-        # color arrays
-        if p.get("type") == "Current":
-            p["_fill_color"] = [29, 158, 106, 230]  # green
-            p["_line_color"] = [8, 62, 40, 200]
-        else:
-            p["_fill_color"] = [211, 47, 47, 220]   # red
-            p["_line_color"] = [90, 20, 20, 200]
-
-    # Compute bounding center/zoom 
-    def _haversine_km(lat1, lon1, lat2, lon2):
-        R = 6371.0
-        phi1, phi2 = math.radians(lat1), math.radians(lat2)
-        dphi = math.radians(lat2 - lat1)
-        dlambda = math.radians(lon2 - lon1)
-        a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
-        return 2 * R * math.asin(math.sqrt(a))
-
-    def _compute_center_and_zoom(points, viewport_width_px=520):
-        lats = [p["lat"] for p in points]
-        lons = [p["lon"] for p in points]
-        min_lat, max_lat = min(lats), max(lats)
-        min_lon, max_lon = min(lons), max(lons)
-        center_lat = (min_lat + max_lat) / 2.0
-        center_lon = (min_lon + max_lon) / 2.0
-        d1 = _haversine_km(min_lat, min_lon, max_lat, max_lon)
-        max_dist_km = max(d1, 0.0)
-        if max_dist_km < 0.02:
-            return center_lat, center_lon, 14
-        max_dist_m = max_dist_km * 1000.0
-        meters_per_pixel_required = max_dist_m / (viewport_width_px * 0.85)
-        lat_rad = math.radians(center_lat)
-        meters_per_pixel_at_zoom0 = 156543.03392 * math.cos(lat_rad)
-        try:
-            zoom = math.log2(meters_per_pixel_at_zoom0 / meters_per_pixel_required)
-            zoom = max(3, min(14, int(round(zoom))))
-        except Exception:
-            zoom = 10
-        return center_lat, center_lon, zoom
-
-    center_lat, center_lon, zoom_level = _compute_center_and_zoom(map_points, viewport_width_px=520)
-
-    
-    # Render map with styled balloons, outline, labels and HTML tooltip
-    try:
-        dealers_layer = pdk.Layer(
-            "ScatterplotLayer",
-            data=[p for p in map_points if p["type"] == "Dealer"],
-            get_position="position",
-            get_fill_color="_fill_color",
-            get_radius="_radius_m",
-            get_line_color="_line_color",
-            pickable=True,
-            stroked=True,
-            radius_min_pixels=6,
-            radius_max_pixels=60,
-        )
-        current_layer = pdk.Layer(
-            "ScatterplotLayer",
-            data=[p for p in map_points if p["type"] == "Current"],
-            get_position="position",
-            get_fill_color="_fill_color",
-            get_radius="_radius_m",
-            get_line_color="_line_color",
-            pickable=True,
-            stroked=True,
-            radius_min_pixels=8,
-            radius_max_pixels=90,
-        )
-        # Text labels: short_name rendered to the right of the marker
-        text_layer = pdk.Layer(
-            "TextLayer",
-            data=map_points,
-            get_position="position",
-            get_text="short_name",
-            get_color=[230, 230, 230],
-            get_size=14,
-            get_angle=0,
-            get_text_anchor= "start",
-            get_alignment_baseline= "center",
-            billboard=True,
-            sizeUnits="pixels",
-        )
-
-        tooltip = {
-            "html": "{tooltip}",
-            "style": {"backgroundColor": "rgba(15,15,15,0.95)", "color": "white", "font-family":"Inter, Arial, sans-serif", "font-size":"13px", "padding":"6px"}
-        }
-
-        deck = pdk.Deck(
-            layers=[dealers_layer, current_layer, text_layer],
-            initial_view_state=pdk.ViewState(latitude=center_lat, longitude=center_lon, zoom=zoom_level, pitch=0),
-            tooltip=tooltip,
-            map_style='dark'
-        )
-        st.pydeck_chart(deck, use_container_width=True, height=360)
-
-    except Exception as e:
-        st.write("Debug: pydeck failed, falling back to st.map — error:", e)
-        map_df = pd.DataFrame([{"lat": p["lat"], "lon": p["lon"]} for p in map_points])
-        st.map(map_df)
-
-    st.markdown('<div style="height:8px;"></div>', unsafe_allow_html=True)
-
-    # st.markdown("**Nearest dealers:**")
-    with st.expander("Nearest dealers", expanded=False):
-        if not dealers_to_plot:
-            st.markdown("<div style='color:#94a3b8;'>No dealers within 20 miles.</div>", unsafe_allow_html=True)
-        for d in dealers_to_plot:
-            st.markdown(f"- **{d.get('name','Nissan Dealer')}** — {d.get('distance_km','N/A')} km ({d.get('eta_min','N/A')} min). Phone: {d.get('phone','N/A')}")
-
-    st.markdown('<div style="height:8px;"></div>', unsafe_allow_html=True)
-    # if st.button("📅 Schedule inspection / Contact dealer"):
-    #     st.info("Open scheduling modal or handoff to dealer booking flow (todo).")
-
-
-    if os.path.isfile(LOG_FILE_LOCAL):
-        with open(LOG_FILE_LOCAL, "rb") as f:
-            st.download_button(label="⬇️ Download Real-Time Vehicle Feed", data=f, file_name="inference_log.csv", mime="text/csv")
-
-    st.markdown("</div>", unsafe_allow_html=True)
+    # 7. Render download button
+    render_download_button()
 
 
 @st.fragment
 def render_col3():
 
-    st.markdown('<div class="card"><div class="card-header">Chat with Data</div>', unsafe_allow_html=True)
+    st.markdown('<div class="card"><div class="card-header">Vehicle Insights Companion</div>', unsafe_allow_html=True)
 
     # show faiss status 
     try:
@@ -1334,7 +823,10 @@ def render_col3():
                 f"<div style='color:#fca5a5; font-size:12px'>FAISS unavailable: {faiss_res.get('message','missing')}</div>",
                 unsafe_allow_html=True,
             )
-    except Exception:
+    except Exception as e:
+        logger.error(f"FAISS status check failed: {e}", exc_info=True)
+        if config.debug:
+            st.warning(f"FAISS status check failed: {e}")
         st.markdown("<div style='color:#fca5a5; font-size:12px'>FAISS status unknown</div>", unsafe_allow_html=True)
 
     # ensure session-state chat history exists
@@ -1348,8 +840,15 @@ def render_col3():
     # Build TF-IDF index once and cache results
     if "chat_tfidf_built" not in st.session_state:
         try:
+            logger.info("Building TF-IDF index for chat...")
+            start_time = time.time()
             VECT_CHAT, X_CHAT, HISTORY_ROWS_CHAT = build_tf_idf_index(df_history)
-        except Exception:
+            duration_ms = (time.time() - start_time) * 1000
+            logger.info(f"TF-IDF index built successfully in {duration_ms:.2f}ms")
+        except Exception as e:
+            logger.error(f"TF-IDF index build failed: {e}", exc_info=True)
+            if config.debug:
+                st.warning(f"TF-IDF index build failed: {e}")
             VECT_CHAT, X_CHAT, HISTORY_ROWS_CHAT = None, None, df_history.to_dict(orient="records")
         st.session_state.chat_tfidf_built = True
         st.session_state.VECT_CHAT = VECT_CHAT
@@ -1461,6 +960,9 @@ def render_col3():
 
                 # generate assistant reply (synchronous)
                 try:
+                    logger.info(f"Generating chat reply for query: '{q[:50]}...'")
+                    start_time = time.time()
+                    
                     assistant_html = chat_generate_reply(
                         q,
                         df_history,
@@ -1471,7 +973,12 @@ def render_col3():
                         get_bedrock_summary,
                         top_k=6,
                     )
+                    
+                    duration_ms = (time.time() - start_time) * 1000
+                    logger.info(f"Chat reply generated in {duration_ms:.2f}ms")
+                    
                 except Exception as e:
+                    logger.error(f"Chat reply generation failed for query '{q[:50]}...': {e}", exc_info=True)
                     assistant_html = f"<p>Error generating reply: {_html.escape(str(e))}</p>"
 
                 st.session_state.chat_history.append({
@@ -1484,8 +991,11 @@ def render_col3():
                 # persist (best-effort)
                 try:
                     persist_chat_to_disk(st.session_state.chat_history)
-                except Exception:
-                    pass
+                    logger.debug("Chat history persisted to disk")
+                except Exception as e:
+                    logger.warning(f"Failed to persist chat history: {e}")
+                    if config.debug:
+                        st.warning(f"Failed to persist chat history: {e}")
 
     # -------- final single render of the chat pane (exactly once per run) --------
     full_html, comp_height = _render_chat_html_and_scroll()
@@ -1524,20 +1034,42 @@ if page == "inference":
             mask &= df_log["model"].str.lower().str.contains(t) | df_log["primary_failed_part"].str.lower().str.contains(t)
         df_show = df_log[mask].sort_values("timestamp", ascending=False).head(rows_to_show)
 
+        # Rename columns for better readability and hide pred_prob
+        df_display = df_show.copy()
+        
+        # Define column renaming (handles both old bucket and new continuous formats)
+        column_renames = {
+            "timestamp": "Event Timestamp",
+            "model": "Model",
+            "primary_failed_part": "Primary Failed Part",
+            "mileage": "Mileage",
+            "mileage_bucket": "Mileage",  # Old format (backward compatibility)
+            "age": "Age",
+            "age_bucket": "Age",          # Old format (backward compatibility)
+            "pred_prob_pct": "Predictive %"
+        }
+        
+        # Rename columns that exist
+        df_display = df_display.rename(columns=column_renames)
+        
+        # Hide pred_prob column if it exists
+        columns_to_display = [col for col in df_display.columns if col != "pred_prob"]
+        df_display = df_display[columns_to_display]
+
         st.markdown('<div style="height:8px;"></div>', unsafe_allow_html=True)
-        st.dataframe(df_show.reset_index(drop=True), use_container_width=True)
+        st.dataframe(df_display.reset_index(drop=True), use_container_width=True)
 
         btn_col1, btn_col2 = st.columns([1, 1], gap="small")
         with btn_col1:
             csv_bytes = df_log.to_csv(index=False).encode("utf-8")
             st.download_button("⬇️ Download full log (CSV)", data=csv_bytes, file_name="inference_log.csv", mime="text/csv")
         with btn_col2:
-            if st.button("🗑️ Clear inference log"):
+            if st.button("🗑️ Clear full log"):
                 confirm = st.checkbox("Confirm clearing the log (this is permanent).")
                 if confirm:
                     try:
                         os.remove(LOG_FILE_LOCAL)
-                        st.success("Inference log cleared.")
+                        st.success("Real-Time Vehicle Feed log cleared.")
                         st.experimental_rerun()
                     except Exception as e:
                         st.error(f"Failed to delete log: {e}")
