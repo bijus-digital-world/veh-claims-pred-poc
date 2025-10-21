@@ -1,0 +1,144 @@
+2025-10-21 08:59:33 - [34mapp[0m - [36mINFO[0m - load_persisted_faiss:142 - Attempting to load persisted FAISS index...
+2025-10-21 08:59:34 - [34mapp[0m - [36mINFO[0m - load_persisted_faiss:176 - ✅ Loaded FAISS index: 5003 vectors, dim=384 in 497.20ms
+2025-10-21 08:59:34 - [34mapp[0m - [36mINFO[0m - <module>:365 - Starting application - loading historical data...
+2025-10-21 08:59:38 - [34mapp[0m - [36mINFO[0m - <module>:371 - ✅ Loaded 5000 historical records in 4177.53ms
+2025-10-21 08:59:38 - [34mapp[0m - [36mINFO[0m - log_dataframe_info:220 - DataFrame df_history: shape=(5000, 12), columns=['model', 'primary_failed_part_capital', 'primary_failed_part', 'part_family', 'mileage_bucket', 'age_bucket', 'date', 'claims_count', 'repairs_count', 'recalls_count', 'predicted_claim_prob', 'failures_count']
+2025-10-21 08:59:38 - [34mapp[0m - [36mINFO[0m - <module>:390 - ✅ Data validation passed - all required columns present
+2025-10-21 08:59:58 - [34mapp[0m - [31mERROR[0m - render_summary_ui:270 - Bedrock summary generation failed for Ariya/Rod-Conn Stab: cannot access local variable 'risk_token' where it is not associated with a value
+2025-10-21 09:00:00 - [34mapp[0m - [36mINFO[0m - render_col3:843 - Building TF-IDF index for chat...
+2025-10-21 09:00:01 - [34mapp[0m - [36mINFO[0m - render_col3:847 - TF-IDF index built successfully in 1179.87ms
+2025-10-21 09:01:01 - [34mapp[0m - [36mINFO[0m - render_col3:963 - Generating chat reply for query: 'what is the current claim %?...'
+2025-10-21 09:01:02 - [34mapp[0m - [31mERROR[0m - render_col3:981 - Chat reply generation failed for query 'what is the current claim %?...': name 'Optional' is not defined
+Traceback (most recent call last):
+  File "D:\Biju\Telematics_Analytics\POC\app.py", line 966, in render_col3
+    assistant_html = chat_generate_reply(
+        q,
+    ...<6 lines>...
+        top_k=6,
+    )
+  File "D:\Biju\Telematics_Analytics\POC\chat_helper.py", line 765, in generate_reply
+    from chat.handlers import QueryRouter, QueryContext
+  File "D:\Biju\Telematics_Analytics\POC\chat\__init__.py", line 8, in <module>
+    from chat.handlers import QueryRouter, QueryContext
+  File "D:\Biju\Telematics_Analytics\POC\chat\handlers.py", line 238, in <module>
+    from chat.handlers_default import DefaultHandler
+  File "D:\Biju\Telematics_Analytics\POC\chat\handlers_default.py", line 20, in <module>
+    class DefaultHandler(QueryHandler):
+    ...<202 lines>...
+                return f"<p>Couldn't determine trend: {_html.escape(str(e))}</p>"
+  File "D:\Biju\Telematics_Analytics\POC\chat\handlers_default.py", line 92, in DefaultHandler
+    def _generate_overview(self, context: QueryContext, sample_df: Optional[pd.DataFrame]) -> str:
+                                                                   ^^^^^^^^
+NameError: name 'Optional' is not defined
+2025-10-21 09:01:27 - [34mapp[0m - [36mINFO[0m - render_col3:963 - Generating chat reply for query: 'what is the current claim rate?...'
+2025-10-21 09:01:27 - [34mapp[0m - [31mERROR[0m - render_col3:981 - Chat reply generation failed for query 'what is the current claim rate?...': name 'Optional' is not defined
+Traceback (most recent call last):
+  File "D:\Biju\Telematics_Analytics\POC\app.py", line 966, in render_col3
+    assistant_html = chat_generate_reply(
+        q,
+    ...<6 lines>...
+        top_k=6,
+    )
+  File "D:\Biju\Telematics_Analytics\POC\chat_helper.py", line 765, in generate_reply
+    from chat.handlers import QueryRouter, QueryContext
+  File "D:\Biju\Telematics_Analytics\POC\chat\__init__.py", line 8, in <module>
+    from chat.handlers import QueryRouter, QueryContext
+  File "D:\Biju\Telematics_Analytics\POC\chat\handlers.py", line 238, in <module>
+    from chat.handlers_default import DefaultHandler
+  File "D:\Biju\Telematics_Analytics\POC\chat\handlers_default.py", line 20, in <module>
+    class DefaultHandler(QueryHandler):
+    ...<202 lines>...
+                return f"<p>Couldn't determine trend: {_html.escape(str(e))}</p>"
+  File "D:\Biju\Telematics_Analytics\POC\chat\handlers_default.py", line 92, in DefaultHandler
+    def _generate_overview(self, context: QueryContext, sample_df: Optional[pd.DataFrame]) -> str:
+                                                                   ^^^^^^^^
+NameError: name 'Optional' is not defined
+2025-10-21 09:08:38 - [34mapp[0m - [36mINFO[0m - load_persisted_faiss:142 - Attempting to load persisted FAISS index...
+2025-10-21 09:08:39 - [34mapp[0m - [36mINFO[0m - load_persisted_faiss:176 - ✅ Loaded FAISS index: 5003 vectors, dim=384 in 39.26ms
+2025-10-21 09:08:39 - [34mapp[0m - [36mINFO[0m - <module>:365 - Starting application - loading historical data...
+2025-10-21 09:08:42 - [34mapp[0m - [36mINFO[0m - <module>:371 - ✅ Loaded 5000 historical records in 3850.30ms
+2025-10-21 09:08:42 - [34mapp[0m - [36mINFO[0m - log_dataframe_info:220 - DataFrame df_history: shape=(5000, 12), columns=['model', 'primary_failed_part_capital', 'primary_failed_part', 'part_family', 'mileage_bucket', 'age_bucket', 'date', 'claims_count', 'repairs_count', 'recalls_count', 'predicted_claim_prob', 'failures_count']
+2025-10-21 09:08:42 - [34mapp[0m - [36mINFO[0m - <module>:390 - ✅ Data validation passed - all required columns present
+2025-10-21 09:08:54 - [34mapp[0m - [31mERROR[0m - render_summary_ui:270 - Bedrock summary generation failed for Ariya/Strut Kit- Front: cannot access local variable 'risk_token' where it is not associated with a value
+2025-10-21 09:08:56 - [34mapp[0m - [36mINFO[0m - render_col3:843 - Building TF-IDF index for chat...
+2025-10-21 09:08:57 - [34mapp[0m - [36mINFO[0m - render_col3:847 - TF-IDF index built successfully in 1189.76ms
+2025-10-21 09:10:07 - [34mapp[0m - [36mINFO[0m - render_col3:963 - Generating chat reply for query: 'what is current claim rate?...'
+2025-10-21 09:10:07 - [34mapp[0m - [36mINFO[0m - render_col3:978 - Chat reply generated in 108.91ms
+2025-10-21 09:11:21 - [34mapp[0m - [36mINFO[0m - render_col3:963 - Generating chat reply for query: 'what is current recall rate?...'
+2025-10-21 09:11:21 - [34mapp[0m - [36mINFO[0m - render_col3:978 - Chat reply generated in 17.37ms
+2025-10-21 10:43:56 - [34mapp[0m - [36mINFO[0m - load_persisted_faiss:142 - Attempting to load persisted FAISS index...
+2025-10-21 10:43:56 - [34mapp[0m - [36mINFO[0m - load_persisted_faiss:176 - ✅ Loaded FAISS index: 5003 vectors, dim=384 in 82.01ms
+2025-10-21 10:43:56 - [34mapp[0m - [36mINFO[0m - <module>:365 - Starting application - loading historical data...
+2025-10-21 10:44:00 - [34mapp[0m - [36mINFO[0m - <module>:371 - ✅ Loaded 5000 historical records in 4036.49ms
+2025-10-21 10:44:00 - [34mapp[0m - [36mINFO[0m - log_dataframe_info:220 - DataFrame df_history: shape=(5000, 12), columns=['model', 'primary_failed_part_capital', 'primary_failed_part', 'part_family', 'mileage_bucket', 'age_bucket', 'date', 'claims_count', 'repairs_count', 'recalls_count', 'predicted_claim_prob', 'failures_count']
+2025-10-21 10:44:00 - [34mapp[0m - [36mINFO[0m - <module>:390 - ✅ Data validation passed - all required columns present
+2025-10-21 10:45:59 - [34mapp[0m - [36mINFO[0m - <module>:365 - Starting application - loading historical data...
+2025-10-21 10:45:59 - [34mapp[0m - [36mINFO[0m - <module>:371 - ✅ Loaded 5000 historical records in 11.05ms
+2025-10-21 10:45:59 - [34mapp[0m - [36mINFO[0m - log_dataframe_info:220 - DataFrame df_history: shape=(5000, 12), columns=['model', 'primary_failed_part_capital', 'primary_failed_part', 'part_family', 'mileage_bucket', 'age_bucket', 'date', 'claims_count', 'repairs_count', 'recalls_count', 'predicted_claim_prob', 'failures_count']
+2025-10-21 10:45:59 - [34mapp[0m - [36mINFO[0m - <module>:390 - ✅ Data validation passed - all required columns present
+2025-10-21 10:46:37 - [34mapp[0m - [31mERROR[0m - render_summary_ui:270 - Bedrock summary generation failed for Ariya/Plug-Drain: cannot access local variable 'risk_token' where it is not associated with a value
+2025-10-21 10:46:39 - [34mapp[0m - [36mINFO[0m - render_col3:843 - Building TF-IDF index for chat...
+2025-10-21 10:46:40 - [34mapp[0m - [36mINFO[0m - render_col3:847 - TF-IDF index built successfully in 1253.81ms
+2025-10-21 10:47:05 - [34mapp[0m - [36mINFO[0m - render_col3:963 - Generating chat reply for query: 'what is the current claim rate?...'
+2025-10-21 10:47:05 - [34mapp[0m - [36mINFO[0m - render_col3:978 - Chat reply generated in 34.32ms
+2025-10-21 10:47:29 - [34mapp[0m - [31mERROR[0m - render_summary_ui:270 - Bedrock summary generation failed for Leaf/Sen Assy-Side Airbag: cannot access local variable 'risk_token' where it is not associated with a value
+2025-10-21 10:47:41 - [34mapp[0m - [31mERROR[0m - render_summary_ui:270 - Bedrock summary generation failed for Leaf/Camera Assy-Back View: cannot access local variable 'risk_token' where it is not associated with a value
+2025-10-21 10:47:58 - [34mapp[0m - [31mERROR[0m - render_summary_ui:270 - Bedrock summary generation failed for Sentra/Strut Assy-Fr Susp: cannot access local variable 'risk_token' where it is not associated with a value
+2025-10-21 10:48:36 - [34mapp[0m - [31mERROR[0m - render_summary_ui:270 - Bedrock summary generation failed for Leaf/Disc Fr Brake/Rotor: cannot access local variable 'risk_token' where it is not associated with a value
+2025-10-21 10:49:12 - [34mapp[0m - [31mERROR[0m - render_summary_ui:270 - Bedrock summary generation failed for Leaf/Cap Assy Filler: cannot access local variable 'risk_token' where it is not associated with a value
+2025-10-21 10:49:46 - [34mapp[0m - [31mERROR[0m - render_summary_ui:270 - Bedrock summary generation failed for Sentra/Shroud Assy: cannot access local variable 'risk_token' where it is not associated with a value
+2025-10-21 10:50:23 - [34mapp[0m - [31mERROR[0m - render_summary_ui:270 - Bedrock summary generation failed for Sentra/Sen Unit-Distance: cannot access local variable 'risk_token' where it is not associated with a value
+2025-10-21 10:51:09 - [34mapp[0m - [36mINFO[0m - <module>:365 - Starting application - loading historical data...
+2025-10-21 10:51:09 - [34mapp[0m - [36mINFO[0m - <module>:371 - ✅ Loaded 5000 historical records in 3.33ms
+2025-10-21 10:51:09 - [34mapp[0m - [36mINFO[0m - log_dataframe_info:220 - DataFrame df_history: shape=(5000, 12), columns=['model', 'primary_failed_part_capital', 'primary_failed_part', 'part_family', 'mileage_bucket', 'age_bucket', 'date', 'claims_count', 'repairs_count', 'recalls_count', 'predicted_claim_prob', 'failures_count']
+2025-10-21 10:51:09 - [34mapp[0m - [36mINFO[0m - <module>:390 - ✅ Data validation passed - all required columns present
+2025-10-21 10:51:18 - [34mapp[0m - [31mERROR[0m - render_summary_ui:270 - Bedrock summary generation failed for Sentra/Sunvisor Assy-Lh: cannot access local variable 'risk_token' where it is not associated with a value
+2025-10-21 10:51:20 - [34mapp[0m - [36mINFO[0m - render_col3:843 - Building TF-IDF index for chat...
+2025-10-21 10:51:22 - [34mapp[0m - [36mINFO[0m - render_col3:847 - TF-IDF index built successfully in 1323.56ms
+2025-10-21 10:52:52 - [34mapp[0m - [36mINFO[0m - <module>:365 - Starting application - loading historical data...
+2025-10-21 10:52:52 - [34mapp[0m - [36mINFO[0m - <module>:371 - ✅ Loaded 5000 historical records in 2.42ms
+2025-10-21 10:52:52 - [34mapp[0m - [36mINFO[0m - log_dataframe_info:220 - DataFrame df_history: shape=(5000, 12), columns=['model', 'primary_failed_part_capital', 'primary_failed_part', 'part_family', 'mileage_bucket', 'age_bucket', 'date', 'claims_count', 'repairs_count', 'recalls_count', 'predicted_claim_prob', 'failures_count']
+2025-10-21 10:52:52 - [34mapp[0m - [36mINFO[0m - <module>:390 - ✅ Data validation passed - all required columns present
+2025-10-21 10:53:04 - [34mapp[0m - [31mERROR[0m - render_summary_ui:270 - Bedrock summary generation failed for Leaf/Disc Fr Brake/Rotor: cannot access local variable 'risk_token' where it is not associated with a value
+2025-10-21 10:53:06 - [34mapp[0m - [36mINFO[0m - render_col3:843 - Building TF-IDF index for chat...
+2025-10-21 10:53:07 - [34mapp[0m - [36mINFO[0m - render_col3:847 - TF-IDF index built successfully in 1272.96ms
+2025-10-21 10:54:16 - [34mapp[0m - [36mINFO[0m - <module>:365 - Starting application - loading historical data...
+2025-10-21 10:54:16 - [34mapp[0m - [36mINFO[0m - <module>:371 - ✅ Loaded 5000 historical records in 4.26ms
+2025-10-21 10:54:16 - [34mapp[0m - [36mINFO[0m - log_dataframe_info:220 - DataFrame df_history: shape=(5000, 12), columns=['model', 'primary_failed_part_capital', 'primary_failed_part', 'part_family', 'mileage_bucket', 'age_bucket', 'date', 'claims_count', 'repairs_count', 'recalls_count', 'predicted_claim_prob', 'failures_count']
+2025-10-21 10:54:16 - [34mapp[0m - [36mINFO[0m - <module>:390 - ✅ Data validation passed - all required columns present
+2025-10-21 10:54:36 - [34mapp[0m - [31mERROR[0m - render_summary_ui:270 - Bedrock summary generation failed for Ariya/Shroud Assy: cannot access local variable 'risk_token' where it is not associated with a value
+2025-10-21 10:54:38 - [34mapp[0m - [36mINFO[0m - render_col3:843 - Building TF-IDF index for chat...
+2025-10-21 10:54:39 - [34mapp[0m - [36mINFO[0m - render_col3:847 - TF-IDF index built successfully in 1284.37ms
+2025-10-21 10:55:10 - [34mapp[0m - [36mINFO[0m - <module>:365 - Starting application - loading historical data...
+2025-10-21 10:55:10 - [34mapp[0m - [36mINFO[0m - <module>:371 - ✅ Loaded 5000 historical records in 2.58ms
+2025-10-21 10:55:10 - [34mapp[0m - [36mINFO[0m - log_dataframe_info:220 - DataFrame df_history: shape=(5000, 12), columns=['model', 'primary_failed_part_capital', 'primary_failed_part', 'part_family', 'mileage_bucket', 'age_bucket', 'date', 'claims_count', 'repairs_count', 'recalls_count', 'predicted_claim_prob', 'failures_count']
+2025-10-21 10:55:10 - [34mapp[0m - [36mINFO[0m - <module>:390 - ✅ Data validation passed - all required columns present
+2025-10-21 10:56:42 - [34mapp[0m - [36mINFO[0m - <module>:365 - Starting application - loading historical data...
+2025-10-21 10:56:43 - [34mapp[0m - [36mINFO[0m - <module>:371 - ✅ Loaded 5000 historical records in 2.46ms
+2025-10-21 10:56:43 - [34mapp[0m - [36mINFO[0m - log_dataframe_info:220 - DataFrame df_history: shape=(5000, 12), columns=['model', 'primary_failed_part_capital', 'primary_failed_part', 'part_family', 'mileage_bucket', 'age_bucket', 'date', 'claims_count', 'repairs_count', 'recalls_count', 'predicted_claim_prob', 'failures_count']
+2025-10-21 10:56:43 - [34mapp[0m - [36mINFO[0m - <module>:390 - ✅ Data validation passed - all required columns present
+2025-10-21 10:57:30 - [34mapp[0m - [36mINFO[0m - <module>:365 - Starting application - loading historical data...
+2025-10-21 10:57:30 - [34mapp[0m - [36mINFO[0m - <module>:371 - ✅ Loaded 5000 historical records in 1.95ms
+2025-10-21 10:57:30 - [34mapp[0m - [36mINFO[0m - log_dataframe_info:220 - DataFrame df_history: shape=(5000, 12), columns=['model', 'primary_failed_part_capital', 'primary_failed_part', 'part_family', 'mileage_bucket', 'age_bucket', 'date', 'claims_count', 'repairs_count', 'recalls_count', 'predicted_claim_prob', 'failures_count']
+2025-10-21 10:57:30 - [34mapp[0m - [36mINFO[0m - <module>:390 - ✅ Data validation passed - all required columns present
+2025-10-21 11:03:56 - [34mapp[0m - [36mINFO[0m - <module>:365 - Starting application - loading historical data...
+2025-10-21 11:03:56 - [34mapp[0m - [36mINFO[0m - <module>:371 - ✅ Loaded 5000 historical records in 1.96ms
+2025-10-21 11:03:56 - [34mapp[0m - [36mINFO[0m - log_dataframe_info:220 - DataFrame df_history: shape=(5000, 12), columns=['model', 'primary_failed_part_capital', 'primary_failed_part', 'part_family', 'mileage_bucket', 'age_bucket', 'date', 'claims_count', 'repairs_count', 'recalls_count', 'predicted_claim_prob', 'failures_count']
+2025-10-21 11:03:56 - [34mapp[0m - [36mINFO[0m - <module>:390 - ✅ Data validation passed - all required columns present
+2025-10-21 11:04:24 - [34mapp[0m - [36mINFO[0m - <module>:365 - Starting application - loading historical data...
+2025-10-21 11:04:24 - [34mapp[0m - [36mINFO[0m - <module>:371 - ✅ Loaded 5000 historical records in 4.14ms
+2025-10-21 11:04:24 - [34mapp[0m - [36mINFO[0m - log_dataframe_info:220 - DataFrame df_history: shape=(5000, 12), columns=['model', 'primary_failed_part_capital', 'primary_failed_part', 'part_family', 'mileage_bucket', 'age_bucket', 'date', 'claims_count', 'repairs_count', 'recalls_count', 'predicted_claim_prob', 'failures_count']
+2025-10-21 11:04:24 - [34mapp[0m - [36mINFO[0m - <module>:390 - ✅ Data validation passed - all required columns present
+2025-10-21 11:04:27 - [34mapp[0m - [36mINFO[0m - <module>:365 - Starting application - loading historical data...
+2025-10-21 11:04:27 - [34mapp[0m - [36mINFO[0m - <module>:371 - ✅ Loaded 5000 historical records in 6.37ms
+2025-10-21 11:04:27 - [34mapp[0m - [36mINFO[0m - log_dataframe_info:220 - DataFrame df_history: shape=(5000, 12), columns=['model', 'primary_failed_part_capital', 'primary_failed_part', 'part_family', 'mileage_bucket', 'age_bucket', 'date', 'claims_count', 'repairs_count', 'recalls_count', 'predicted_claim_prob', 'failures_count']
+2025-10-21 11:04:27 - [34mapp[0m - [36mINFO[0m - <module>:390 - ✅ Data validation passed - all required columns present
+2025-10-21 11:04:35 - [34mapp[0m - [36mINFO[0m - <module>:365 - Starting application - loading historical data...
+2025-10-21 11:04:35 - [34mapp[0m - [36mINFO[0m - <module>:371 - ✅ Loaded 5000 historical records in 12.01ms
+2025-10-21 11:04:35 - [34mapp[0m - [36mINFO[0m - log_dataframe_info:220 - DataFrame df_history: shape=(5000, 12), columns=['model', 'primary_failed_part_capital', 'primary_failed_part', 'part_family', 'mileage_bucket', 'age_bucket', 'date', 'claims_count', 'repairs_count', 'recalls_count', 'predicted_claim_prob', 'failures_count']
+2025-10-21 11:04:35 - [34mapp[0m - [36mINFO[0m - <module>:390 - ✅ Data validation passed - all required columns present
+2025-10-21 11:04:39 - [34mapp[0m - [36mINFO[0m - <module>:365 - Starting application - loading historical data...
+2025-10-21 11:04:39 - [34mapp[0m - [36mINFO[0m - <module>:371 - ✅ Loaded 5000 historical records in 4.72ms
+2025-10-21 11:04:39 - [34mapp[0m - [36mINFO[0m - log_dataframe_info:220 - DataFrame df_history: shape=(5000, 12), columns=['model', 'primary_failed_part_capital', 'primary_failed_part', 'part_family', 'mileage_bucket', 'age_bucket', 'date', 'claims_count', 'repairs_count', 'recalls_count', 'predicted_claim_prob', 'failures_count']
+2025-10-21 11:04:39 - [34mapp[0m - [36mINFO[0m - <module>:390 - ✅ Data validation passed - all required columns present
+2025-10-21 11:09:31 - [34mapp[0m - [31mERROR[0m - render_summary_ui:270 - Bedrock summary generation failed for Leaf/Sw Unit-Power Wdw: cannot access local variable 'risk_token' where it is not associated with a value

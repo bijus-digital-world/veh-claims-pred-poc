@@ -1,3 +1,3 @@
 role,text,ts,id
-user,claim rate for model Sentra,2025-10-10T19:16:53.615727+00:00,49932a91-af64-42e2-92f8-5d3d7d0b3166
-assistant,<p>Overall claims count: total = 249 across 5000 records (~5.0 per 100 records).<br><strong>Breakdown by model:</strong><br>Leaf → 5.1%<br>Ariya → 4.9%<br>Sentra → 4.9%</p>,2025-10-10T19:16:56.850574+00:00,49932a91-af64-42e2-92f8-5d3d7d0b3166
+user,what is the current claim rate?,2025-10-21T05:17:05.683802+00:00,ff89e75a-49f5-4a47-a4dc-54cb243b4901
+assistant,<p>Overall claims count: total = 249 across 5000 records (~5.0 per 100 records).<br><strong>Breakdown by model:</strong><br>Leaf → 5.1%<br>Ariya → 4.9%<br>Sentra → 4.9%</p>,2025-10-21T05:17:05.719703+00:00,ff89e75a-49f5-4a47-a4dc-54cb243b4901

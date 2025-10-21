@@ -1,0 +1,9 @@
+2025-10-21 09:10:07 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:771 - Processing chat query: 'what is current claim rate?...'
+2025-10-21 09:10:07 - [34mchat_helper[0m - [36mINFO[0m - __init__:272 - QueryRouter initialized with 14 handlers
+2025-10-21 09:10:07 - [34mchat_helper[0m - [36mINFO[0m - route:289 - Query routed to RateHandler
+2025-10-21 09:11:21 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:771 - Processing chat query: 'what is current recall rate?...'
+2025-10-21 09:11:21 - [34mchat_helper[0m - [36mINFO[0m - __init__:272 - QueryRouter initialized with 14 handlers
+2025-10-21 09:11:21 - [34mchat_helper[0m - [36mINFO[0m - route:289 - Query routed to RateHandler
+2025-10-21 10:47:05 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:771 - Processing chat query: 'what is the current claim rate?...'
+2025-10-21 10:47:05 - [34mchat_helper[0m - [36mINFO[0m - __init__:272 - QueryRouter initialized with 14 handlers
+2025-10-21 10:47:05 - [34mchat_helper[0m - [36mINFO[0m - route:289 - Query routed to RateHandler
