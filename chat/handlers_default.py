@@ -35,6 +35,10 @@ class DefaultHandler(QueryHandler):
     def handle(self, context: QueryContext) -> str:
         logger.debug("DefaultHandler processing (catch-all)")
         
+        # Check if this is a completely unrelated query
+        if self._is_unrelated_query(context.query):
+            return self._handle_unrelated_query(context)
+        
         # Perform RAG retrieval
         results = retrieve_with_faiss_or_tfidf(
             context.query,
@@ -89,6 +93,75 @@ class DefaultHandler(QueryHandler):
         
         # Generate overview from sample or full dataset
         return self._generate_overview(context, sample_df)
+    
+    def _is_unrelated_query(self, query: str) -> bool:
+        """Check if the query is completely unrelated to vehicle analytics."""
+        query_lower = query.lower()
+        
+        # Unrelated topics
+        unrelated_topics = [
+            "weather", "cooking", "recipe", "sports", "football", "basketball", "soccer",
+            "movies", "music", "entertainment", "celebrity", "news", "politics",
+            "travel", "vacation", "hotel", "restaurant", "shopping", "fashion",
+            "health", "medical", "doctor", "medicine", "fitness", "exercise",
+            "education", "school", "university", "homework", "study",
+            "technology", "computer", "software", "programming", "coding",
+            "finance", "banking", "investment", "stock", "money", "salary",
+            "personal", "family", "relationship", "dating", "marriage"
+        ]
+        
+        # Check if query contains unrelated topics
+        for topic in unrelated_topics:
+            if topic in query_lower:
+                return True
+        
+        # Check for very short, vague queries
+        if len(query.split()) <= 2 and not any(word in query_lower for word in 
+            ["data", "analysis", "failure", "model", "vehicle", "car", "nissan", "rate", "trend"]):
+            return True
+        
+        return False
+    
+    def _handle_unrelated_query(self, context: QueryContext) -> str:
+        """Handle queries that are unrelated to vehicle analytics."""
+        query = context.query.strip()
+        
+        # Get some basic stats about the dataset
+        try:
+            total_records = len(context.df_history)
+            models = context.df_history['model'].nunique() if 'model' in context.df_history.columns else 0
+            failures = context.df_history['failures_count'].sum() if 'failures_count' in context.df_history.columns else 0
+        except:
+            total_records = 0
+            models = 0
+            failures = 0
+        
+        html_parts = [
+            "<p><strong>I'm not sure how to help with that question.</strong></p>",
+            "<p>I'm specialized in analyzing Nissan vehicle telematics data. I can help you with:</p>",
+            "<ul style='margin-top:8px;'>",
+            "<li><strong>Vehicle Analytics:</strong> Failure rates, trends, and patterns</li>",
+            "<li><strong>Model Analysis:</strong> Compare Sentra, Leaf, Ariya, and other models</li>",
+            "<li><strong>Data Insights:</strong> Monthly trends, age/mileage analysis</li>",
+            "<li><strong>Prescriptive Guidance:</strong> Recommendations for specific parts/models</li>",
+            "</ul>"
+        ]
+        
+        if total_records > 0:
+            html_parts.append(f"<p><em>I have access to <strong>{total_records:,} records</strong> covering <strong>{models} models</strong> with <strong>{failures:,} total failures</strong>.</em></p>")
+        
+        html_parts.extend([
+            "<p><strong>Try asking something like:</strong></p>",
+            "<ul style='margin-top:8px;'>",
+            "<li>\"What's the failure rate for Sentra?\"</li>",
+            "<li>\"Show me failure trends by month\"</li>",
+            "<li>\"Which model has the most failures?\"</li>",
+            "<li>\"Prescribe for model Leaf part Battery\"</li>",
+            "</ul>",
+            "<p><em>I'm here to help with your vehicle data analysis!</em></p>"
+        ])
+        
+        return "".join(html_parts)
     
     def _generate_overview(self, context: QueryContext, sample_df: Optional[pd.DataFrame]) -> str:
         """Generate dataset or sample overview"""

@@ -70,7 +70,15 @@ class SupplierListHandler(QueryHandler):
         supplier_summary.columns = ["Supplier", "ID", "Quality", "Defect Rate", "Total Claims", "Part Types"]
         supplier_summary = supplier_summary.sort_values("Quality", ascending=False)
         
-        html = f"<p><strong>Suppliers {context_msg}:</strong></p><ul style='margin-top:6px;'>"
+        # Plain English summary
+        best_supplier = supplier_summary.iloc[0] if not supplier_summary.empty else None
+        if best_supplier is not None:
+            summary = f"We work with {len(supplier_summary)} suppliers {context_msg}, with {best_supplier['Supplier']} being the highest quality (score: {int(best_supplier['Quality'])}/100)."
+        else:
+            summary = f"Supplier information {context_msg} is available."
+        
+        html = f"<p><strong>{summary}</strong></p>"
+        html += f"<p><strong>Complete supplier list {context_msg}:</strong></p><ul style='margin-top:6px;'>"
         for _, row in supplier_summary.head(10).iterrows():
             defect_pct = row['Defect Rate'] * 100 if pd.notna(row['Defect Rate']) else 0
             quality_color = "#16a34a" if row['Quality'] >= 90 else ("#f59e0b" if row['Quality'] >= 80 else "#ef4444")
@@ -126,7 +134,16 @@ class DefectiveSupplierHandler(QueryHandler):
         # Sort by worst performers (highest defect rate and most failures)
         worst = supplier_stats.sort_values(["defect_rate", "total_failures"], ascending=[False, False]).head(8)
         
-        html = "<p><strong>Suppliers with highest defect rates:</strong></p><ul style='margin-top:6px;'>"
+        # Plain English summary
+        if not worst.empty:
+            worst_supplier = worst.iloc[0]
+            defect_pct = worst_supplier['defect_rate'] * 100 if pd.notna(worst_supplier['defect_rate']) else 0
+            summary = f"The most problematic supplier is {worst_supplier['supplier_name']} with a {defect_pct:.1f}% defect rate in {worst_supplier['part_family']} parts."
+        else:
+            summary = "Supplier performance analysis shows varying quality levels across different part families."
+        
+        html = f"<p><strong>{summary}</strong></p>"
+        html += "<p><strong>Detailed supplier performance analysis:</strong></p><ul style='margin-top:6px;'>"
         for _, row in worst.iterrows():
             defect_pct = row['defect_rate'] * 100 if pd.notna(row['defect_rate']) else 0
             html += (f"<li><span style='color:#ef4444; font-weight:600'>{_html.escape(str(row['supplier_name']))}</span> "
@@ -140,7 +157,7 @@ class DefectiveSupplierHandler(QueryHandler):
         if not worst.empty:
             worst_supplier = worst.iloc[0]
             html += (f"<p style='color:#fca5a5; margin-top:8px;'>"
-                    f"<strong>⚠️ Recommendation:</strong> Consider reviewing contract with "
+                    f"<strong>Recommendation:</strong> Consider reviewing contract with "
                     f"{_html.escape(str(worst_supplier['supplier_name']))} for {worst_supplier['part_family']} parts "
                     f"(Defect Rate: {worst_supplier['defect_rate']*100:.1f}%).</p>")
         
@@ -153,7 +170,8 @@ class VINQueryHandler(QueryHandler):
     
     def can_handle(self, context: QueryContext) -> bool:
         query_lower = context.query.lower()
-        return "vin" in query_lower or re.search(r'1N4[A-Z0-9]{8,}', context.query)
+        # Check for "vin" as a whole word or VIN pattern
+        return re.search(r'\bvin\b', query_lower) or re.search(r'1N4[A-Z0-9]{8,}', context.query)
     
     def handle(self, context: QueryContext) -> str:
         df = context.df_history
@@ -303,7 +321,17 @@ class FailureReasonHandler(QueryHandler):
         reason_counts = reason_counts.sort_values("Count", ascending=False)
         
         total_failures = len(failures_df)
-        html = f"<p><strong>Failure reasons {context_msg} ({total_failures} total failures):</strong></p>"
+        
+        # Plain English summary
+        top_reason = reason_counts.iloc[0] if not reason_counts.empty else None
+        if top_reason is not None:
+            top_pct = (top_reason['Count'] / total_failures * 100) if total_failures > 0 else 0
+            summary = f"The most common issue is {top_reason['Failure Reason'].lower()}, affecting {top_pct:.1f}% of all failures."
+        else:
+            summary = f"Analysis of {total_failures} total failures shows various root causes."
+        
+        html = f"<p><strong>{summary}</strong></p>"
+        html += f"<p><strong>Detailed breakdown {context_msg} ({total_failures} total failures):</strong></p>"
         html += "<ul style='margin-top:6px;'>"
         
         for _, row in reason_counts.head(8).iterrows():
@@ -329,8 +357,17 @@ class LocationQueryHandler(QueryHandler):
             any(city in query_lower for city in cities) or
             any(phrase in query_lower for phrase in [
                 "in city", "location", "where are", "vehicles in",
-                "failures in", "near", "nearby"
-            ])
+                "failures in", "near", "nearby", "dealers", "dealer",
+                "service center", "which dealers", "dealer issues",
+                "dealer problems", "dealer failures", "major issues",
+                "issues from", "problems from", "failures from",
+                "failures by", "by region", "by city", "by location",
+                "by area", "regional", "regional analysis", "city analysis",
+                "location analysis", "area analysis", "geographic",
+                "which region", "which city", "which area", "which location"
+            ]) or
+            # Check if query mentions a specific dealer name
+            self._mentions_dealer_name(context.df_history, query_lower)
         )
     
     def handle(self, context: QueryContext) -> str:
@@ -338,6 +375,15 @@ class LocationQueryHandler(QueryHandler):
         query_lower = context.query.lower()
         
         logger.info(f"LocationQueryHandler processing: '{context.query[:50]}...'")
+        
+        # Handle region-based queries
+        if any(phrase in query_lower for phrase in ["failures by", "by region", "by city", "by location", "by area", "regional", "city analysis", "location analysis", "area analysis", "geographic", "which region", "which city", "which area", "which location"]):
+            return self._handle_region_analysis(df, query_lower)
+        
+        # Handle dealer-related queries
+        if (any(phrase in query_lower for phrase in ["dealers", "dealer", "which dealers", "dealer issues", "dealer problems", "dealer failures"]) or
+            self._mentions_dealer_name(df, query_lower)):
+            return self._handle_dealer_analysis(df, query_lower)
         
         # Check if city column exists
         if "city" not in df.columns:
@@ -393,4 +439,347 @@ class LocationQueryHandler(QueryHandler):
             html += "</ul>"
             
             return html
+    
+    def _mentions_dealer_name(self, df: pd.DataFrame, query_lower: str) -> bool:
+        """Check if the query mentions a specific dealer name."""
+        if "dealer_name" not in df.columns:
+            return False
+        
+        # Get unique dealer names
+        dealer_names = df["dealer_name"].dropna().unique()
+        
+        # Check if any dealer name is mentioned in the query
+        for dealer_name in dealer_names:
+            if str(dealer_name).lower() in query_lower:
+                return True
+        
+        return False
+    
+    def _handle_region_analysis(self, df: pd.DataFrame, query_lower: str) -> str:
+        """Handle region-based failure analysis queries."""
+        try:
+            # Check if city column exists
+            if "city" not in df.columns:
+                return "<p>Location information is not available in the current dataset.</p>"
+            
+            # Calculate regional failure statistics
+            region_stats = df.groupby("city").agg({
+                "claims_count": "sum",
+                "repairs_count": "sum",
+                "recalls_count": "sum",
+                "city": "count"
+            }).rename(columns={"city": "total_vehicles"})
+            
+            # Calculate total failures per region
+            region_stats["total_failures"] = (
+                region_stats["claims_count"] + 
+                region_stats["repairs_count"] + 
+                region_stats["recalls_count"]
+            )
+            
+            # Calculate failure rate
+            region_stats["failure_rate"] = (
+                region_stats["total_failures"] / region_stats["total_vehicles"] * 100
+            )
+            
+            # Sort by total failures (most problematic regions first)
+            region_stats = region_stats.sort_values("total_failures", ascending=False)
+            
+            if region_stats.empty:
+                return "<p>No regional data available for analysis.</p>"
+            
+            # Build response based on query type
+            if "most failures" in query_lower or "which region" in query_lower or "which city" in query_lower:
+                # Show regions with most failures
+                top_regions = region_stats.head(10)
+                
+                html_parts = [
+                    "<p><strong>Regions with Most Failures:</strong></p>",
+                    "<ul style='margin-top:6px;'>"
+                ]
+                
+                for i, (region_name, stats) in enumerate(top_regions.iterrows(), 1):
+                    html_parts.append(
+                        f"<li><strong>#{i} {region_name}:</strong> "
+                        f"{int(stats['total_failures'])} total failures "
+                        f"({stats['failure_rate']:.1f}% rate across {int(stats['total_vehicles'])} vehicles)</li>"
+                    )
+                
+                html_parts.append("</ul>")
+                
+                # Add summary statistics
+                total_failures = int(region_stats['total_failures'].sum())
+                total_vehicles = int(region_stats['total_vehicles'].sum())
+                avg_failure_rate = region_stats['failure_rate'].mean()
+                
+                html_parts.extend([
+                    f"<p><strong>Summary:</strong></p>",
+                    "<ul style='margin-top:6px;'>",
+                    f"<li><strong>Total regions analyzed:</strong> {len(region_stats)}</li>",
+                    f"<li><strong>Total failures across all regions:</strong> {total_failures:,}</li>",
+                    f"<li><strong>Average failure rate:</strong> {avg_failure_rate:.1f}%</li>",
+                    "</ul>"
+                ])
+                
+                return "".join(html_parts)
+            
+            else:
+                # General regional overview
+                total_regions = len(region_stats)
+                total_failures = int(region_stats['total_failures'].sum())
+                total_vehicles = int(region_stats['total_vehicles'].sum())
+                avg_failure_rate = region_stats['failure_rate'].mean()
+                
+                # Top 5 most problematic regions
+                top_5 = region_stats.head(5)
+                
+                html_parts = [
+                    "<p><strong>Regional Failure Analysis:</strong></p>",
+                    f"<p>Analyzed <strong>{total_regions} regions</strong> with <strong>{total_vehicles:,} total vehicles</strong> and <strong>{total_failures:,} total failures</strong>.</p>",
+                    f"<p>Average failure rate across all regions: <strong>{avg_failure_rate:.1f}%</strong></p>",
+                    "<p><strong>Top 5 Most Problematic Regions:</strong></p>",
+                    "<ul style='margin-top:6px;'>"
+                ]
+                
+                for i, (region_name, stats) in enumerate(top_5.iterrows(), 1):
+                    html_parts.append(
+                        f"<li><strong>#{i} {region_name}:</strong> "
+                        f"{int(stats['total_failures'])} failures "
+                        f"({stats['failure_rate']:.1f}% rate across {int(stats['total_vehicles'])} vehicles)</li>"
+                    )
+                
+                html_parts.append("</ul>")
+                
+                # Add breakdown by failure type
+                total_claims = int(region_stats['claims_count'].sum())
+                total_repairs = int(region_stats['repairs_count'].sum())
+                total_recalls = int(region_stats['recalls_count'].sum())
+                
+                html_parts.extend([
+                    "<p><strong>Failure Breakdown:</strong></p>",
+                    "<ul style='margin-top:6px;'>",
+                    f"<li><strong>Claims:</strong> {total_claims:,} ({total_claims/total_failures*100:.1f}%)</li>",
+                    f"<li><strong>Repairs:</strong> {total_repairs:,} ({total_repairs/total_failures*100:.1f}%)</li>",
+                    f"<li><strong>Recalls:</strong> {total_recalls:,} ({total_recalls/total_failures*100:.1f}%)</li>",
+                    "</ul>"
+                ])
+                
+                return "".join(html_parts)
+                
+        except Exception as e:
+            logger.error(f"Region analysis failed: {e}", exc_info=True)
+            return f"<p>Could not analyze regional data: {_html.escape(str(e))}</p>"
+    
+    def _handle_dealer_analysis(self, df: pd.DataFrame, query_lower: str) -> str:
+        """Handle dealer-related queries and analysis."""
+        try:
+            # Check if dealer columns exist
+            if "dealer_name" not in df.columns:
+                return "<p>Dealer information is not available in the current dataset.</p>"
+            
+            # Calculate dealer statistics
+            dealer_stats = df.groupby("dealer_name").agg({
+                "claims_count": "sum",
+                "repairs_count": "sum", 
+                "recalls_count": "sum",
+                "dealer_name": "count"
+            }).rename(columns={"dealer_name": "total_vehicles"})
+            
+            # Calculate total issues per dealer
+            dealer_stats["total_issues"] = (
+                dealer_stats["claims_count"] + 
+                dealer_stats["repairs_count"] + 
+                dealer_stats["recalls_count"]
+            )
+            
+            # Calculate issue rate
+            dealer_stats["issue_rate"] = (
+                dealer_stats["total_issues"] / dealer_stats["total_vehicles"] * 100
+            )
+            
+            # Sort by total issues (most problematic dealers first)
+            dealer_stats = dealer_stats.sort_values("total_issues", ascending=False)
+            
+            if dealer_stats.empty:
+                return "<p>No dealer data available for analysis.</p>"
+            
+            # Check if a specific dealer is mentioned
+            mentioned_dealer = None
+            if "dealer_name" in df.columns:
+                dealer_names = df["dealer_name"].dropna().unique()
+                for dealer_name in dealer_names:
+                    if str(dealer_name).lower() in query_lower:
+                        mentioned_dealer = str(dealer_name)
+                        break
+            
+            # Handle specific dealer queries
+            if mentioned_dealer:
+                return self._handle_specific_dealer_analysis(df, mentioned_dealer, query_lower)
+            
+            # Build response based on query type
+            if "most issues" in query_lower or "most problems" in query_lower:
+                # Show dealers with most issues
+                top_dealers = dealer_stats.head(5)
+                
+                html_parts = [
+                    "<p><strong>Dealers with Most Issues:</strong></p>",
+                    "<ul style='margin-top:6px;'>"
+                ]
+                
+                for i, (dealer_name, stats) in enumerate(top_dealers.iterrows(), 1):
+                    html_parts.append(
+                        f"<li><strong>#{i} {dealer_name}:</strong> "
+                        f"{int(stats['total_issues'])} total issues "
+                        f"({stats['issue_rate']:.1f}% rate across {int(stats['total_vehicles'])} vehicles)</li>"
+                    )
+                
+                html_parts.append("</ul>")
+                
+                # Add summary statistics
+                total_issues = int(dealer_stats['total_issues'].sum())
+                total_vehicles = int(dealer_stats['total_vehicles'].sum())
+                avg_issue_rate = dealer_stats['issue_rate'].mean()
+                
+                html_parts.extend([
+                    f"<p><strong>Summary:</strong></p>",
+                    "<ul style='margin-top:6px;'>",
+                    f"<li><strong>Total dealers analyzed:</strong> {len(dealer_stats)}</li>",
+                    f"<li><strong>Total issues across all dealers:</strong> {total_issues:,}</li>",
+                    f"<li><strong>Average issue rate:</strong> {avg_issue_rate:.1f}%</li>",
+                    "</ul>"
+                ])
+                
+                return "".join(html_parts)
+            
+            else:
+                # General dealer overview
+                total_dealers = len(dealer_stats)
+                total_issues = int(dealer_stats['total_issues'].sum())
+                total_vehicles = int(dealer_stats['total_vehicles'].sum())
+                avg_issue_rate = dealer_stats['issue_rate'].mean()
+                
+                # Top 3 most problematic dealers
+                top_3 = dealer_stats.head(3)
+                
+                html_parts = [
+                    "<p><strong>Dealer Analysis Overview:</strong></p>",
+                    f"<p>Analyzed <strong>{total_dealers} dealers</strong> with <strong>{total_vehicles:,} total vehicles</strong> and <strong>{total_issues:,} total issues</strong>.</p>",
+                    f"<p>Average issue rate across all dealers: <strong>{avg_issue_rate:.1f}%</strong></p>",
+                    "<p><strong>Top 3 Most Problematic Dealers:</strong></p>",
+                    "<ul style='margin-top:6px;'>"
+                ]
+                
+                for i, (dealer_name, stats) in enumerate(top_3.iterrows(), 1):
+                    html_parts.append(
+                        f"<li><strong>#{i} {dealer_name}:</strong> "
+                        f"{int(stats['total_issues'])} issues "
+                        f"({stats['issue_rate']:.1f}% rate)</li>"
+                    )
+                
+                html_parts.append("</ul>")
+                
+                return "".join(html_parts)
+                
+        except Exception as e:
+            logger.error(f"Dealer analysis failed: {e}", exc_info=True)
+            return f"<p>Could not analyze dealer data: {_html.escape(str(e))}</p>"
+    
+    def _handle_specific_dealer_analysis(self, df: pd.DataFrame, dealer_name: str, query_lower: str) -> str:
+        """Handle analysis for a specific dealer."""
+        try:
+            # Filter data for the specific dealer
+            dealer_data = df[df["dealer_name"] == dealer_name]
+            
+            if dealer_data.empty:
+                return f"<p>No data found for dealer '{dealer_name}'.</p>"
+            
+            # Calculate dealer statistics
+            total_vehicles = len(dealer_data)
+            total_claims = int(dealer_data["claims_count"].sum())
+            total_repairs = int(dealer_data["repairs_count"].sum())
+            total_recalls = int(dealer_data["recalls_count"].sum())
+            total_issues = total_claims + total_repairs + total_recalls
+            issue_rate = (total_issues / total_vehicles * 100) if total_vehicles > 0 else 0
+            
+            # Get top failing parts for this dealer
+            part_stats = dealer_data.groupby("primary_failed_part").agg({
+                "claims_count": "sum",
+                "repairs_count": "sum",
+                "recalls_count": "sum"
+            })
+            part_stats["total_issues"] = part_stats["claims_count"] + part_stats["repairs_count"] + part_stats["recalls_count"]
+            part_stats = part_stats.sort_values("total_issues", ascending=False)
+            
+            # Get model breakdown for this dealer
+            model_stats = dealer_data.groupby("model").agg({
+                "claims_count": "sum",
+                "repairs_count": "sum", 
+                "recalls_count": "sum",
+                "model": "count"
+            }).rename(columns={"model": "vehicle_count"})
+            model_stats["total_issues"] = model_stats["claims_count"] + model_stats["repairs_count"] + model_stats["recalls_count"]
+            model_stats["issue_rate"] = (model_stats["total_issues"] / model_stats["vehicle_count"] * 100)
+            model_stats = model_stats.sort_values("total_issues", ascending=False)
+            
+            # Build response
+            html_parts = [
+                f"<p><strong>{dealer_name} - Detailed Analysis</strong></p>",
+                f"<p><strong>Overall Performance:</strong></p>",
+                "<ul style='margin-top:6px;'>",
+                f"<li><strong>Total Vehicles:</strong> {total_vehicles:,}</li>",
+                f"<li><strong>Total Issues:</strong> {total_issues:,} (Issue Rate: {issue_rate:.1f}%)</li>",
+                f"<li><strong>Claims:</strong> {total_claims:,}</li>",
+                f"<li><strong>Repairs:</strong> {total_repairs:,}</li>",
+                f"<li><strong>Recalls:</strong> {total_recalls:,}</li>",
+                "</ul>"
+            ]
+            
+            # Add top failing parts
+            if not part_stats.empty:
+                html_parts.extend([
+                    "<p><strong>Top Failing Parts:</strong></p>",
+                    "<ul style='margin-top:6px;'>"
+                ])
+                
+                for i, (part_name, stats) in enumerate(part_stats.head(5).iterrows(), 1):
+                    html_parts.append(
+                        f"<li><strong>#{i} {part_name}:</strong> {int(stats['total_issues'])} total issues "
+                        f"({int(stats['claims_count'])} claims, {int(stats['repairs_count'])} repairs, {int(stats['recalls_count'])} recalls)</li>"
+                    )
+                
+                html_parts.append("</ul>")
+            
+            # Add model breakdown
+            if not model_stats.empty:
+                html_parts.extend([
+                    "<p><strong>Issues by Model:</strong></p>",
+                    "<ul style='margin-top:6px;'>"
+                ])
+                
+                for model, stats in model_stats.iterrows():
+                    html_parts.append(
+                        f"<li><strong>{model}:</strong> {int(stats['total_issues'])} issues "
+                        f"({stats['issue_rate']:.1f}% rate across {int(stats['vehicle_count'])} vehicles)</li>"
+                    )
+                
+                html_parts.append("</ul>")
+            
+            # Add location info if available
+            if "city" in dealer_data.columns:
+                cities = dealer_data["city"].dropna().unique()
+                if len(cities) > 0:
+                    html_parts.extend([
+                        "<p><strong>Service Areas:</strong></p>",
+                        "<ul style='margin-top:6px;'>"
+                    ])
+                    for city in cities[:5]:  # Show top 5 cities
+                        city_count = len(dealer_data[dealer_data["city"] == city])
+                        html_parts.append(f"<li><strong>{city}:</strong> {city_count} vehicles</li>")
+                    html_parts.append("</ul>")
+            
+            return "".join(html_parts)
+            
+        except Exception as e:
+            logger.error(f"Specific dealer analysis failed for {dealer_name}: {e}", exc_info=True)
+            return f"<p>Could not analyze {dealer_name} data: {_html.escape(str(e))}</p>"
 

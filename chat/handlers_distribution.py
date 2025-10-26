@@ -109,10 +109,9 @@ class MileageDistributionHandler(QueryHandler):
                     f"{int(row['Total Incidents'])} incidents)</li>")
         html += "</ul>"
         
-        html += (f"<p style='margin-top:8px;'><strong>Answer:</strong> "
-                f"{context_msg.capitalize()}, failures occur most frequently in the "
+        html += (f"<p style='margin-top:8px;'><strong>{context_msg.capitalize()}, failures occur most frequently in the "
                 f"<span style='color:#ef4444; font-weight:700;'>{max_bucket}</span> mileage range "
-                f"with <strong>{int(max_failures)} total failures</strong>.")
+                f"with <strong>{int(max_failures)} total failures</strong>.</strong>")
         
         if max_rate_bucket != max_bucket:
             html += (f" However, the <strong>highest failure rate</strong> is in "
@@ -219,10 +218,9 @@ class AgeDistributionHandler(QueryHandler):
                     f"{int(row['Total Incidents'])} incidents)</li>")
         html += "</ul>"
         
-        html += (f"<p style='margin-top:8px;'><strong>Answer:</strong> "
-                f"{context_msg.capitalize()}, failures occur most frequently in the "
+        html += (f"<p style='margin-top:8px;'><strong>{context_msg.capitalize()}, failures occur most frequently in the "
                 f"<span style='color:#ef4444; font-weight:700;'>{max_bucket}</span> age range "
-                f"with <strong>{int(max_failures)} total failures</strong>.")
+                f"with <strong>{int(max_failures)} total failures</strong>.</strong>")
         
         if max_rate_bucket != max_bucket:
             html += (f" However, the <strong>highest failure rate</strong> is in "

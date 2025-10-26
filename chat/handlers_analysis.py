@@ -27,8 +27,15 @@ class MonthlyAggregateHandler(QueryHandler):
     """Handle monthly aggregate queries (per month, monthly)"""
     
     def can_handle(self, context: QueryContext) -> bool:
-        return bool(re.search(r"\b(per month|monthly|claims per month|repairs per month|recalls per month)\b", 
-                             context.query_lower))
+        # Only handle specific monthly aggregate queries, not trend queries
+        monthly_keywords = r"\b(per month|monthly|claims per month|repairs per month|recalls per month)\b"
+        trend_keywords = r"\b(trend|trends|increasing|decreasing|rising|declining)\b"
+        
+        has_monthly = bool(re.search(monthly_keywords, context.query_lower))
+        has_trend = bool(re.search(trend_keywords, context.query_lower))
+        
+        # Only handle if it has monthly keywords but NOT trend keywords
+        return has_monthly and not has_trend
     
     def handle(self, context: QueryContext) -> str:
         logger.debug("MonthlyAggregateHandler processing")
@@ -180,7 +187,7 @@ class TrendHandler(QueryHandler):
     
     def can_handle(self, context: QueryContext) -> bool:
         return any(tok in context.query_lower for tok in 
-                   ["trend", "increasing", "rising", "declining", "decreasing"])
+                   ["trend", "trends", "increasing", "rising", "declining", "decreasing"])
     
     def handle(self, context: QueryContext) -> str:
         logger.debug("TrendHandler processing")
@@ -208,8 +215,12 @@ class TrendHandler(QueryHandler):
         if mentioned_model:
             return self._handle_model_trend(df, mentioned_model, metric_col)
         
-        # Which models rising?
-        if ("which" in context.query_lower and "model" in context.query_lower) or ("which models" in context.query_lower):
+        # Which models rising? (detect various phrasings)
+        rising_phrases = [
+            "which models", "any model", "any vehicle model", "growing trend", 
+            "increasing trend", "rising trend", "models with", "vehicle model"
+        ]
+        if any(phrase in context.query_lower for phrase in rising_phrases):
             return self._handle_which_models_rising(df, metric_col)
         
         # Overall trend
@@ -258,42 +269,151 @@ class TrendHandler(QueryHandler):
     def _handle_which_models_rising(self, df, metric_col):
         """Handle which models show rising trends"""
         try:
-            model_trends = _compute_model_trends(df, metric_col, min_months=6, slope_threshold=0.0, top_n=6)
+            # Get all model trends (both rising and falling)
+            model_trends = _compute_model_trends(df, metric_col, min_months=6, slope_threshold=-999.0, top_n=20)
             
             if not model_trends:
-                return ("<p>No models show a clearly rising trend (or there is insufficient monthly "
-                       "history per model to determine trend).</p>")
+                return ("<p>No models have sufficient monthly data to determine trends "
+                       "(need at least 6 months of data per model).</p>")
             
-            lines = [f"{_html.escape(str(m))} → slope ≈ {s:.2f} per month (months: {mon}, last: {int(last)})" 
-                    for (m, s, mon, last) in model_trends]
+            # Separate rising vs falling trends
+            rising_models = [(m, s, mon, last) for (m, s, mon, last) in model_trends if s > 0]
+            falling_models = [(m, s, mon, last) for (m, s, mon, last) in model_trends if s <= 0]
             
-            return ("<p>Models showing the strongest rising trends (sorted by slope):<br>"
-                   + "<br>".join(lines)
-                   + "<br><em>Note:</em> slopes are fitted over each model's monthly series; "
-                   "increase measured in metric units/month.</p>")
+            label = "failures" if metric_col == "failures_count" else metric_col.replace("_", " ")
+            
+            response_parts = []
+            
+            if rising_models:
+                # Plain English summary
+                model_names = [m for (m, s, mon, last) in rising_models[:3]]
+                if len(rising_models) == 1:
+                    summary = f"Yes, the {model_names[0]} model is showing concerning growth in {label}."
+                elif len(rising_models) == 2:
+                    summary = f"Yes, both the {model_names[0]} and {model_names[1]} models are experiencing growing {label} trends."
+                else:
+                    summary = f"Yes, {len(rising_models)} vehicle models including {', '.join(model_names)} are showing increasing {label} patterns."
+                
+                response_parts.append(f"<p><strong>{summary}</strong></p>")
+                response_parts.append(f"<p><strong>Detailed Analysis:</strong></p>")
+                lines = [f"<li><strong>{_html.escape(str(m))}</strong> → increasing by {s:.2f} {label}/month "
+                        f"(based on {mon} months of data, latest: {int(last)})</li>" 
+                        for (m, s, mon, last) in rising_models[:6]]
+                response_parts.append("<ul>" + "".join(lines) + "</ul>")
+            else:
+                response_parts.append(f"<p><strong>No, I do not observe any growing trends in {label} for vehicle models.</strong></p>")
+            
+            if falling_models:
+                response_parts.append(f"<p><strong>Models showing decreasing trends:</strong></p>")
+                lines = [f"<li><strong>{_html.escape(str(m))}</strong> → decreasing by {abs(s):.2f} {label}/month "
+                        f"(based on {mon} months of data)</li>" 
+                        for (m, s, mon, last) in falling_models[:3]]
+                response_parts.append("<ul>" + "".join(lines) + "</ul>")
+            
+            response_parts.append("<p><em>Note:</em> Trends are calculated using linear regression on monthly data. "
+                                 "A positive slope indicates increasing failures over time.</p>")
+            
+            return "".join(response_parts)
         
         except Exception as e:
             logger.error(f"Model trends calculation failed: {e}", exc_info=True)
             return f"<p>Couldn't determine per-model trends: {_html.escape(str(e))}</p>"
     
     def _handle_overall_trend(self, df, metric_col):
-        """Handle overall trend calculation"""
+        """Handle overall trend calculation with detailed analysis"""
         try:
             df = df.copy()
             df["date_parsed"] = pd.to_datetime(df.get("date"), errors="coerce")
             df_month = df.dropna(subset=["date_parsed"]).set_index("date_parsed").resample("M")[metric_col].sum()
             
             if len(df_month) < 3:
-                return "<p>Not enough months to determine a reliable overall trend.</p>"
+                return "<p>Not enough months to determine a reliable overall trend (need at least 3 months of data).</p>"
             
+            # Calculate trend statistics
             y = df_month.values
             x = np.arange(len(y))
             slope = float(np.polyfit(x, y, 1)[0])
             trend = "increasing" if slope > 0 else ("decreasing" if slope < 0 else "stable")
             
+            # Calculate additional statistics
+            total_failures = int(y.sum())
+            avg_monthly = float(y.mean())
+            min_month = int(y.min())
+            max_month = int(y.max())
+            recent_3_months = int(y[-3:].sum()) if len(y) >= 3 else int(y.sum())
+            previous_3_months = int(y[-6:-3].sum()) if len(y) >= 6 else int(y[-3:].sum()) if len(y) >= 3 else 0
+            
+            # Calculate trend strength
+            if abs(slope) < 0.5:
+                trend_strength = "weak"
+            elif abs(slope) < 2.0:
+                trend_strength = "moderate"
+            else:
+                trend_strength = "strong"
+            
+            # Calculate percentage change
+            if previous_3_months > 0:
+                pct_change = ((recent_3_months - previous_3_months) / previous_3_months) * 100
+            else:
+                pct_change = 0
+            
             label = "failures" if metric_col == "failures_count" else metric_col.replace("_", " ")
             
-            return f"<p>Overall {label} trend is {trend} (slope={slope:.1f} per month).</p>"
+            # Build comprehensive response
+            html_parts = [
+                f"<p><strong>Overall {label.title()} Trend Analysis</strong></p>",
+                f"<p><strong>Trend Direction:</strong> {trend.title()} ({trend_strength} trend, slope={slope:.1f} per month)</p>",
+                f"<p><strong>Summary Statistics:</strong></p>",
+                "<ul style='margin-top:6px;'>",
+                f"<li><strong>Total {label}:</strong> {total_failures:,}</li>",
+                f"<li><strong>Average per month:</strong> {avg_monthly:.1f}</li>",
+                f"<li><strong>Peak month:</strong> {max_month:,} {label}</li>",
+                f"<li><strong>Lowest month:</strong> {min_month:,} {label}</li>",
+                f"<li><strong>Data period:</strong> {len(y)} months</li>",
+                "</ul>"
+            ]
+            
+            # Add recent vs previous comparison if we have enough data
+            if len(y) >= 6:
+                html_parts.extend([
+                    f"<p><strong>Recent Performance:</strong></p>",
+                    "<ul style='margin-top:6px;'>",
+                    f"<li><strong>Last 3 months:</strong> {recent_3_months:,} {label}</li>",
+                    f"<li><strong>Previous 3 months:</strong> {previous_3_months:,} {label}</li>",
+                    f"<li><strong>Change:</strong> {pct_change:+.1f}%</li>",
+                    "</ul>"
+                ])
+            
+            # Add trend interpretation
+            if trend == "increasing":
+                if trend_strength == "strong":
+                    html_parts.append("<p style='color:#fca5a5;'><strong>Concern:</strong> Strong increasing trend indicates potential quality issues that need immediate attention.</p>")
+                elif trend_strength == "moderate":
+                    html_parts.append("<p style='color:#fbbf24;'><strong>Watch:</strong> Moderate increasing trend suggests monitoring is needed.</p>")
+                else:
+                    html_parts.append("<p style='color:#94a3b8;'><strong>Note:</strong> Slight increasing trend, continue monitoring.</p>")
+            elif trend == "decreasing":
+                if trend_strength == "strong":
+                    html_parts.append("<p style='color:#10b981;'><strong>Good:</strong> Strong decreasing trend indicates quality improvements are working.</p>")
+                elif trend_strength == "moderate":
+                    html_parts.append("<p style='color:#10b981;'><strong>Positive:</strong> Moderate decreasing trend shows progress.</p>")
+                else:
+                    html_parts.append("<p style='color:#94a3b8;'><strong>Note:</strong> Slight decreasing trend, continue current practices.</p>")
+            else:
+                html_parts.append("<p style='color:#94a3b8;'><strong>Stable:</strong> Consistent performance with no significant trend.</p>")
+            
+            # Add monthly breakdown if not too many months
+            if len(y) <= 12:
+                html_parts.extend([
+                    f"<p><strong>Monthly Breakdown:</strong></p>",
+                    "<ul style='margin-top:6px;'>"
+                ])
+                for i, (date, value) in enumerate(df_month.items()):
+                    month_name = date.strftime("%B %Y")
+                    html_parts.append(f"<li><strong>{month_name}:</strong> {int(value):,} {label}</li>")
+                html_parts.append("</ul>")
+            
+            return "".join(html_parts)
         
         except Exception as e:
             logger.error(f"Overall trend calculation failed: {e}", exc_info=True)
