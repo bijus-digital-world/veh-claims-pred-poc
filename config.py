@@ -96,8 +96,8 @@ class ModelConfig:
     bedrock_temperature: float = 0.18
     
     # Prediction thresholds
-    default_threshold_pct: int = 80
-    threshold_options: List[int] = field(default_factory=lambda: [50, 60, 70, 75, 80, 85, 90, 95, 98, 99])
+    default_threshold_pct: int = 50  # Lowered to show enhanced summary more often
+    threshold_options: List[int] = field(default_factory=lambda: [30, 40, 50, 60, 70, 75, 80, 85, 90, 95])
     
     @classmethod
     def from_env(cls):

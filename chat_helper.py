@@ -122,17 +122,27 @@ def summarize_overall_metric(df: pd.DataFrame, metric_col: str, top_n: int = 6) 
             except Exception:
                 top_models_txt = ""
 
+        # Plain English summary
+        if total_metric == 0:
+            summary = f"There are currently no {label} recorded in the dataset."
+        elif per100 < 5:
+            summary = f"The {label} rate is quite low at {per100:.1f}% across {total_rows} records, with {total_metric} total {label}."
+        elif per100 < 15:
+            summary = f"We have a moderate {label} rate of {per100:.1f}% across {total_rows} records, totaling {total_metric} {label}."
+        else:
+            summary = f"There's a concerning {label} rate of {per100:.1f}% across {total_rows} records, with {total_metric} total {label} requiring attention."
+        
         # Compose canonical output (includes both sum + incidents + averages + top models)
         html_lines = [
-            f"<p><strong>Summary for {_html.escape(label)}:</strong></p>",
+            f"<p><strong>{summary}</strong></p>",
+            f"<p><strong>Detailed breakdown for {_html.escape(label)}:</strong></p>",
             "<ul style='margin-top:6px;'>",
             f"<li><strong>Total ({label}):</strong> {total_metric}</li>",
-            f"<li><strong>Rows:</strong> {total_rows}</li>",
-            f"<li><strong>Rows with ≥1 {label} (incidents):</strong> {incident_count}</li>",
-            f"<li><strong>Average per row:</strong> {avg_per_row:.2f} {'' if metric_col!='failures_count' else 'failures'}</li>",
+            f"<li><strong>Records:</strong> {total_rows}</li>",
+            f"<li><strong>Records with ≥1 {label} (incidents):</strong> {incident_count}</li>",
+            f"<li><strong>Average per record:</strong> {avg_per_row:.2f} {'' if metric_col!='failures_count' else 'failures'}</li>",
             f"<li><strong>Average per incident:</strong> {avg_per_incident:.2f} {'' if metric_col!='failures_count' else 'failures'}</li>",
-            f"</ul>",
-            f"<p>Overall {label}: total = {total_metric} across {total_rows} records (~{per100:.1f} per 100 records).</p>"
+            f"</ul>"
         ]
         if top_models_txt:
             html_lines.append(f"<p><strong>Top models by {label}:</strong><br>{top_models_txt}</p>")
@@ -767,7 +777,8 @@ def generate_reply(user_text: str,
                    tfidf_X,
                    tfidf_rows,
                    get_bedrock_summary_callable,
-                   top_k: Optional[int] = None) -> str:
+                   top_k: Optional[int] = None,
+                   conversation_context=None) -> str:
     """
     Main entry used by app.py to produce assistant HTML reply.
     
@@ -802,7 +813,8 @@ def generate_reply(user_text: str,
         tfidf_X=tfidf_X,
         tfidf_rows=tfidf_rows,
         get_bedrock_summary_callable=get_bedrock_summary_callable,
-        top_k=top_k
+        top_k=top_k,
+        conversation_context=conversation_context
     )
     
     # Route to appropriate handler
@@ -1312,7 +1324,10 @@ def parse_model_part_from_text(df: pd.DataFrame, text: str) -> Tuple[Optional[st
         pass
     try:
         for p in pd.unique(df.get("primary_failed_part", pd.Series(dtype=str))):
-            if str(p).lower() in t:
+            # Case-insensitive substring match for parts
+            # Check if query contains part name OR if part name contains query
+            part_lower = str(p).lower()
+            if part_lower in t or any(word in part_lower for word in t.split() if len(word) > 2):
                 part = str(p)
                 break
     except Exception:

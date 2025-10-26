@@ -28,7 +28,8 @@ from helper import (
     random_inference_row_from_df,
     get_bedrock_summary,
     fetch_nearest_dealers,
-    reverse_geocode
+    reverse_geocode,
+    generate_enhanced_prescriptive_summary
 )
 
 from chat_helper import (
@@ -114,12 +115,13 @@ def safe_sorted_unique(series):
 def calculate_risk_level(claim_pct: float) -> str:
     """
     Calculate risk level from claim percentage using configured thresholds.
+    HIGH % = High likelihood of claim = More urgent action needed
     
     Args:
         claim_pct: Claim percentage (0-100)
     
     Returns:
-        Risk level: "High", "Medium", or "Low"
+        Risk level: "High", "Medium", or "Low" (based on claim likelihood)
     """
     if claim_pct >= config.risk.high_threshold:
         return "High"
@@ -130,7 +132,7 @@ def calculate_risk_level(claim_pct: float) -> str:
 @st.cache_resource(show_spinner=True)
 def load_persisted_faiss():
     """Load FAISS index, embeddings, and metadata if available on disk."""
-    logger.info("Attempting to load persisted FAISS index...")
+    # Attempting to load persisted FAISS index
     
     # Check if FAISS is available before attempting to load
     if not HAS_FAISS:
@@ -146,7 +148,7 @@ def load_persisted_faiss():
     
     if not IDX_PATH.exists() or not EMB_PATH.exists() or not META_PATH.exists():
         logger.warning(f"FAISS index files not found at {VECTOR_DIR}")
-        logger.info("Run build_faiss_index.py to create FAISS index for faster retrieval")
+        # Run build_faiss_index.py to create FAISS index for faster retrieval
         return {
             "available": False,
             "index": None,
@@ -164,7 +166,7 @@ def load_persisted_faiss():
         d = embs.shape[1]
         duration_ms = (time.time() - start_time) * 1000
         
-        logger.info(f"Loaded FAISS index: {len(meta)} vectors, dim={d} in {duration_ms:.2f}ms")
+        # FAISS index loaded successfully
         
         return {
             "available": True,
@@ -230,34 +232,51 @@ def _badge_html(risk_token, pct):
 
 def render_summary_ui(model_name, part_name, mileage_bucket, age_bucket, claim_pct, nearest_dealer=None, llm_model_id=None, region="us-east-1"):
     try:
-        if claim_pct >= int(st.session_state.get('predictive_threshold_pct', 80)):
-            summary_html = get_bedrock_summary(model_name, part_name, mileage_bucket, age_bucket, claim_pct, 
-                                            llm_model_id=llm_model_id, region=region)
+        if claim_pct >= int(st.session_state.get('predictive_threshold_pct', 50)):
+            # Use enhanced prescriptive summary for high-risk predictions (above threshold)
+            summary_html = generate_enhanced_prescriptive_summary(
+                model_name, part_name, mileage_bucket, age_bucket, claim_pct, 
+                df_history, nearest_dealer
+            )
         else:
             # Show hardcoded value (for predictions below threshold)
             risk_token = calculate_risk_level(claim_pct)
             pct = f"{round(claim_pct)}%"
             fallback = (
                 f"The predicted claim probability is {round(claim_pct,1)}% for {part_name} in {model_name}. "
-                "No immediate action recommended; monitor for trend changes."
+                "Continue routine monitoring and standard maintenance protocols."
             )
             summary_html = f"<strong>{risk_token} risk ({pct})</strong>: {_html.escape(fallback)}"
 
         if not summary_html:
-            raise ValueError("Empty summary returned from LLM")
+            raise ValueError("Empty summary returned from generator")
     except Exception as e:
-        logger.error(f"Bedrock summary generation failed for {model_name}/{part_name}: {e}", exc_info=config.debug)
+        logger.error(f"Enhanced prescriptive summary generation failed for {model_name}/{part_name}: {e}", exc_info=config.debug)
         if config.debug:
-            st.warning(f"Bedrock summary generation failed: {e}")
+            st.warning(f"Enhanced prescriptive summary generation failed: {e}")
         
-        fallback = (
-            f"The predicted claim probability is {round(claim_pct,1)}% for {part_name} in {model_name}. "
-            "No immediate action recommended; monitor for trend changes."
-        )
-        risk_token = calculate_risk_level(claim_pct)
-        pct = f"{round(claim_pct)}%"
-        # summary_html = f"<strong>{risk_token} risk ({pct})</strong>: {_html.escape(fallback)}"
-        summary_html = f"{_html.escape(fallback)}"
+        # Fallback to Bedrock if enhanced summary fails
+        try:
+            if claim_pct >= int(st.session_state.get('predictive_threshold_pct', 50)):
+                summary_html = get_bedrock_summary(model_name, part_name, mileage_bucket, age_bucket, claim_pct, 
+                                                llm_model_id=llm_model_id, region=region)
+            else:
+                fallback = (
+                    f"The predicted claim probability is {round(claim_pct,1)}% for {part_name} in {model_name}. "
+                    "No immediate action recommended; monitor for trend changes."
+                )
+                risk_token = calculate_risk_level(claim_pct)
+                pct = f"{round(claim_pct)}%"
+                summary_html = f"<strong>{risk_token} risk ({pct})</strong>: {_html.escape(fallback)}"
+        except Exception as e2:
+            logger.error(f"Bedrock fallback also failed: {e2}")
+            fallback = (
+                f"The predicted claim probability is {round(claim_pct,1)}% for {part_name} in {model_name}. "
+                "Continue routine monitoring and standard maintenance protocols."
+            )
+            risk_token = calculate_risk_level(claim_pct)
+            pct = f"{round(claim_pct)}%"
+            summary_html = f"<strong>{risk_token} risk ({pct})</strong>: {_html.escape(fallback)}"
 
     split_html = re.split(r'\n\s*\n', summary_html, maxsplit=1)
     first_para_html = split_html[0].strip()
@@ -268,39 +287,16 @@ def render_summary_ui(model_name, part_name, mileage_bucket, age_bucket, claim_p
     pct_match = re.search(r'\((\d{1,3})%\)', re.sub(r'<[^>]+>', '', first_para_html))
     pct = f"{pct_match.group(1)}%" if pct_match else f"{round(claim_pct)}%"
 
-    if IS_POC:
-        summary_html = """<div style='text-align: justify;'>
-            Based on recent telemetry data, I have identified a rising trend in engine cooling issues specifically 
-            affecting the 2025 Sentra model over the past two weeks. Given your current location, 
-            I recommend visiting the <span style='color:#C99700; font-weight:bold;'>
-            United Nissan Dealer Service Center</span>, which is the nearest authorized facility.
-            </p>
-            Further analysis indicates that the supplier <span style='color:#C99700; font-weight:bold;'>Setco Auto Systems</span> 
-            has been consistently providing faulty coolant circulation pumps, 
-            contributing to the issue. To mitigate future risks, I recommend initiating a logistics change to switch to an 
-            alternative supplier, such as <span style='color:#C99700; font-weight:bold;'>Hitachi</span>, 
-            to prevent potential mass recalls and ensure continued vehicle reliability.
-            </div>
-            """
-        combined_html = (
-            '<div style="display:flex; align-items:center; gap:12px;">'
-            f'{_badge_html(risk_token, pct)}'
-            f'<div style="flex:1; min-width:0; font-size:1.02rem; line-height:1.35; color:#e6eef8; '
-            f'overflow-wrap:break-word; word-break:break-word;">'
-            f'{summary_html}'
-            f'</div>'
-            '</div>'
-        )
-    else:
-        combined_html = (
-            '<div style="display:flex; align-items:center; gap:12px;">'
-            f'{_badge_html(risk_token, pct)}'
-            f'<div style="flex:1; min-width:0; font-size:1.02rem; line-height:1.35; color:#e6eef8; '
-            f'overflow-wrap:break-word; word-break:break-word;">'
-            f'{first_para_html}'
-            f'</div>'
-            '</div>'
-        )
+    # Use enhanced summary for all modes (it handles threshold logic internally)
+    combined_html = (
+        '<div style="display:flex; align-items:center; gap:12px;">'
+        f'{_badge_html(risk_token, pct)}'
+        f'<div style="flex:1; min-width:0; font-size:1.02rem; line-height:1.35; color:#e6eef8; '
+        f'overflow-wrap:break-word; word-break:break-word;">'
+        f'{summary_html}'
+        f'</div>'
+        '</div>'
+    )
 
     st.markdown(combined_html, unsafe_allow_html=True)
     if not IS_POC:
@@ -341,13 +337,13 @@ def persist_chat_to_disk(history):
 # ------------------------
 # Load data (S3 fallback to local)
 # ------------------------
-logger.info("Starting application - loading historical data...")
+# Starting application - loading historical data
 start_time = time.time()
 
 try:
     df_history = load_history_cached()
     duration_ms = (time.time() - start_time) * 1000
-    logger.info(f"Loaded {len(df_history)} historical records in {duration_ms:.2f}ms")
+    # Historical records loaded successfully
     log_dataframe_info(logger, "df_history", df_history)
 except FileNotFoundError as e:
     logger.critical(f"Data load failed - file not found: {e}", exc_info=True)
@@ -366,7 +362,8 @@ if not REQUIRED_COLS.issubset(df_history.columns):
     st.error(f"CSV data missing required columns: {missing_cols}. Please check your data file.")
     st.stop()
 else:
-    logger.info(f"Data validation passed - all required columns present")
+    # Data validation passed - all required columns present
+    pass
 
 # Note: FAISS index is already loaded via load_persisted_faiss() at line ~152
 # and stored in faiss_res global variable. No need to rebuild here.
@@ -415,6 +412,17 @@ st.markdown(
 # ------------------------
 query_params = st.query_params
 page = query_params.get("page", "dashboard")
+
+# ------------------------
+# Email Confirmation Modal (render at top level)
+# ------------------------
+# Import email modal component
+from email_modal_component import render_email_confirmation_modal
+
+# Check if email confirmation should be shown and render dialog
+modal_keys = [key for key in st.session_state.keys() if key.startswith("show_email_confirm_")]
+if modal_keys:
+    render_email_confirmation_modal()
 
 
 # ------------------------
@@ -712,10 +720,43 @@ def render_chat_interface():
         if config.debug:
             st.warning(f"FAISS status check failed: {e}")
         st.markdown("<div style='color:#fca5a5; font-size:12px'>FAISS status unknown</div>", unsafe_allow_html=True)
+    
+    # Show conversation context info
+    try:
+        if (hasattr(st.session_state, 'conversation_memory') and 
+            st.session_state.conversation_memory and 
+            hasattr(st.session_state.conversation_memory, 'memory') and 
+            st.session_state.conversation_memory.memory):
+            conv_summary = st.session_state.conversation_memory.get_conversation_summary()
+            if conv_summary['total_exchanges'] > 0:
+                st.markdown(
+                    f"<div style='color:#94a3b8; font-size:11px; margin-bottom:8px;'>"
+                    f"Conversation: {conv_summary['total_exchanges']} exchanges, "
+                    f"{conv_summary['session_duration']:.0f}s duration</div>",
+                    unsafe_allow_html=True,
+                )
+    except Exception as e:
+        logger.debug(f"Failed to display conversation context: {e}")
+        # Silently fail - this is just a display feature
 
     # ensure session-state chat history exists
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
+    
+    # Initialize conversation memory
+    try:
+        if "conversation_memory" not in st.session_state:
+            from chat.conversation_memory import ConversationContext
+            st.session_state.conversation_memory = ConversationContext(context_window=10)
+        else:
+            from chat.conversation_memory import ConversationContext
+            # Check if it's already a ConversationContext object
+            if not isinstance(st.session_state.conversation_memory, ConversationContext):
+                st.session_state.conversation_memory = ConversationContext.load_from_session_state(st.session_state)
+    except Exception as e:
+        logger.error(f"Failed to initialize conversation memory: {e}", exc_info=True)
+        from chat.conversation_memory import ConversationContext
+        st.session_state.conversation_memory = ConversationContext(context_window=10)
 
     # ensure the input key exists BEFORE creating the widget
     if "chat_input_col3" not in st.session_state:
@@ -724,11 +765,11 @@ def render_chat_interface():
     # Build TF-IDF index once and cache results
     if "chat_tfidf_built" not in st.session_state:
         try:
-            logger.info("Building TF-IDF index for chat...")
+            # Building TF-IDF index for chat
             start_time = time.time()
             VECT_CHAT, X_CHAT, HISTORY_ROWS_CHAT = build_tf_idf_index(df_history)
             duration_ms = (time.time() - start_time) * 1000
-            logger.info(f"TF-IDF index built successfully in {duration_ms:.2f}ms")
+            # TF-IDF index built successfully
         except Exception as e:
             logger.error(f"TF-IDF index build failed: {e}", exc_info=True)
             if config.debug:
@@ -960,7 +1001,7 @@ def render_chat_interface():
 
                 # generate assistant reply (synchronous)
                 try:
-                    logger.info(f"Generating chat reply for query: '{q[:50]}...'")
+                    # Generating chat reply
                     start_time = time.time()
                     
                     assistant_html = chat_generate_reply(
@@ -972,14 +1013,27 @@ def render_chat_interface():
                         HISTORY_ROWS_CHAT,
                         get_bedrock_summary,
                         top_k=6,
+                        conversation_context=st.session_state.conversation_memory
                     )
                     
                     duration_ms = (time.time() - start_time) * 1000
-                    logger.info(f"Chat reply generated in {duration_ms:.2f}ms")
+                    # Chat reply generated successfully
                     
                 except Exception as e:
                     logger.error(f"Chat reply generation failed for query '{q[:50]}...': {e}", exc_info=True)
                     assistant_html = f"<p>Error generating reply: {_html.escape(str(e))}</p>"
+
+                # Add exchange to conversation memory
+                st.session_state.conversation_memory.add_exchange(
+                    query=q,
+                    response=assistant_html,
+                    exchange_id=submission_id,
+                    handler_used="QueryRouter",  # Could be enhanced to track specific handler
+                    processing_time_ms=duration_ms
+                )
+                
+                # Save conversation memory to session state
+                st.session_state.conversation_memory.save_to_session_state(st.session_state)
 
                 st.session_state.chat_history.append({
                     "role":"assistant",
@@ -1161,21 +1215,27 @@ def render_col2():
 # Inference page (separate route)
 # ------------------------
 if page == "inference":
-    st.markdown('<div style="height:12px;"></div>', unsafe_allow_html=True)
-    st.markdown('<div class="card"><div class="card-header">Real-Time Vehicle Feed</div>', unsafe_allow_html=True)
-
+    # Create a compact header with controls on the same row
+    st.markdown('<div style="height:1px;"></div>', unsafe_allow_html=True)
+    
+    # Header row with title and controls
+    header_col1, header_col2, header_col3, header_col4 = st.columns([2, 1.5, 1.2, 1], gap="small")
+    
+    with header_col1:
+        st.markdown('<div class="card-header" style="margin-bottom:0; padding:8px 12px;">Real-Time Vehicle Feed</div>', unsafe_allow_html=True)
+    
     if not os.path.isfile(LOG_FILE_LOCAL):
         st.markdown("<div style='padding:12px; color:#94a3b8;'>No real-time vehicle information found yet. Predictions will be logged as they run.</div>", unsafe_allow_html=True)
     else:
         df_log = pd.read_csv(LOG_FILE_LOCAL, parse_dates=["timestamp"])
-        c1, c2, c3 = st.columns([1.5, 1.2, 1], gap="small")
-        with c1:
+        
+        with header_col2:
             min_date = df_log["timestamp"].min().date()
             max_date = df_log["timestamp"].max().date()
             date_range = st.date_input("Date range", value=(min_date, max_date), key="inference_date_range")
-        with c2:
+        with header_col3:
             text_filter = st.text_input("Filter (model / part)", value="", key="inference_text_filter")
-        with c3:
+        with header_col4:
             rows_to_show = st.selectbox("Rows", options=[25, 50, 100, 500, 1000], index=1, key="inference_rows_count")
 
         dr_start, dr_end = date_range
@@ -1207,15 +1267,18 @@ if page == "inference":
         columns_to_display = [col for col in df_display.columns if col != "pred_prob"]
         df_display = df_display[columns_to_display]
 
-        st.markdown('<div style="height:8px;"></div>', unsafe_allow_html=True)
-        st.dataframe(df_display.reset_index(drop=True), use_container_width=True)
+        # Import enhanced table functionality
+        from enhanced_inference_table import render_enhanced_inference_table
+        
+        # Render enhanced table with action buttons
+        render_enhanced_inference_table(df_log, date_range, text_filter, rows_to_show)
 
         btn_col1, btn_col2 = st.columns([1, 1], gap="small")
         with btn_col1:
             csv_bytes = df_log.to_csv(index=False).encode("utf-8")
-            st.download_button("⬇️ Download full log (CSV)", data=csv_bytes, file_name="inference_log.csv", mime="text/csv")
+            st.download_button("Download full log (CSV)", data=csv_bytes, file_name="inference_log.csv", mime="text/csv")
         with btn_col2:
-            if st.button("🗑️ Clear full log"):
+            if st.button("Clear full log"):
                 confirm = st.checkbox("Confirm clearing the log (this is permanent).")
                 if confirm:
                     try:

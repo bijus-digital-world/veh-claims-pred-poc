@@ -116,7 +116,7 @@ def generate_prediction(df_history: pd.DataFrame, model_pipe) -> Tuple[Dict, flo
             }])
             pred_val = model_pipe.predict(test_df)[0]
             pred_prob = float(max(0.0, min(1.0, pred_val)))
-            logger.info(f"[OK] ML prediction: {pred_prob*100:.1f}% (mileage={inf_row['mileage']:.1f}, age={inf_row['age']:.2f})")
+            # ML prediction successful
         except Exception as e:
             logger.warning(f"ML prediction failed, using fallback: {e}")
             pred_prob = None
@@ -347,7 +347,7 @@ def render_prescriptive_section(inf_row: Dict, pred_prob: float, render_summary_
             text_query="Nissan Service Center",
             top_n=3,
         )
-        logger.info(f"Found {len(nearest)} dealers (from_aws={from_aws})")
+        # Dealers fetched successfully
     except Exception as e:
         logger.error(f"fetch_nearest_dealers failed: {e}", exc_info=True)
         if config.debug:
@@ -356,18 +356,28 @@ def render_prescriptive_section(inf_row: Dict, pred_prob: float, render_summary_
     
     # Render summary
     if constants['IS_POC']:
+        # Create a mock dealer for POC mode
+        mock_dealer = {
+            'name': 'United Nissan Dealer Service Center',
+            'distance_km': 19,
+            'eta_min': 5
+        }
+        
         render_summary_ui_func(
             'Sentra',
             'Engine Cooling System',
             '10200 miles',
             '6 months',
-            80.8
+            80.8,
+            mock_dealer
         )
     else:
-        dealer_name = nearest[0]['name'] if nearest else "N/A"
         # Format continuous values for Bedrock summary
         mileage_display = f"{inf_row['mileage']:,.0f} miles"
         age_display = f"{inf_row['age']:.1f} years"
+        
+        # Pass the first dealer as a dictionary, not just the name
+        nearest_dealer = nearest[0] if nearest else None
         
         render_summary_ui_func(
             inf_row['model'],
@@ -375,7 +385,7 @@ def render_prescriptive_section(inf_row: Dict, pred_prob: float, render_summary_
             mileage_display,
             age_display,
             pred_prob * 100,
-            dealer_name
+            nearest_dealer
         )
     
     return nearest

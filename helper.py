@@ -62,19 +62,19 @@ def load_history_data(use_s3: Optional[bool] = None,
     s3_key = s3_key or config.paths.s3_data_key
     local_path = local_path or config.paths.local_data_file
     
-    logger.info(f"Loading historical data (use_s3={use_s3})")
+    # Loading historical data
     
     df = None
     if use_s3 and s3fs is not None:
         s3_path = f"s3://{s3_bucket}/{s3_key}"
         try:
-            logger.info(f"Attempting to load from S3: {s3_path}")
+            # Attempting to load from S3
             start_time = time.time()
             
             df = pd.read_csv(s3_path, parse_dates=["date"], storage_options={"anon": False})
             
             duration_ms = (time.time() - start_time) * 1000
-            logger.info(f"Loaded {len(df)} records from S3 in {duration_ms:.2f}ms")
+            # Loaded from S3 successfully
             return df
         except Exception as e:
             logger.warning(f"S3 load failed, falling back to local file: {e}")
@@ -86,13 +86,13 @@ def load_history_data(use_s3: Optional[bool] = None,
             logger.error(f"Data file not found at {local_path}")
             raise FileNotFoundError(f"Could not find data at S3 or local path ({local_path}).")
         
-        logger.info(f"Loading from local file: {local_path}")
+        # Loading from local file
         start_time = time.time()
         
         df = pd.read_csv(local_path, parse_dates=["date"])
         
         duration_ms = (time.time() - start_time) * 1000
-        logger.info(f"Loaded {len(df)} records from local file in {duration_ms:.2f}ms")
+        # Loaded from local file successfully
     
     return df
 
@@ -108,9 +108,9 @@ def load_history_data(use_s3: Optional[bool] = None,
 def load_model(path: str):
     """Load ML model from disk with logging."""
     try:
-        logger.info(f"Loading model from {path}")
+        # Loading model
         model = joblib.load(path)
-        logger.info(f"Model loaded successfully from {path}")
+        # Model loaded successfully
         return model
     except Exception as e:
         logger.warning(f"Model load failed from {path}: {e}")
@@ -422,7 +422,7 @@ def fetch_dealers_from_aws_location(current_lat: float, current_lon: float,
                 lon, lat = float(pt[0]), float(pt[1])
                 results.append({"name": label, "lat": lat, "lon": lon, "raw": place})
         
-        logger.info(f"Fetched {len(results)} dealers from AWS Location (query='{text_query}')")
+        # Dealers fetched from AWS Location successfully
         return results
         
     except ClientError as e:
@@ -635,7 +635,7 @@ def get_bedrock_summary(model, part, mileage, age, claim_pct,
     exact model_id being called (detects 'titan' vs 'claude'/ 'anthropic'). 
     Output formatting/styling is unchanged (HTML-safe with <strong> labels and gold Recommended action).
     """
-    logger.info(f"Generating Bedrock summary for {model}/{part} (claim_pct={claim_pct:.1f}%)")
+    # Generating Bedrock summary
     
     # --- Setup / context (unchanged) ---
     if claim_pct >= 75:
@@ -713,7 +713,7 @@ def get_bedrock_summary(model, part, mileage, age, claim_pct,
             try:
                 resp_json = json.loads(raw)
                 duration_ms = (time.time() - start_time) * 1000
-                logger.info(f"Bedrock API call successful ({model_id_to_call}) in {duration_ms:.2f}ms")
+                # Bedrock API call successful
             except Exception:
                 resp_json = {"__raw": raw.decode() if isinstance(raw, (bytes, bytearray)) else str(raw)}
 
@@ -845,5 +845,740 @@ def get_bedrock_summary(model, part, mileage, age, claim_pct,
     assistant_text = re.sub(r'(\S)\n([^\-])', r'\1\n\n\2', assistant_text, count=1)
 
     return assistant_text
+
+
+def generate_enhanced_prescriptive_summary(model_name: str, part_name: str, mileage_bucket: str, 
+                                         age_bucket: str, claim_pct: float, df_history: pd.DataFrame, 
+                                         nearest_dealer: Optional[Dict] = None) -> str:
+    """
+    Generate a dynamic, data-driven prescriptive summary using real data from the enhanced dataset.
+    
+    Args:
+        model_name: Vehicle model
+        part_name: Failed part name
+        mileage_bucket: Mileage bucket
+        age_bucket: Age bucket
+        claim_pct: Claim percentage
+        df_history: Historical data DataFrame
+        nearest_dealer: Nearest dealer information
+    
+    Returns:
+        HTML-formatted prescriptive summary
+    """
+    try:
+        # Filter data for the specific model and part
+        model_data = df_history[
+            (df_history['model'] == model_name) & 
+            (df_history['primary_failed_part'] == part_name)
+        ].copy()
+        
+        if model_data.empty:
+            # Fallback to model-only data
+            model_data = df_history[df_history['model'] == model_name].copy()
+        
+        # Check if we have enhanced data columns
+        has_enhanced_data = all(col in df_history.columns for col in ['supplier_name', 'failure_description', 'supplier_quality_score', 'defect_rate'])
+        
+        if not has_enhanced_data:
+            # Return a basic enhanced summary without supplier/failure data
+            return generate_basic_enhanced_summary(model_name, part_name, claim_pct, nearest_dealer)
+        
+        # Get trend information
+        trend_info = get_model_trend_info(model_data, model_name, part_name)
+        
+        # Get supplier information
+        supplier_info = get_supplier_analysis(model_data, part_name)
+        
+        # Get failure reasons
+        failure_reasons = get_failure_reasons(model_data, part_name)
+        
+        # Get dealer information
+        dealer_info = get_dealer_recommendation(nearest_dealer)
+        
+        # Generate the summary with varied language patterns
+        summary_parts = []
+        
+        # 1. Opening statement with trend - varied language patterns
+        opening_patterns = [
+            "Telemetry analysis reveals",
+            "Data analysis indicates",
+            "Recent diagnostic data shows",
+            "Vehicle monitoring systems have detected",
+            "Analytics reveal",
+            "Diagnostic insights show",
+            "Telemetry monitoring has identified",
+            "Vehicle data analysis indicates"
+        ]
+        
+        trend_patterns = {
+            'rising': [
+                "an escalating pattern of",
+                "a concerning uptick in",
+                "increasing frequency of",
+                "a growing trend in",
+                "escalating issues with",
+                "rising incidents of"
+            ],
+            'declining': [
+                "a decreasing pattern of",
+                "reduced frequency of",
+                "a declining trend in",
+                "diminishing issues with",
+                "fewer incidents of"
+            ],
+            'stable': [
+                "consistent patterns of",
+                "ongoing issues with",
+                "recurring problems with",
+                "persistent challenges with"
+            ]
+        }
+        
+        opening = random.choice(opening_patterns)
+        
+        if trend_info['has_trend']:
+            trend_strength = trend_info.get('trend_strength', 'stable')
+            if trend_strength in ['strong_rising', 'moderate_rising']:
+                trend_desc = random.choice(trend_patterns['rising'])
+            elif trend_strength in ['strong_declining', 'moderate_declining']:
+                trend_desc = random.choice(trend_patterns['declining'])
+            else:  # Stable trend
+                trend_desc = random.choice(trend_patterns['stable'])
+            
+            # Add more context about the trend
+            avg_monthly = trend_info.get('avg_monthly', 0)
+            latest_count = trend_info.get('latest_count', 0)
+            
+            summary_parts.append(
+                f"{opening} {trend_desc} "
+                f"<span style='color:#C99700; font-weight:bold;'>{part_name.lower()}</span> failures "
+                f"in the <span style='color:#C99700; font-weight:bold;'>{model_name}</span> model "
+                f"over the past {trend_info['months']} months (avg: {avg_monthly:.1f}/month, latest: {latest_count})."
+            )
+        else:
+            summary_parts.append(
+                f"{opening} {random.choice(trend_patterns['stable'])} "
+                f"<span style='color:#C99700; font-weight:bold;'>{part_name.lower()}</span> failures "
+                f"in the <span style='color:#C99700; font-weight:bold;'>{model_name}</span> model."
+            )
+        
+        # 2. Dealer recommendation - only for moderate to high claim likelihood
+        if dealer_info and claim_pct >= 40:  # Only recommend dealer visits for moderate+ likelihood
+            dealer_patterns = [
+                f"Given your current location, I recommend visiting the "
+                f"<span style='color:#C99700; font-weight:bold;'>{dealer_info['name']}</span>, "
+                f"which is the nearest authorized facility.",
+                
+                f"For immediate service, the closest option is "
+                f"<span style='color:#C99700; font-weight:bold;'>{dealer_info['name']}</span>, "
+                f"located just {dealer_info['distance']:.1f} km away.",
+                
+                f"Your nearest service center is "
+                f"<span style='color:#C99700; font-weight:bold;'>{dealer_info['name']}</span>, "
+                f"approximately {dealer_info['eta']} minutes from your location.",
+                
+                f"I suggest heading to "
+                f"<span style='color:#C99700; font-weight:bold;'>{dealer_info['name']}</span>, "
+                f"the closest authorized service center to your position.",
+                
+                f"The most convenient service location is "
+                f"<span style='color:#C99700; font-weight:bold;'>{dealer_info['name']}</span>, "
+                f"which can be reached in about {dealer_info['eta']} minutes."
+            ]
+            
+            summary_parts.append(random.choice(dealer_patterns))
+        
+        # 3. Supplier analysis - varied language and data-driven insights
+        if supplier_info['has_supplier_data']:
+            if supplier_info['problematic_supplier']:
+                supplier_patterns = [
+                    f"Supply chain analysis reveals that "
+                    f"<span style='color:#C99700; font-weight:bold;'>{supplier_info['problematic_supplier']}</span> "
+                    f"has been delivering substandard {part_name.lower()} components, "
+                    f"with a {supplier_info['worst_failure_rate']:.1%} failure rate across {supplier_info['worst_volume']} parts supplied.",
+                    
+                    f"Quality control data shows "
+                    f"<span style='color:#C99700; font-weight:bold;'>{supplier_info['problematic_supplier']}</span> "
+                    f"consistently producing faulty {part_name.lower()} parts, "
+                    f"with {supplier_info['worst_failure_rate']:.1%} failure rate in a sample of {supplier_info['worst_volume']} components.",
+                    
+                    f"Supplier performance metrics indicate "
+                    f"<span style='color:#C99700; font-weight:bold;'>{supplier_info['problematic_supplier']}</span> "
+                    f"has been the source of defective {part_name.lower()} components, "
+                    f"showing {supplier_info['worst_failure_rate']:.1%} failure rate across {supplier_info['worst_volume']} parts.",
+                    
+                    f"Component traceability analysis points to "
+                    f"<span style='color:#C99700; font-weight:bold;'>{supplier_info['problematic_supplier']}</span> "
+                    f"as the primary source of {part_name.lower()} failures, "
+                    f"with {supplier_info['worst_failure_rate']:.1%} failure rate in {supplier_info['worst_volume']} supplied parts."
+                ]
+                
+                summary_parts.append(random.choice(supplier_patterns))
+                
+                if supplier_info['recommended_supplier']:
+                    mitigation_patterns = [
+                        f"To address this supply chain risk, consider switching to "
+                        f"<span style='color:#C99700; font-weight:bold;'>{supplier_info['recommended_supplier']}</span>, "
+                        f"which maintains a quality score of {supplier_info['best_quality_score']:.0f}% and could prevent future recalls.",
+                        
+                        f"Implementing a supplier transition to "
+                        f"<span style='color:#C99700; font-weight:bold;'>{supplier_info['recommended_supplier']}</span> "
+                        f"(quality score: {supplier_info['best_quality_score']:.0f}%) would significantly reduce failure rates.",
+                        
+                        f"A strategic supplier change to "
+                        f"<span style='color:#C99700; font-weight:bold;'>{supplier_info['recommended_supplier']}</span> "
+                        f"is recommended based on their superior quality metrics ({supplier_info['best_quality_score']:.0f}% score).",
+                        
+                        f"To prevent mass recalls, initiate procurement discussions with "
+                        f"<span style='color:#C99700; font-weight:bold;'>{supplier_info['recommended_supplier']}</span>, "
+                        f"which has demonstrated consistent quality performance ({supplier_info['best_quality_score']:.0f}% score)."
+                    ]
+                    
+                    summary_parts.append(random.choice(mitigation_patterns))
+        
+        # 4. Failure reasons - varied language and data-driven insights
+        if failure_reasons:
+            top_reason = failure_reasons[0]
+            
+            failure_patterns = [
+                f"Root cause analysis identifies <span style='color:#C99700; font-weight:bold;'>"
+                f"{top_reason['description']}</span> as the primary failure mode, "
+                f"representing {top_reason['percentage']:.1f}% of all incidents.",
+                
+                f"Diagnostic data reveals that <span style='color:#C99700; font-weight:bold;'>"
+                f"{top_reason['description']}</span> is the leading cause of failures, "
+                f"occurring in {top_reason['percentage']:.1f}% of cases.",
+                
+                f"Failure mode analysis shows <span style='color:#C99700; font-weight:bold;'>"
+                f"{top_reason['description']}</span> as the most frequent issue, "
+                f"accounting for {top_reason['percentage']:.1f}% of all problems.",
+                
+                f"Component analysis indicates <span style='color:#C99700; font-weight:bold;'>"
+                f"{top_reason['description']}</span> is the dominant failure pattern, "
+                f"responsible for {top_reason['percentage']:.1f}% of incidents.",
+                
+                f"Technical investigation reveals <span style='color:#C99700; font-weight:bold;'>"
+                f"{top_reason['description']}</span> as the most prevalent issue, "
+                f"occurring in {top_reason['percentage']:.1f}% of failure cases."
+            ]
+            
+            summary_parts.append(random.choice(failure_patterns))
+            
+            # Add additional failure reasons if available
+            if len(failure_reasons) > 1:
+                second_reason = failure_reasons[1]
+                additional_patterns = [
+                    f"Additionally, <span style='color:#C99700; font-weight:bold;'>"
+                    f"{second_reason['description']}</span> contributes to {second_reason['percentage']:.1f}% of failures.",
+                    
+                    f"Secondary analysis shows <span style='color:#C99700; font-weight:bold;'>"
+                    f"{second_reason['description']}</span> in {second_reason['percentage']:.1f}% of cases.",
+                    
+                    f"Other contributing factors include <span style='color:#C99700; font-weight:bold;'>"
+                    f"{second_reason['description']}</span> ({second_reason['percentage']:.1f}% of incidents)."
+                ]
+                
+                summary_parts.append(random.choice(additional_patterns))
+        
+        # 5. Risk assessment - varied language and data-driven insights
+        # HIGH % = High likelihood of claim = More urgent, technical recommendations
+        if claim_pct >= 75:
+            high_likelihood_patterns = [
+                f"<span style='color:#ef4444; font-weight:bold;'>High claim likelihood detected:</span> "
+                f"The {claim_pct:.1f}% claim probability indicates a high likelihood of component failure "
+                f"requiring immediate technical intervention and preventive maintenance protocols.",
+                
+                f"<span style='color:#ef4444; font-weight:bold;'>Urgent technical action required:</span> "
+                f"With a {claim_pct:.1f}% claim probability, immediate diagnostic procedures and "
+                f"component replacement protocols should be initiated to prevent system failure.",
+                
+                f"<span style='color:#ef4444; font-weight:bold;'>Critical maintenance alert:</span> "
+                f"The {claim_pct:.1f}% claim probability signals imminent component degradation requiring "
+                f"immediate technical assessment and corrective action implementation.",
+                
+                f"<span style='color:#ef4444; font-weight:bold;'>High-priority technical intervention:</span> "
+                f"At {claim_pct:.1f}% claim probability, immediate technical evaluation and "
+                f"preventive maintenance procedures are essential to avoid component failure."
+            ]
+            summary_parts.append(random.choice(high_likelihood_patterns))
+            
+        elif claim_pct >= 40:
+            moderate_likelihood_patterns = [
+                f"<span style='color:#f59e0b; font-weight:bold;'>Moderate claim likelihood:</span> "
+                f"The {claim_pct:.1f}% claim probability suggests increased monitoring and "
+                f"proactive maintenance scheduling to prevent potential component issues.",
+                
+                f"<span style='color:#f59e0b; font-weight:bold;'>Elevated monitoring recommended:</span> "
+                f"With a {claim_pct:.1f}% claim probability, implementing enhanced diagnostic protocols "
+                f"and scheduled maintenance intervals is recommended to manage component health.",
+                
+                f"<span style='color:#f59e0b; font-weight:bold;'>Preventive maintenance advised:</span> "
+                f"The {claim_pct:.1f}% claim probability indicates a moderate likelihood requiring "
+                f"proactive maintenance scheduling and component condition monitoring.",
+                
+                f"<span style='color:#f59e0b; font-weight:bold;'>Technical monitoring needed:</span> "
+                f"At {claim_pct:.1f}% claim probability, implementing preventive maintenance strategies "
+                f"and enhanced monitoring protocols is recommended to prevent component degradation."
+            ]
+            summary_parts.append(random.choice(moderate_likelihood_patterns))
+            
+        else:
+            low_likelihood_patterns = [
+                f"<span style='color:#10b981; font-weight:bold;'>Low claim likelihood:</span> "
+                f"With a {claim_pct:.1f}% claim probability, the component appears stable and "
+                f"requires only routine monitoring and standard maintenance intervals.",
+                
+                f"<span style='color:#10b981; font-weight:bold;'>Stable component status:</span> "
+                f"The {claim_pct:.1f}% claim probability indicates low likelihood of failure, "
+                f"suggesting the component is operating within normal parameters.",
+                
+                f"<span style='color:#10b981; font-weight:bold;'>Minimal intervention needed:</span> "
+                f"At {claim_pct:.1f}% claim probability, the component shows stable performance "
+                f"requiring only standard maintenance protocols and routine monitoring."
+            ]
+            summary_parts.append(random.choice(low_likelihood_patterns))
+        
+        # Add contextual insights based on data patterns
+        if len(summary_parts) > 0:
+            # Add contextual closing based on claim likelihood and data availability
+            # HIGH % = High likelihood of claim = More technical, urgent recommendations
+            if claim_pct >= 75:
+                closing_patterns = [
+                    "Immediate technical escalation to engineering teams and component specialists is essential.",
+                    "This situation requires urgent cross-functional collaboration to implement rapid technical interventions.",
+                    "Priority should be given to implementing immediate containment measures and comprehensive root cause analysis.",
+                    "Urgent coordination with technical teams and component suppliers is critical to prevent system failures."
+                ]
+            elif claim_pct >= 40:
+                closing_patterns = [
+                    "Enhanced monitoring protocols and technical trend analysis should be implemented immediately.",
+                    "Consider establishing a technical task force to address the underlying component issues.",
+                    "Proactive communication with technical stakeholders and maintenance teams is recommended.",
+                    "Implement enhanced diagnostic procedures and preventive maintenance schedules to prevent escalation."
+                ]
+            else:
+                closing_patterns = [
+                    "Continue standard monitoring protocols and routine maintenance intervals as scheduled.",
+                    "Regular technical data review and component monitoring will help maintain current stable performance.",
+                    "Standard operational procedures and maintenance schedules should be sufficient for current component status.",
+                    "Maintain current quality control measures and periodic technical reviews as part of routine operations."
+                ]
+            
+            # Only add closing if we have substantial content
+            if len(summary_parts) >= 3:
+                summary_parts.append(random.choice(closing_patterns))
+        
+        # Combine all parts into meaningful paragraphs
+        full_summary = format_summary_into_paragraphs(summary_parts)
+        
+        return f"""<div style='text-align: justify; line-height: 1.6;'>
+            {full_summary}
+        </div>"""
+        
+    except Exception as e:
+        logger.error(f"Failed to generate enhanced prescriptive summary: {e}")
+        # Fallback to basic summary - only recommend dealer visit if claim likelihood is moderate or high
+        if claim_pct >= 40:
+            return f"""<div style='text-align: justify; line-height: 1.6;'>
+                <p style='margin-bottom: 12px;'>
+                    Based on recent telemetry data, I have identified issues with {part_name.lower()} 
+                    affecting the {model_name} model.
+                </p>
+                <p style='margin-bottom: 12px;'>
+                    Given your current location, I recommend visiting the nearest authorized service center 
+                    for immediate inspection.
+                </p>
+            </div>"""
+        else:
+            return f"""<div style='text-align: justify; line-height: 1.6;'>
+                <p style='margin-bottom: 12px;'>
+                    Based on recent telemetry data, the {part_name.lower()} components 
+                    in the {model_name} model are operating within normal parameters.
+                </p>
+                <p style='margin-bottom: 12px;'>
+                    Continue routine monitoring and standard maintenance protocols as scheduled.
+                </p>
+            </div>"""
+
+
+def get_model_trend_info(model_data: pd.DataFrame, model_name: str, part_name: str) -> Dict:
+    """Get trend information for the model/part combination with more realistic analysis."""
+    try:
+        if 'date' not in model_data.columns or model_data.empty:
+            return {'has_trend': False, 'slope': 0, 'months': 0}
+        
+        # Convert date and group by month
+        model_data['date_parsed'] = pd.to_datetime(model_data['date'], errors='coerce')
+        monthly_data = model_data.dropna(subset=['date_parsed']).set_index('date_parsed').resample('M').size()
+        
+        if len(monthly_data) < 3:
+            return {'has_trend': False, 'slope': 0, 'months': len(monthly_data)}
+        
+        # Calculate trend slope
+        x = np.arange(len(monthly_data))
+        y = monthly_data.values.astype(float)
+        slope = float(np.polyfit(x, y, 1)[0])
+        
+        # Calculate more realistic trend metrics
+        total_incidents = int(monthly_data.sum())
+        avg_monthly = float(monthly_data.mean())
+        latest_month = int(monthly_data.iloc[-1]) if len(monthly_data) > 0 else 0
+        
+        # Determine if trend is meaningful (not just noise)
+        # A slope is meaningful if it represents at least 20% change over the period
+        meaningful_change = abs(slope) > (avg_monthly * 0.2)
+        
+        # Calculate trend direction and strength
+        if slope > avg_monthly * 0.3:  # Strong rising trend
+            trend_strength = 'strong_rising'
+        elif slope > avg_monthly * 0.1:  # Moderate rising trend
+            trend_strength = 'moderate_rising'
+        elif slope < -avg_monthly * 0.3:  # Strong declining trend
+            trend_strength = 'strong_declining'
+        elif slope < -avg_monthly * 0.1:  # Moderate declining trend
+            trend_strength = 'moderate_declining'
+        else:  # Stable trend
+            trend_strength = 'stable'
+        
+        return {
+            'has_trend': meaningful_change,
+            'slope': slope,
+            'months': len(monthly_data),
+            'latest_count': latest_month,
+            'total_incidents': total_incidents,
+            'avg_monthly': avg_monthly,
+            'trend_strength': trend_strength
+        }
+    except Exception:
+        return {'has_trend': False, 'slope': 0, 'months': 0}
+
+
+def get_supplier_analysis(model_data: pd.DataFrame, part_name: str) -> Dict:
+    """Get supplier analysis for the part with more realistic volume-weighted analysis."""
+    try:
+        if 'supplier_name' not in model_data.columns or model_data.empty:
+            return {'has_supplier_data': False}
+        
+        # Get supplier performance for this part with volume weighting
+        supplier_stats = model_data.groupby('supplier_name').agg({
+            'supplier_quality_score': 'first',
+            'defect_rate': 'first',
+            'claims_count': 'sum',
+            'repairs_count': 'sum',
+            'recalls_count': 'sum'
+        }).reset_index()
+        
+        if supplier_stats.empty:
+            return {'has_supplier_data': False}
+        
+        # Calculate total failures and volume-weighted metrics
+        supplier_stats['total_failures'] = supplier_stats['claims_count'] + supplier_stats['repairs_count'] + supplier_stats['recalls_count']
+        supplier_stats['total_records'] = model_data.groupby('supplier_name').size().reset_index(name='record_count')['record_count']
+        supplier_stats['failure_rate'] = supplier_stats['total_failures'] / supplier_stats['total_records']
+        
+        # Filter suppliers with meaningful volume (at least 5 records)
+        meaningful_suppliers = supplier_stats[supplier_stats['total_records'] >= 5]
+        
+        if meaningful_suppliers.empty:
+            return {'has_supplier_data': False}
+        
+        # Find problematic supplier (highest failure rate among suppliers with meaningful volume)
+        worst_supplier = meaningful_suppliers.loc[meaningful_suppliers['failure_rate'].idxmax()]
+        best_supplier = meaningful_suppliers.loc[meaningful_suppliers['supplier_quality_score'].idxmax()]
+        
+        # Only flag as problematic if they have both high failure rate AND meaningful volume
+        is_problematic = (worst_supplier['failure_rate'] > 0.1 and 
+                         worst_supplier['total_records'] >= 10 and 
+                         worst_supplier['total_failures'] >= 3)
+        
+        return {
+            'has_supplier_data': True,
+            'problematic_supplier': worst_supplier['supplier_name'] if is_problematic else None,
+            'recommended_supplier': best_supplier['supplier_name'] if best_supplier['supplier_quality_score'] > 85 else None,
+            'worst_defect_rate': float(worst_supplier['defect_rate']),
+            'worst_failure_rate': float(worst_supplier['failure_rate']),
+            'worst_volume': int(worst_supplier['total_records']),
+            'best_quality_score': float(best_supplier['supplier_quality_score'])
+        }
+    except Exception:
+        return {'has_supplier_data': False}
+
+
+def get_failure_reasons(model_data: pd.DataFrame, part_name: str) -> List[Dict]:
+    """Get failure reasons for the part."""
+    try:
+        if 'failure_description' not in model_data.columns or model_data.empty:
+            return []
+        
+        # Filter to only records with actual failures (claims, repairs, or recalls)
+        failure_data = model_data[
+            (model_data.get('claims_count', 0) > 0) | 
+            (model_data.get('repairs_count', 0) > 0) | 
+            (model_data.get('recalls_count', 0) > 0)
+        ]
+        
+        if failure_data.empty:
+            return []
+        
+        # Count failure descriptions from actual failure records only
+        failure_counts = failure_data['failure_description'].value_counts()
+        total_failures = len(failure_data)
+        
+        reasons = []
+        for desc, count in failure_counts.head(3).items():
+            if pd.notna(desc) and desc.strip() and desc != "No failure detected":
+                reasons.append({
+                    'description': desc,
+                    'count': int(count),
+                    'percentage': (count / total_failures) * 100
+                })
+        
+        return reasons
+    except Exception:
+        return []
+
+
+def format_summary_into_paragraphs(summary_parts: List[str]) -> str:
+    """
+    Format summary parts into meaningful paragraphs for better readability.
+    
+    Args:
+        summary_parts: List of summary text parts
+    
+    Returns:
+        HTML-formatted summary with proper paragraph breaks
+    """
+    if not summary_parts:
+        return ""
+    
+    # Group parts into logical paragraphs
+    paragraphs = []
+    current_paragraph = []
+    
+    for i, part in enumerate(summary_parts):
+        current_paragraph.append(part)
+        
+        # Determine if we should start a new paragraph
+        should_break = False
+        
+        # Break after opening statement (first part)
+        if i == 0:
+            should_break = True
+        # Break before risk assessment (usually contains color styling)
+        elif '<span style=' in part and ('risk' in part.lower() or 'alert' in part.lower() or 'action' in part.lower()):
+            should_break = True
+        # Break before closing statements (usually the last part)
+        elif i == len(summary_parts) - 1 and len(current_paragraph) > 1:
+            should_break = True
+        # Break after dealer recommendation if we have multiple parts
+        elif 'dealer' in part.lower() or 'service center' in part.lower():
+            if len(summary_parts) > 3:  # Only break if we have enough content
+                should_break = True
+        # Break after supplier analysis if we have enough content
+        elif 'supplier' in part.lower() or 'quality' in part.lower():
+            if len(summary_parts) > 4:
+                should_break = True
+        
+        if should_break and current_paragraph:
+            # Join current paragraph and add to paragraphs list
+            paragraph_text = " ".join(current_paragraph)
+            paragraphs.append(f"<p style='margin-bottom: 12px;'>{paragraph_text}</p>")
+            current_paragraph = []
+    
+    # Add any remaining parts as the last paragraph
+    if current_paragraph:
+        paragraph_text = " ".join(current_paragraph)
+        paragraphs.append(f"<p style='margin-bottom: 12px;'>{paragraph_text}</p>")
+    
+    return "".join(paragraphs)
+
+
+def get_dealer_recommendation(nearest_dealer: Optional[Dict]) -> Optional[Dict]:
+    """Get dealer recommendation information."""
+    if not nearest_dealer:
+        return None
+    
+    # Handle case where nearest_dealer might be a string (fallback)
+    if isinstance(nearest_dealer, str):
+        return {
+            'name': nearest_dealer,
+            'distance': 0,
+            'eta': 0
+        }
+    
+    return {
+        'name': nearest_dealer.get('name', 'Nearest Service Center'),
+        'distance': nearest_dealer.get('distance_km', 0),
+        'eta': nearest_dealer.get('eta_min', 0)
+    }
+
+
+def generate_basic_enhanced_summary(model_name: str, part_name: str, claim_pct: float, nearest_dealer: Optional[Dict] = None) -> str:
+    """
+    Generate a basic enhanced summary when full enhanced data is not available.
+    This provides a more realistic summary than the simple fallback but without supplier/failure data.
+    """
+    try:
+        # Get dealer information
+        dealer_info = get_dealer_recommendation(nearest_dealer)
+        
+        # Generate varied summary parts
+        summary_parts = []
+        
+        # 1. Opening statement - varied patterns
+        opening_patterns = [
+            "Telemetry analysis reveals",
+            "Data analysis indicates", 
+            "Recent diagnostic data shows",
+            "Vehicle monitoring systems have detected",
+            "Analytics reveal",
+            "Diagnostic insights show"
+        ]
+        
+        likelihood_patterns = {
+            'high': [
+                "high likelihood of failure in",
+                "imminent component issues affecting",
+                "urgent technical concerns regarding",
+                "critical component degradation in"
+            ],
+            'moderate': [
+                "moderate likelihood of issues in",
+                "concerning component patterns with",
+                "increased failure probability in",
+                "elevated component risk affecting"
+            ],
+            'low': [
+                "low likelihood of issues in",
+                "stable component performance in",
+                "minimal failure probability for",
+                "reliable component operation in"
+            ]
+        }
+        
+        opening = random.choice(opening_patterns)
+        
+        if claim_pct >= 75:
+            likelihood_desc = random.choice(likelihood_patterns['high'])
+        elif claim_pct >= 40:
+            likelihood_desc = random.choice(likelihood_patterns['moderate'])
+        else:
+            likelihood_desc = random.choice(likelihood_patterns['low'])
+        
+        summary_parts.append(
+            f"{opening} {likelihood_desc} "
+            f"<span style='color:#C99700; font-weight:bold;'>{part_name.lower()}</span> components "
+            f"in the <span style='color:#C99700; font-weight:bold;'>{model_name}</span> model."
+        )
+        
+        # 2. Dealer recommendation - only for moderate to high claim likelihood
+        if dealer_info and claim_pct >= 40:  # Only recommend dealer visits for moderate+ likelihood
+            dealer_patterns = [
+                f"For immediate service, visit "
+                f"<span style='color:#C99700; font-weight:bold;'>{dealer_info['name']}</span>, "
+                f"located {dealer_info['distance']:.1f} km away.",
+                
+                f"Your nearest service center is "
+                f"<span style='color:#C99700; font-weight:bold;'>{dealer_info['name']}</span>, "
+                f"approximately {dealer_info['eta']} minutes from your location.",
+                
+                f"I recommend heading to "
+                f"<span style='color:#C99700; font-weight:bold;'>{dealer_info['name']}</span>, "
+                f"the closest authorized service center."
+            ]
+            summary_parts.append(random.choice(dealer_patterns))
+        
+        # 3. Risk assessment with varied language
+        # HIGH % = High likelihood of claim = More urgent, technical recommendations
+        if claim_pct >= 75:
+            high_likelihood_patterns = [
+                f"<span style='color:#ef4444; font-weight:bold;'>High claim likelihood detected:</span> "
+                f"The {claim_pct:.1f}% claim probability indicates a high likelihood of component failure "
+                f"requiring immediate technical intervention and preventive maintenance protocols.",
+                
+                f"<span style='color:#ef4444; font-weight:bold;'>Urgent technical action required:</span> "
+                f"With a {claim_pct:.1f}% claim probability, immediate diagnostic procedures and "
+                f"component replacement protocols should be initiated to prevent system failure."
+            ]
+            summary_parts.append(random.choice(high_likelihood_patterns))
+            
+        elif claim_pct >= 40:
+            moderate_likelihood_patterns = [
+                f"<span style='color:#f59e0b; font-weight:bold;'>Moderate claim likelihood:</span> "
+                f"The {claim_pct:.1f}% claim probability suggests increased monitoring and "
+                f"proactive maintenance scheduling to prevent potential component issues.",
+                
+                f"<span style='color:#f59e0b; font-weight:bold;'>Elevated monitoring recommended:</span> "
+                f"With a {claim_pct:.1f}% claim probability, implementing enhanced diagnostic protocols "
+                f"and scheduled maintenance intervals is recommended to manage component health."
+            ]
+            summary_parts.append(random.choice(moderate_likelihood_patterns))
+            
+        else:
+            low_likelihood_patterns = [
+                f"<span style='color:#10b981; font-weight:bold;'>Low claim likelihood:</span> "
+                f"With a {claim_pct:.1f}% claim probability, the component appears stable and "
+                f"requires only routine monitoring and standard maintenance intervals.",
+                
+                f"<span style='color:#10b981; font-weight:bold;'>Stable component status:</span> "
+                f"The {claim_pct:.1f}% claim probability indicates low likelihood of failure, "
+                f"suggesting the component is operating within normal parameters."
+            ]
+            summary_parts.append(random.choice(low_likelihood_patterns))
+        
+        # 4. Contextual closing
+        # HIGH % = High likelihood of claim = More technical, urgent recommendations
+        if claim_pct >= 75:
+            closing_patterns = [
+                "Immediate technical escalation to engineering teams and component specialists is essential.",
+                "This situation requires urgent cross-functional collaboration to implement rapid technical interventions.",
+                "Priority should be given to implementing immediate containment measures and comprehensive root cause analysis."
+            ]
+        elif claim_pct >= 40:
+            closing_patterns = [
+                "Enhanced monitoring protocols and technical trend analysis should be implemented immediately.",
+                "Consider establishing a technical task force to address the underlying component issues.",
+                "Proactive communication with technical stakeholders and maintenance teams is recommended."
+            ]
+        else:
+            closing_patterns = [
+                "Continue standard monitoring protocols and routine maintenance intervals as scheduled.",
+                "Regular technical data review and component monitoring will help maintain current stable performance.",
+                "Standard operational procedures and maintenance schedules should be sufficient for current component status."
+            ]
+        
+        summary_parts.append(random.choice(closing_patterns))
+        
+        # Combine all parts into meaningful paragraphs
+        full_summary = format_summary_into_paragraphs(summary_parts)
+        
+        return f"""<div style='text-align: justify; line-height: 1.6;'>
+            {full_summary}
+        </div>"""
+        
+    except Exception as e:
+        logger.error(f"Failed to generate basic enhanced summary: {e}")
+        # Final fallback - only recommend dealer visit if claim likelihood is moderate or high
+        if claim_pct >= 40:
+            return f"""<div style='text-align: justify; line-height: 1.6;'>
+                <p style='margin-bottom: 12px;'>
+                    Based on recent telemetry data, I have identified issues with {part_name.lower()} 
+                    affecting the {model_name} model.
+                </p>
+                <p style='margin-bottom: 12px;'>
+                    Given your current location, I recommend visiting the nearest authorized service center 
+                    for immediate inspection.
+                </p>
+            </div>"""
+        else:
+            return f"""<div style='text-align: justify; line-height: 1.6;'>
+                <p style='margin-bottom: 12px;'>
+                    Based on recent telemetry data, the {part_name.lower()} components 
+                    in the {model_name} model are operating within normal parameters.
+                </p>
+                <p style='margin-bottom: 12px;'>
+                    Continue routine monitoring and standard maintenance protocols as scheduled.
+                </p>
+            </div>"""
 
 
