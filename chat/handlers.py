@@ -108,8 +108,18 @@ class GreetingHandler(QueryHandler):
     """Handle greetings like 'hi', 'hello', 'hey'"""
     
     def can_handle(self, context: QueryContext) -> bool:
-        return (len(context.query.split()) <= 3 and 
-                any(g in context.query_lower for g in ["hi", "hello", "hey"]))
+        # Expanded greeting detection: allow short greetings and common small-talk
+        q = context.query_lower.strip()
+        if any(g in q for g in [" hi ", " hello ", " hey ", "hiya", "yo "]):
+            return True
+        # start-of-text greetings
+        if re.match(r"^(hi|hello|hey|good\s+(morning|afternoon|evening))\b", q):
+            return True
+        # small-talk like "how are you" should also trigger greeting flow
+        if re.search(r"\bhow are you\b|\bhow's it going\b|\bwhat's up\b", q):
+            return True
+        # fallback: very short messages (<=3 words) that contain a greeting token
+        return (len(context.query.split()) <= 3 and any(g in q for g in ["hi", "hello", "hey"]))
     
     def handle(self, context: QueryContext) -> str:
         logger.debug("GreetingHandler triggered")
