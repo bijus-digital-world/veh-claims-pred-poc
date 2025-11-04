@@ -7,7 +7,7 @@ Professional modal dialog component for email confirmation.
 import streamlit as st
 from email_service import send_vehicle_alert_email
 
-@st.dialog("Email Preview", width="large")
+@st.dialog("Email Confirmation", width="large")
 def render_email_confirmation_modal():
     """
     Render email confirmation modal using @st.dialog decorator.
@@ -29,7 +29,24 @@ def render_email_confirmation_modal():
         st.error("Vehicle data not found.")
         return
     
-    # No header - start directly with content
+    # Modal header
+    st.markdown("""
+    <div style="
+        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        padding: 24px;
+        border-radius: 12px;
+        margin: -20px -20px 24px -20px;
+        color: white;
+        text-align: center;
+    ">
+        <h2 style="margin: 0 0 8px 0; font-size: 24px; font-weight: 700;">
+            Email Confirmation
+        </h2>
+        <p style="margin: 0; opacity: 0.9; font-size: 14px;">
+            Review the email content before sending to customer
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
     
     # Generate email content using existing LLM
     try:
@@ -57,39 +74,31 @@ def render_email_confirmation_modal():
         email_data = email_generator.generate_vehicle_alert_email(alert)
         email_content = email_data['body']
         
-        # Display the generated email content - full width
+        # Display the generated email content
         st.markdown("### Email Content Preview")
         
-        # Email header info - optimized for no wrapping
-        col1, col2, col3, col4 = st.columns([2, 3, 1, 1])
+        # Email header info
+        col1, col2, col3 = st.columns(3)
         with col1:
             st.markdown(f"**To:** {vehicle_data.get('customer_email', 'N/A')}")
         with col2:
             st.markdown(f"**Subject:** {email_data.get('subject', 'Vehicle Maintenance Alert')}")
         with col3:
-            st.markdown(f"**Risk:** {vehicle_data.get('pred_prob_pct', 0):.1f}%")
-        with col4:
-            st.markdown(f"**Model:** {vehicle_data.get('model', 'N/A')}")
+            st.markdown(f"**Risk Level:** {vehicle_data.get('pred_prob_pct', 0):.1f}%")
         
         st.markdown("---")
         
-        # Display the email content in a styled container - no text wrapping
+        # Display the email content in a styled container
         st.markdown("""
         <div style="
             background: #ffffff;
             border: 1px solid #e5e7eb;
-            border-radius: 6px;
-            padding: 20px;
-            margin: 8px 0;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            padding: 24px;
+            margin: 16px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             line-height: 1.6;
-            font-size: 14px;
-            max-height: 500px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            min-width: 800px;
         ">
         """, unsafe_allow_html=True)
         
@@ -112,10 +121,29 @@ def render_email_confirmation_modal():
             st.markdown(f"**Customer:** {vehicle_data.get('customer_email', 'N/A')}")
             st.markdown(f"**Dealer:** {vehicle_data.get('dealer_name', 'N/A')}")
     
-    # Warning message removed as requested
+    # Warning message
+    st.markdown("""
+    <div style="
+        background: #fef3c7;
+        border: 1px solid #f59e0b;
+        border-radius: 8px;
+        padding: 16px;
+        margin: 20px 0;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    ">
+        <span style="font-size: 18px;">⚠️</span>
+        <div>
+            <p style="margin: 0; color: #92400e; font-weight: 600; font-size: 14px; line-height: 1.4;">
+                <strong>Immediate Action Required:</strong> This email will be sent to the customer immediately. Please review the content above before confirming.
+            </p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     
-    # Action buttons - compact
-    st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
+    # Action buttons
+    st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
     col_btn1, col_btn2 = st.columns(2, gap="medium")
     
     with col_btn1:

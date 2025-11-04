@@ -19,6 +19,46 @@ from config import config
 # Logging
 from utils.logger import app_logger as logger, log_dataframe_info, log_performance
 
+# Voice services
+try:
+    from voice_service import create_voice_service
+    voice_service = create_voice_service()
+    VOICE_AVAILABLE = voice_service is not None and config.model.voice_enabled
+    if not VOICE_AVAILABLE:
+        if voice_service is None:
+            logger.warning("Voice service creation returned None - check Streamlit logs for initialization errors")
+        if not config.model.voice_enabled:
+            logger.warning(f"Voice is disabled in config (voice_enabled={config.model.voice_enabled})")
+    else:
+        logger.info(f"Voice service initialized successfully (region: {config.aws.region}, bucket: {config.aws.s3_bucket})")
+except Exception as e:
+    logger.error(f"Voice services initialization failed: {e}", exc_info=True)
+    voice_service = None
+    VOICE_AVAILABLE = False
+
+# Configure pydub to use FFmpeg if available (for audio processing)
+# This helps streamlit-audiorecorder work properly
+try:
+    from pydub import AudioSegment
+    import os
+    # Try to find ffmpeg in common locations
+    ffmpeg_paths = [
+        r"C:\ffmpeg\bin\ffmpeg.exe",
+        r"C:\Program Files\ffmpeg\bin\ffmpeg.exe",
+        r"C:\tools\ffmpeg\bin\ffmpeg.exe",
+    ]
+    for path in ffmpeg_paths:
+        if os.path.exists(path):
+            AudioSegment.converter = path
+            AudioSegment.ffprobe = path.replace("ffmpeg.exe", "ffprobe.exe")
+            logger.info(f"Configured pydub to use FFmpeg at {path}")
+            break
+except Exception as e:
+    logger.debug(f"Could not configure pydub FFmpeg paths: {e}")
+
+if config.debug:
+    logger.info(f"Voice available: {VOICE_AVAILABLE}, Voice enabled in config: {config.model.voice_enabled}")
+
 # Local helper imports
 from helper import (
     load_history_data,
@@ -838,44 +878,99 @@ def render_chat_interface():
         """
         return full_html, pane_height + 20
 
-    # -------- form (input) --------
+    # -------- Voice recorder (OUTSIDE form to avoid component registration issues) --------
+    # Components inside forms with clear_on_submit=True lose registration, causing "unregistered ComponentInstance" error
+    audio_bytes = None
+    try:
+        from audiorecorder import audiorecorder as streamlit_audiorecorder
+        AUDIO_RECORDER_AVAILABLE = True
+    except ImportError as e:
+        try:
+            from streamlit_audiorecorder import streamlit_audiorecorder
+            AUDIO_RECORDER_AVAILABLE = True
+        except ImportError:
+            AUDIO_RECORDER_AVAILABLE = False
+            if config.debug:
+                logger.warning(f"streamlit-audiorecorder import failed: {e}")
+    
+    show_voice_button = AUDIO_RECORDER_AVAILABLE
+    # Default for clear action (may be overridden when Clear button exists)
+    clear = False
+    
     with st.form("chat_form_col3", clear_on_submit=True):
-        # Use Streamlit columns to create the layout we want
-        input_col, button_send, button_clear = st.columns([3, .5, .5], gap="small")
+        # Layout: create columns INSIDE the form (required by Streamlit)
+        # Input | Send | Clear
+        input_col, send_col, clear_col = st.columns([8, 1, 1], gap="small")
         
         with input_col:
             user_q = st.text_input(
-                "Ask something about the data:",
+                label="Ask something about the data:",
                 key="chat_input_col3",
-                placeholder="e.g. 'claim rate for model Sentra' or 'show recent incidents'",
+                placeholder="",
                 label_visibility="collapsed",
             )
         
-        with button_send:
-            submitted = st.form_submit_button("Send", use_container_width=False)
-            
-        with button_clear:
-            clear = st.form_submit_button("Clear", use_container_width=False)
+        if config.debug or not VOICE_AVAILABLE:
+            with st.expander("🔍 Voice Debug Info", expanded=False):
+                st.write(f"**AUDIO_RECORDER_AVAILABLE**: {AUDIO_RECORDER_AVAILABLE}")
+                st.write(f"**VOICE_AVAILABLE**: {VOICE_AVAILABLE}")
+                st.write(f"**voice_enabled (config)**: {config.model.voice_enabled}")
+                st.write(f"**voice_service**: {voice_service is not None}")
+                st.write(f"**show_voice_button**: {show_voice_button}")
+                st.write(f"**AWS Region**: {config.aws.region}")
+                st.write(f"**S3 Bucket**: {config.aws.s3_bucket}")
+                
+                # Show why voice is not available
+                if not VOICE_AVAILABLE:
+                    if voice_service is None:
+                        st.error("**VoiceService creation failed** - Check Streamlit logs for error details")
+                        st.info("Try: Check AWS credentials, IAM permissions, and S3 bucket access")
+                    elif not config.model.voice_enabled:
+                        st.warning("**Voice is disabled in config** - Set `VOICE_ENABLED=true` environment variable")
+                if not AUDIO_RECORDER_AVAILABLE:
+                    st.error("**Fix**: Install streamlit-audiorecorder in the same Python environment as Streamlit")
+                    st.code("""
+# Check which Python Streamlit uses:
+streamlit --version
+python --version
 
-        # Minimalist expert design for chat input and buttons
+# Install using the same Python:
+python -m pip install streamlit-audiorecorder==0.0.6 pydub==0.25.1
+
+# Or if using virtual environment, activate it first:
+# On Windows: venv\\Scripts\\activate
+# On Mac/Linux: source venv/bin/activate
+# Then: pip install streamlit-audiorecorder==0.0.6 pydub==0.25.1
+                    """, language="bash")
+                if not VOICE_AVAILABLE and config.model.voice_enabled:
+                    st.warning("**Fix**: Check AWS credentials and IAM permissions. See AWS_CONSOLE_SETUP_GUIDE.md")
+        
+        with send_col:
+            submitted = st.form_submit_button("→", use_container_width=True, help="Send message")
+
+        # Clear chat button (trash icon)
+        with clear_col:
+            clear_chat = st.form_submit_button("🗑", use_container_width=True, help="Clear chat")
+
+        # Cursor.ai-style design for chat input and buttons
         st.markdown("""
         <style>
-        /* Chat input styling - minimalist and elegant */
+        /* Professional Chat Input - rounded, modern */
         div[data-testid="stForm"] input[data-testid="textInput"] {
             background: #1e293b !important;
-            border: 2px solid #334155 !important;
+            border: 1px solid #334155 !important;
             border-radius: 12px !important;
             color: #f1f5f9 !important;
-            padding: 12px 16px !important;
+            padding: 10px 16px !important;
             font-size: 14px !important;
             font-weight: 400 !important;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+            transition: all 0.2s ease !important;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
         }
         
         div[data-testid="stForm"] input[data-testid="textInput"]:focus {
-            border-color: #3b82f6 !important;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+            border-color: #475569 !important;
+            box-shadow: 0 0 0 2px rgba(71, 85, 105, 0.2) !important;
             outline: none !important;
         }
         
@@ -885,94 +980,470 @@ def render_chat_interface():
         
         div[data-testid="stForm"] input[data-testid="textInput"]::placeholder {
             color: #64748b !important;
-            font-style: italic !important;
+            font-style: normal !important;
         }
         
-        /* Button styling - clean and modern */
-        div[data-testid="stForm"] button[kind="formSubmit"] {
-            width: auto !important;
-            min-width: 70px !important;
-            padding: 8px 16px !important;
-            font-size: 13px !important;
-            font-weight: 500 !important;
-            height: 36px !important;
-            border-radius: 8px !important;
-            border: none !important;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
-            cursor: pointer !important;
-            position: relative !important;
-            overflow: hidden !important;
-        }
-        
-        /* Send button - primary action */
+        /* Cursor.ai-style Circular Buttons */
+        /* Send button - circular with arrow icon */
+        /* Hide submit button when microphone is visible (input is empty) */
         div[data-testid="stForm"] button[kind="formSubmit"]:first-of-type {
-            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+            width: 36px !important;
+            height: 36px !important;
+            min-width: 36px !important;
+            padding: 0 !important;
+            border-radius: 50% !important;
+            border: none !important;
+            background: #e5e7eb !important;
+            color: #1f2937 !important;
+            font-size: 18px !important;
+            font-weight: 500 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            transition: all 0.2s ease !important;
+            cursor: pointer !important;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+            margin-top: 0 !important;
+        }
+        
+        /* Send Button - small, professional, circular */
+        div[data-testid="stForm"] button[kind="formSubmit"]:first-of-type {
+            width: 36px !important;
+            height: 36px !important;
+            min-width: 36px !important;
+            padding: 0 !important;
+            border-radius: 50% !important;
+            border: none !important;
+            background: #3b82f6 !important;
             color: white !important;
-            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2) !important;
+            font-size: 16px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            transition: all 0.2s ease !important;
+            cursor: pointer !important;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+            margin: 0 !important;
         }
         
         div[data-testid="stForm"] button[kind="formSubmit"]:first-of-type:hover {
-            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
-            transform: translateY(-1px) !important;
-            box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3) !important;
+            background: #2563eb !important;
+            transform: scale(1.05) !important;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15) !important;
         }
         
         div[data-testid="stForm"] button[kind="formSubmit"]:first-of-type:active {
-            transform: translateY(0) !important;
-            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2) !important;
+            transform: scale(0.95) !important;
         }
         
-        /* Clear button - secondary action */
+        /* Clear button - if present */
         div[data-testid="stForm"] button[kind="formSubmit"]:last-of-type {
-            background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%) !important;
+            width: 36px !important;
+            height: 36px !important;
+            min-width: 36px !important;
+            padding: 0 !important;
+            border-radius: 50% !important;
+            border: none !important;
+            background: #6b7280 !important;
             color: white !important;
-            box-shadow: 0 2px 4px rgba(107, 114, 128, 0.2) !important;
+            font-size: 12px !important;
+            font-weight: 500 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            transition: all 0.2s ease !important;
+            cursor: pointer !important;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
         }
         
         div[data-testid="stForm"] button[kind="formSubmit"]:last-of-type:hover {
-            background: linear-gradient(135deg, #4b5563 0%, #374151 100%) !important;
-            transform: translateY(-1px) !important;
-            box-shadow: 0 4px 8px rgba(107, 114, 128, 0.3) !important;
+            background: #4b5563 !important;
+            transform: scale(1.05) !important;
         }
         
-        div[data-testid="stForm"] button[kind="formSubmit"]:last-of-type:active {
-            transform: translateY(0) !important;
-            box-shadow: 0 2px 4px rgba(107, 114, 128, 0.2) !important;
+        /* Microphone button - small, professional, circular */
+        div[data-testid="stForm"] div[data-testid="element-container"]:has([data-testid="stComponentInstance"]) button,
+        div[data-testid="stForm"] div[data-testid="element-container"]:has([data-testid="stComponentInstance"]) > div > div > button {
+            width: 36px !important;
+            height: 36px !important;
+            min-width: 36px !important;
+            padding: 0 !important;
+            border-radius: 50% !important;
+            border: none !important;
+            background: #6b7280 !important;
+            color: white !important;
+            font-size: 16px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            transition: all 0.2s ease !important;
+            cursor: pointer !important;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+            margin: 0 !important;
         }
         
-        /* Form container improvements */
+        div[data-testid="stForm"] div[data-testid="element-container"]:has([data-testid="stComponentInstance"]) button:hover,
+        div[data-testid="stForm"] div[data-testid="element-container"]:has([data-testid="stComponentInstance"]) > div > div > button:hover {
+            background: #4b5563 !important;
+            transform: scale(1.05) !important;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15) !important;
+        }
+        
+        /* Ensure microphone button container aligns properly */
+        div[data-testid="stForm"] div[data-testid="element-container"]:has([data-testid="stComponentInstance"]) {
+            margin: 0 !important;
+            padding: 0 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+        
+        /* Hide default button text, show icon only */
+        div[data-testid="stForm"] button[kind="formSubmit"] > p {
+            margin: 0 !important;
+            padding: 0 !important;
+            line-height: 1 !important;
+        }
+        
+        /* Form container - minimal styling */
         div[data-testid="stForm"] {
-            background: rgba(15, 23, 42, 0.3) !important;
-            border-radius: 16px !important;
-            padding: 16px !important;
-            border: 1px solid rgba(51, 65, 85, 0.3) !important;
-            backdrop-filter: blur(10px) !important;
+            background: transparent !important;
+            border: none !important;
+            padding: 0 !important;
+            border-radius: 0 !important;
         }
         
-        /* Subtle animation for form */
-        div[data-testid="stForm"] {
-            animation: slideInUp 0.3s ease-out !important;
+        /* Ensure buttons are aligned in the same row */
+        div[data-testid="stForm"] > div[data-baseweb="grid"] > div {
+            display: flex !important;
+            align-items: center !important;
         }
         
-        @keyframes slideInUp {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
         </style>
+        <script>
+        // Position microphone component aligned to the Clear button at far right
+        (function(){
+          function positionMic(){
+            const form = document.querySelector('[data-testid="stForm"]');
+            if(!form) return;
+            const submitButtons = form.querySelectorAll('button[kind="formSubmit"]');
+            if(submitButtons.length === 0) return;
+            // Clear button is expected to be the last form submit button in the row
+            const clearBtn = submitButtons[submitButtons.length - 1];
+            // Find the mic component relative to our anchor
+            const anchor = document.getElementById('voice-mic-anchor');
+            let mic = null;
+            if(anchor){
+              let el = anchor.nextElementSibling;
+              while(el && !mic){
+                const cand = el.querySelector ? el.querySelector('[data-testid="stComponentInstance"]') : null;
+                if(cand){ mic = cand; break; }
+                el = el.nextElementSibling;
+              }
+            }
+            if(!mic) return;
+            const micContainer = mic.closest('[data-testid="element-container"]');
+            if(!micContainer) return;
+            const rect = clearBtn.getBoundingClientRect();
+            micContainer.style.position = 'fixed';
+            micContainer.style.top = (rect.top + rect.height/2 - 18) + 'px';
+            // Place immediately to the right of the Clear button
+            micContainer.style.left = (rect.right + 12) + 'px';
+            micContainer.style.width = '36px';
+            micContainer.style.height = '36px';
+            micContainer.style.zIndex = '1000';
+            const btn = micContainer.querySelector('button');
+            if(btn){ btn.style.width='36px'; btn.style.height='36px'; btn.style.borderRadius='50%'; }
+            // Create/update label pill
+            const labelId = 'voice-mic-label-pill';
+            let label = document.getElementById(labelId);
+            if(!label){
+              label = document.createElement('div');
+              label.id = labelId;
+              label.textContent = 'Click mic to ask vocally';
+              label.style.position = 'fixed';
+              label.style.background = '#111827';
+              label.style.border = '1px solid #374151';
+              label.style.color = '#E5E7EB';
+              label.style.padding = '4px 10px';
+              label.style.fontSize = '11px';
+              label.style.lineHeight = '1';
+              label.style.borderRadius = '9999px';
+              label.style.boxShadow = '0 1px 2px rgba(0,0,0,0.25)';
+              label.style.whiteSpace = 'nowrap';
+              document.body.appendChild(label);
+            }
+            label.style.top = (rect.top + rect.height/2 - 10) + 'px';
+            label.style.left = (rect.right - 70) + 'px';
+          }
+          positionMic();
+          setTimeout(positionMic, 50);
+          setTimeout(positionMic, 100);
+          window.addEventListener('resize', positionMic);
+          const obs = new MutationObserver(positionMic);
+          obs.observe(document.body, {childList:true, subtree:true});
+        })();
+        </script>
         """, unsafe_allow_html=True)
 
+    # Clear chat action (handled immediately after form submit)
+    clear_chat_clicked = False
+    text_submitted = False
+    if 'clear_chat' in locals() and clear_chat:
+        clear_chat_clicked = True
+        st.session_state.chat_history = []
+        # Clear any pending audio when clearing chat
+        st.session_state["pending_audio_bytes"] = None
+        st.session_state["pending_audio_format"] = None
+        st.session_state["pending_audio_id"] = None
+        try:
+            # Reset conversation memory if available
+            from chat.conversation_memory import ConversationContext
+            st.session_state.conversation_memory = ConversationContext(context_window=10)
+        except Exception:
+            st.session_state.pop('conversation_memory', None)
+    
+    # Check if Send button was clicked (text submission)
+    if 'submitted' in locals() and submitted:
+        text_submitted = True
+        # Clear any pending audio when sending text (text takes priority)
+        st.session_state["pending_audio_bytes"] = None
+        st.session_state["pending_audio_format"] = None
+        st.session_state["pending_audio_id"] = None
+
+    # Render microphone OUTSIDE the form (stable) and capture audio reliably
+    audio_bytes = None
+    if show_voice_button:
+        st.markdown('<div id="mic-row-anchor"></div>', unsafe_allow_html=True)
+        _sp1, _sp2, _sp3, label_col, button_col = st.columns([7, 1, 1, 2, 1], gap="small")
+        with label_col:
+            st.markdown(
+                '<div style="font-size: 11px; color: #94a3b8; margin-top: 4px; text-align: center;">Click mic to ask vocally</div>',
+                unsafe_allow_html=True,
+            )
+        with button_col:
+            try:
+                audio_bytes = streamlit_audiorecorder(
+                    start_prompt="🎤",
+                    stop_prompt="⏹",
+                    pause_prompt="",
+                    show_visualizer=False,
+                    key="voice_recorder_static"
+                )
+                if audio_bytes and len(audio_bytes) > 0:
+                    try:
+                        import io, hashlib
+                        audio_buffer = io.BytesIO()
+                        audio_bytes.export(audio_buffer, format="wav")
+                        audio_buffer.seek(0)
+                        audio_bytes_data = audio_buffer.read()
+                        st.session_state["pending_audio_bytes"] = audio_bytes_data
+                        st.session_state["pending_audio_format"] = "wav"
+                        audio_hash = hashlib.md5(audio_bytes_data[:1000] if len(audio_bytes_data) > 1000 else audio_bytes_data).hexdigest()[:12]
+                        st.session_state["pending_audio_id"] = f"audio_{int(time.time())}_{audio_hash}"
+                        logger.info(f"✅ Stored audio in session_state ({len(audio_bytes_data)} bytes), ID: {st.session_state['pending_audio_id']}")
+                    except Exception as e:
+                        logger.error(f"❌ Failed to store audio in session_state: {e}", exc_info=True)
+                        if config.debug:
+                            st.error(f"Failed to store audio: {e}")
+            except FileNotFoundError as ffmpeg_error:
+                if "ffprobe" in str(ffmpeg_error).lower() or "ffmpeg" in str(ffmpeg_error).lower():
+                    if config.debug:
+                        st.error("⚠️ FFmpeg not installed.")
+                    audio_bytes = None
+                else:
+                    raise
+            except Exception as recorder_error:
+                logger.warning(f"Voice recording error: {recorder_error}", exc_info=True)
+                audio_bytes = None
+
+    # -------- Process audio AFTER form (if recorded) --------
+    # Check both current audio_bytes and session_state for pending audio
+    # (in case form clear_on_submit cleared the local variable)
+    pending_audio_bytes = st.session_state.get("pending_audio_bytes")
+    pending_audio_id = st.session_state.get("pending_audio_id")
+    
+    # Prevent duplicate processing using audio hash/ID
+    current_audio_id = None
+    if audio_bytes and len(audio_bytes) > 0:
+        # Generate ID for current audio
+        try:
+            import hashlib
+            audio_hash = hashlib.md5(str(len(audio_bytes)).encode()).hexdigest()[:8]
+            current_audio_id = f"audio_{audio_hash}"
+        except:
+            current_audio_id = None
+    
+    if pending_audio_bytes and len(pending_audio_bytes) > 0 and not clear_chat_clicked and not text_submitted:
+        logger.info(f"🔍 Found pending audio in session_state ({len(pending_audio_bytes)} bytes), ID: {pending_audio_id}")
+        # Check if we already processed this audio
+        if pending_audio_id and pending_audio_id == st.session_state.get("_last_processed_audio_id"):
+            logger.debug("⏭️ Skipping duplicate audio processing")
+            audio_bytes = None
+        else:
+            # Use pending audio from session_state
+            if not audio_bytes or len(audio_bytes) == 0:
+                # Reconstruct AudioSegment from stored bytes for processing
+                try:
+                    from pydub import AudioSegment
+                    import io
+                    logger.debug(f"🔄 Reconstructing AudioSegment from {len(pending_audio_bytes)} bytes")
+                    audio_buffer = io.BytesIO(pending_audio_bytes)
+                    audio_bytes = AudioSegment.from_wav(audio_buffer)
+                    logger.info(f"✅ Successfully reconstructed AudioSegment ({len(audio_bytes)} frames)")
+                except Exception as e:
+                    logger.error(f"❌ Failed to reconstruct audio from session_state: {e}", exc_info=True)
+                    audio_bytes = None
+            else:
+                logger.debug(f"✅ Using live audio_bytes ({len(audio_bytes)} frames)")
+    
+    if audio_bytes and len(audio_bytes) > 0 and not clear_chat_clicked and not text_submitted:
+        if not VOICE_AVAILABLE or voice_service is None:
+            st.error("⚠️ Voice service not configured. Please set up AWS credentials and IAM permissions.")
+            logger.error("Voice recording attempted but voice service is not available")
+        else:
+            try:
+                with st.spinner("🎤 Transcribing audio..."):
+                    # Convert AudioSegment to bytes (optimized format for faster processing)
+                    import io
+                    audio_buffer = io.BytesIO()
+                    
+                    # Optimize audio: 16kHz mono WAV (smaller file, faster upload/processing)
+                    # This reduces file size significantly while maintaining transcription quality
+                    try:
+                        # Try compressed format first (faster)
+                        audio_bytes.export(
+                            audio_buffer, 
+                            format="wav",
+                            parameters=["-ar", "16000", "-ac", "1"]  # 16kHz sample rate, mono channel
+                        )
+                    except Exception:
+                        # Fallback to standard WAV if compression fails
+                        audio_bytes.export(audio_buffer, format="wav")
+                    
+                    audio_buffer.seek(0)
+                    audio_bytes_data = audio_buffer.read()
+                    
+                    logger.debug(f"Audio prepared: {len(audio_bytes_data)} bytes for transcription")
+                    
+                    transcription_result = voice_service.transcribe_audio_bytes(
+                        audio_bytes=audio_bytes_data,
+                        language_code=config.model.transcribe_language_code,
+                        media_format="wav"
+                    )
+                    transcribed_text = transcription_result.get("text", "").strip()
+                    
+                    # Mark this audio as processed to prevent duplicate processing
+                    if pending_audio_id:
+                        st.session_state["_last_processed_audio_id"] = pending_audio_id
+                    elif current_audio_id:
+                        st.session_state["_last_processed_audio_id"] = current_audio_id
+                    
+                    # Clear pending audio from session_state after successful transcription
+                    st.session_state["pending_audio_bytes"] = None
+                    st.session_state["pending_audio_format"] = None
+                    st.session_state["pending_audio_id"] = None
+                    
+                    if transcribed_text:
+                        # Process query immediately (same as Send button) - no rerun needed
+                        q = transcribed_text.strip()
+                        
+                        if q:
+                            logger.info(f"Processing voice transcription immediately: '{q[:50]}...'")
+                            
+                            # Generate submission ID
+                            import uuid
+                            submission_id = str(uuid.uuid4())
+                            ts = datetime.now(timezone.utc).isoformat()
+                            
+                            # Check for duplicate (same as form submission)
+                            last_user_text = None
+                            if st.session_state.chat_history:
+                                for m in reversed(st.session_state.chat_history):
+                                    if m.get("role") == "user":
+                                        last_user_text = m.get("text")
+                                        break
+                            
+                            if last_user_text is not None and last_user_text.strip() == q:
+                                st.info("This message was already submitted. Showing existing response.")
+                            else:
+                                # Add user message to chat history
+                                st.session_state.chat_history.append({
+                                    "role": "user",
+                                    "text": q,
+                                    "ts": ts,
+                                    "id": submission_id
+                                })
+                                
+                                # Generate assistant reply (same as Send button)
+                                start_time = time.time()
+                                try:
+                                    assistant_html = chat_generate_reply(
+                                        q,
+                                        df_history,
+                                        faiss_res,
+                                        VECT_CHAT,
+                                        X_CHAT,
+                                        HISTORY_ROWS_CHAT,
+                                        get_bedrock_summary,
+                                        top_k=6,
+                                        conversation_context=st.session_state.conversation_memory
+                                    )
+                                    duration_ms = (time.time() - start_time) * 1000
+                                    logger.info(f"Generated reply for voice query in {duration_ms:.2f}ms")
+                                except Exception as e:
+                                    logger.error(f"Error generating reply for voice query '{q[:50]}...': {e}", exc_info=True)
+                                    assistant_html = f"<p>Error generating reply: {_html.escape(str(e))}</p>"
+                                    duration_ms = (time.time() - start_time) * 1000
+
+                                # Add exchange to conversation memory
+                                st.session_state.conversation_memory.add_exchange(
+                                    query=q,
+                                    response=assistant_html,
+                                    exchange_id=submission_id,
+                                    handler_used="QueryRouter",
+                                    processing_time_ms=duration_ms
+                                )
+                                
+                                # Save conversation memory to session state
+                                st.session_state.conversation_memory.save_to_session_state(st.session_state)
+
+                                st.session_state.chat_history.append({
+                                    "role":"assistant",
+                                    "text":assistant_html,
+                                    "ts": datetime.now(timezone.utc).isoformat(),
+                                    "id": submission_id
+                                })
+
+                                # persist (best-effort)
+                                try:
+                                    persist_chat_to_disk(st.session_state.chat_history)
+                                    logger.debug("Chat history persisted to disk")
+                                except Exception as e:
+                                    logger.warning(f"Failed to persist chat history: {e}")
+                                    if config.debug:
+                                        st.warning(f"Failed to persist chat history: {e}")
+                                
+                                # Note: Cannot modify st.session_state["chat_input_col3"] after widget instantiation
+                                # The form will clear automatically on next submission due to clear_on_submit=True
+                                logger.info("Voice query processed and added to chat history - no rerun needed")
+                    else:
+                        st.warning("Could not transcribe audio. Please try again.")
+            except Exception as e:
+                logger.error(f"Voice transcription error: {e}", exc_info=True)
+                st.error(f"Transcription failed: {str(e)}. Check AWS setup.")
+
     # -------- handlers (no rendering here) --------
-    if clear:
+    # Initialize clear to False if not set (e.g., when voice/mic is shown and Clear button absent)
+    try:
+        _should_clear = bool(clear)
+    except NameError:
+        _should_clear = False
+    if _should_clear:
         st.session_state.chat_history = []
         # do not rerun — simply let the function continue to the final render below
         # the final render will show an empty chat pane
-
+    
     if submitted:
         q = (st.session_state.get("chat_input_col3") or "").strip()
         if not q:
@@ -990,7 +1461,6 @@ def render_chat_interface():
                 st.info("This message was already submitted. Showing existing response.")
                 # do nothing — final render below will show existing messages
             else:
-                from datetime import datetime, timezone
                 import uuid
 
                 submission_id = str(uuid.uuid4())

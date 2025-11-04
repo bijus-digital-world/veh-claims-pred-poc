@@ -11,10 +11,94 @@ def apply_style():
         footer {visibility: hidden;}
 
         .block-container { padding-top:0.1rem !important; padding-bottom: 0rem !important; padding-left:0.9rem !important; padding-right:0.9rem !important; }
+        
+        /* Aggressive spacing reduction between navbar and content */
+        .main .block-container { padding-top: 0rem !important; margin-top: -1rem !important; }
+        
+        /* Target the space between navbar and first content element */
+        .stApp > div:first-child > div:first-child > div:first-child > div:first-child { margin-top: -1rem !important; }
+        
+        /* Target the specific inference page content */
+        .stApp > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child { margin-top: -0.5rem !important; }
+        
+        /* More targeted approach - only reduce space between navbar and first content */
+        .stApp > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child { margin-top: -0.3rem !important; }
+        
+        /* Target only the first markdown element after navbar */
+        .stApp > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child { margin-top: -0.2rem !important; }
+        
+        /* Ensure header position is maintained */
+        .card-header { position: relative !important; top: 0 !important; }
+        .card { position: relative !important; top: 0 !important; }
+        
+        /* Style for inline header with controls */
+        .card-header { margin-bottom: 0 !important; }
+        
+        /* Align controls with header */
+        .stDateInput, .stTextInput, .stSelectbox { margin-top: 0 !important; }
+        .stDateInput > div, .stTextInput > div, .stSelectbox > div { margin-top: 0 !important; }
+        
+        /* Ensure controls are vertically centered with header */
+        .stDateInput label, .stTextInput label, .stSelectbox label { margin-bottom: 0 !important; }
+        .stDateInput > div > div, .stTextInput > div > div, .stSelectbox > div > div { margin-top: 0 !important; }
+        
+        /* Make all control labels have consistent font styling */
+        .stDateInput label, .stTextInput label, .stSelectbox label { 
+            font-size: 12px !important; 
+            color: #94a3b8 !important; 
+            margin-bottom: 2px !important; 
+            font-weight: 500 !important;
+        }
+        
+        /* Reduce spacing in inference page specifically */
+        .stApp > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child { margin-top: -0.5rem !important; }
+        
+        /* Aggressively reduce spacing between table headers and data rows */
+        .stMarkdown { margin-bottom: 0 !important; margin-top: 0 !important; }
+        .stMarkdown > div { margin-bottom: 0 !important; margin-top: 0 !important; }
+        .stMarkdown > div > div { margin-bottom: 0 !important; margin-top: 0 !important; }
+        .stMarkdown > div > div > div { margin-bottom: 0 !important; margin-top: 0 !important; }
+        
+        /* Target all Streamlit elements in the table area */
+        .stApp > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child { margin-top: -1rem !important; margin-bottom: 0 !important; }
+        .stApp > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child { margin-top: -0.5rem !important; margin-bottom: 0 !important; }
+        
+        /* Reduce spacing in columns aggressively */
+        .stColumns { margin-bottom: 0 !important; margin-top: 0 !important; }
+        .stColumns > div { margin-bottom: 0 !important; margin-top: 0 !important; }
+        .stColumns > div > div { margin-bottom: 0 !important; margin-top: 0 !important; }
+        .stColumns > div > div > div { margin-bottom: 0 !important; margin-top: 0 !important; }
+        
+        /* Target specific table elements */
+        .stApp > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child { margin-top: -0.3rem !important; margin-bottom: 0 !important; }
+        
+        /* Ultra-aggressive spacing reduction for table area */
+        .stApp > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child { margin-top: -2rem !important; margin-bottom: 0 !important; }
+        .stApp > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child { margin-top: -1rem !important; margin-bottom: 0 !important; }
+        
+        /* Target all elements in the table section */
+        .stApp > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child { margin-top: -0.5rem !important; margin-bottom: 0 !important; }
+        
+        /* Reduce height of Email and SMS buttons */
+        .stButton > button { 
+            height: 28px !important; 
+            min-height: 28px !important;
+            padding: 4px 8px !important;
+            font-size: 12px !important;
+            line-height: 1.2 !important;
+        }
+        
+        /* Target buttons in the table specifically */
+        .stApp > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child .stButton > button {
+            height: 24px !important;
+            min-height: 24px !important;
+            padding: 2px 6px !important;
+            font-size: 11px !important;
+        }
 
         .navbar {
             position: sticky; top:0; z-index:9999; display:flex; align-items:center; justify-content:space-between;
-            padding:12px 16px; background:#ffffff; box-shadow:0 2px 6px rgba(16,24,40,0.06); margin-bottom:8px;
+            padding:12px 16px; background:#ffffff; box-shadow:0 2px 6px rgba(16,24,40,0.06); margin-bottom:2px;
         }
         .navbar::before { content:""; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,#c3002f,#000000); }
         .navbar::after { content:""; position:absolute; bottom:0; left:0; right:0; height:3px; background:linear-gradient(90deg,#000000,#c3002f); }

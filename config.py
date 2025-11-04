@@ -99,6 +99,13 @@ class ModelConfig:
     default_threshold_pct: int = 50  # Lowered to show enhanced summary more often
     threshold_options: List[int] = field(default_factory=lambda: [30, 40, 50, 60, 70, 75, 80, 85, 90, 95])
     
+    # Voice settings
+    voice_enabled: bool = True
+    transcribe_language_code: str = "en-US"
+    polly_voice_id: str = "Joanna"  # Default voice: Joanna (neural, female, US English)
+    polly_engine: str = "neural"  # "neural" for best quality, "standard" for compatibility
+    polly_output_format: str = "mp3"
+    
     @classmethod
     def from_env(cls):
         return cls(
@@ -106,7 +113,12 @@ class ModelConfig:
             bedrock_model_id=os.getenv("BEDROCK_MODEL_ID", "anthropic.claude-3-haiku-20240307-v1:0"),
             bedrock_max_tokens=int(os.getenv("BEDROCK_MAX_TOKENS", "320")),
             bedrock_temperature=float(os.getenv("BEDROCK_TEMPERATURE", "0.18")),
-            default_threshold_pct=int(os.getenv("DEFAULT_THRESHOLD_PCT", "80"))
+            default_threshold_pct=int(os.getenv("DEFAULT_THRESHOLD_PCT", "80")),
+            voice_enabled=os.getenv("VOICE_ENABLED", "true").lower() == "true",
+            transcribe_language_code=os.getenv("TRANSCRIBE_LANGUAGE_CODE", "en-US"),
+            polly_voice_id=os.getenv("POLLY_VOICE_ID", "Joanna"),
+            polly_engine=os.getenv("POLLY_ENGINE", "neural"),
+            polly_output_format=os.getenv("POLLY_OUTPUT_FORMAT", "mp3")
         )
 
 

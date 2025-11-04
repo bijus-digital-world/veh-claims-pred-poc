@@ -1,30 +1,37 @@
 # ==================== Core Web Framework ====================
 streamlit==1.45.0
-streamlit_autorefresh==1.0.1
+streamlit-autorefresh==1.0.1
 
 # ==================== Data Processing ====================
 pandas==2.3.3
 numpy==2.3.3
-scikit_learn==1.7.2
-python_dateutil==2.9.0.post0
+scikit-learn==1.7.2              # For TF-IDF vectorization and ML models
+python-dateutil==2.9.0.post0    # Date parsing utilities
 
 # ==================== Visualization ====================
 plotly==6.3.0
 pydeck==0.9.1
-altair==5.5.0
-matplotlib==3.10.7
-Pillow==11.3.0
+altair==5.5.0                    # Optional: for additional charts
+matplotlib==3.10.7               # Optional: for static plots
+Pillow==11.3.0                   # Image processing
 
-# ==================== ML & Vector Search (Enhanced Chat) ====================
-sentence_transformers==5.1.1  # For semantic search embeddings
-faiss_cpu==1.12.0              # For fast vector similarity search
-joblib==1.5.2                  # For model serialization
+# ==================== ML & Vector Search (Enhanced Chat) ====================  
+sentence-transformers==5.1.1     # For semantic search embeddings
+faiss-cpu==1.12.0                # For fast vector similarity search
+joblib==1.5.2                    # For model serialization
 
 # ==================== AWS Integration ====================
-boto3==1.40.40                 # For Bedrock LLM & Location Services
-botocore==1.40.40
-s3fs==2025.9.0                 # For S3 data access (optional)
+boto3==1.40.40                   # For Bedrock LLM, Transcribe, Polly & Location Services
+botocore==1.40.40                # AWS SDK core library
+s3fs==2025.9.0                   # For S3 data access (optional but recommended)
 
 # ==================== Utilities ====================
-click==8.3.0
-requests==2.31.0
+click==8.3.0                     # Command-line interface utilities
+requests==2.31.0                 # HTTP library
+
+# ==================== Voice/Audio ====================
+# NOTE: Requires Python 3.12 or earlier (Python 3.13 removed audioop module)    
+# If using Python 3.13, please use Python 3.12 environment                                                                    
+streamlit-audiorecorder==0.0.6   # Audio recording for Streamlit
+pydub==0.25.1                    # Audio processing (requires FFmpeg for WAV conversion)
+# Note: wave and audioop are part of Python standard library (removed in Python 3.13)

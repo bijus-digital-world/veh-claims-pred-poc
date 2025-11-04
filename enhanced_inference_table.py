@@ -244,50 +244,6 @@ def render_enhanced_inference_table(df_log: pd.DataFrame, date_range: tuple, tex
     else:
         st.success("No high-risk vehicles detected. All vehicles are within normal parameters.")
 
-def render_action_buttons_legacy(df_show: pd.DataFrame):
-    """Alternative implementation using Streamlit buttons (if HTML doesn't work)."""
-    st.markdown("### Action Buttons for High-Risk Vehicles")
-    
-    # Filter high-risk vehicles
-    high_risk_df = df_show[df_show['pred_prob_pct'] > 50]
-    
-    if high_risk_df.empty:
-        st.info("No high-risk vehicles found (Predictive % > 50%)")
-        return
-    
-    st.markdown(f"**Found {len(high_risk_df)} high-risk vehicles requiring attention:**")
-    
-    for idx, (_, row) in enumerate(high_risk_df.iterrows()):
-        with st.expander(f"Vehicle {idx + 1}: {row['model']} - {row['primary_failed_part']} ({row['pred_prob_pct']:.1f}%)"):
-            col1, col2, col3 = st.columns([2, 1, 1])
-            
-            with col1:
-                st.write(f"**Model:** {row['model']}")
-                st.write(f"**Part:** {row['primary_failed_part']}")
-                st.write(f"**Risk Level:** {row['pred_prob_pct']:.1f}%")
-                st.write(f"**Timestamp:** {row['timestamp']}")
-            
-            with col2:
-                if st.button(f"📧 Email", key=f"email_{idx}"):
-                    # Create email content
-                    subject = f"High Risk Alert - {row['model']} Vehicle"
-                    body = f"""Vehicle Model: {row['model']}
-Predicted Failed Part: {row['primary_failed_part']}
-Risk Level: {row['pred_prob_pct']:.1f}%
-Timestamp: {row['timestamp']}
-
-This vehicle has a high probability of failure and requires immediate attention."""
-                    
-                    # Copy to clipboard or show
-                    st.code(body, language="text")
-                    st.success("Email content ready to copy!")
-            
-            with col3:
-                if st.button(f"📱 SMS", key=f"sms_{idx}"):
-                    sms_text = f"ALERT: {row['model']} vehicle has {row['pred_prob_pct']:.1f}% failure risk for {row['primary_failed_part']}. Immediate service recommended."
-                    st.code(sms_text, language="text")
-                    st.success("SMS text ready to copy!")
-
 def create_email_template(model: str, part: str, pred_prob: float, timestamp: str) -> str:
     """Create a professional email template for high-risk alerts."""
     return f"""
