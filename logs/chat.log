@@ -7,3 +7,843 @@
 2025-10-21 10:47:05 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:771 - Processing chat query: 'what is the current claim rate?...'
 2025-10-21 10:47:05 - [34mchat_helper[0m - [36mINFO[0m - __init__:272 - QueryRouter initialized with 14 handlers
 2025-10-21 10:47:05 - [34mchat_helper[0m - [36mINFO[0m - route:289 - Query routed to RateHandler
+2025-10-21 13:14:38 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:771 - Processing chat query: 'Hello...'
+2025-10-21 13:14:38 - [34mchat_helper[0m - [36mINFO[0m - __init__:272 - QueryRouter initialized with 14 handlers
+2025-10-21 13:14:38 - [34mchat_helper[0m - [36mINFO[0m - route:289 - Query routed to GreetingHandler
+2025-10-21 13:21:38 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:771 - Processing chat query: 'HI...'
+2025-10-21 13:21:38 - [34mchat_helper[0m - [36mINFO[0m - __init__:272 - QueryRouter initialized with 14 handlers
+2025-10-21 13:21:38 - [34mchat_helper[0m - [36mINFO[0m - route:289 - Query routed to GreetingHandler
+2025-10-21 15:22:06 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:771 - Processing chat query: 'Hi...'
+2025-10-21 15:22:06 - [34mchat_helper[0m - [36mINFO[0m - __init__:272 - QueryRouter initialized with 14 handlers
+2025-10-21 15:22:06 - [34mchat_helper[0m - [36mINFO[0m - route:289 - Query routed to GreetingHandler
+2025-10-21 15:22:58 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:771 - Processing chat query: 'Hello...'
+2025-10-21 15:22:58 - [34mchat_helper[0m - [36mINFO[0m - __init__:272 - QueryRouter initialized with 14 handlers
+2025-10-21 15:22:58 - [34mchat_helper[0m - [36mINFO[0m - route:289 - Query routed to GreetingHandler
+2025-10-21 21:32:07 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:771 - Processing chat query: 'Hello...'
+2025-10-21 21:32:07 - [34mchat_helper[0m - [36mINFO[0m - __init__:272 - QueryRouter initialized with 14 handlers
+2025-10-21 21:32:07 - [34mchat_helper[0m - [36mINFO[0m - route:289 - Query routed to GreetingHandler
+2025-10-21 21:32:35 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:771 - Processing chat query: 'what is current claim rate?...'
+2025-10-21 21:32:35 - [34mchat_helper[0m - [36mINFO[0m - __init__:272 - QueryRouter initialized with 14 handlers
+2025-10-21 21:32:35 - [34mchat_helper[0m - [36mINFO[0m - route:289 - Query routed to RateHandler
+2025-10-21 21:53:33 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:771 - Processing chat query: 'Hello...'
+2025-10-21 21:53:33 - [34mchat_helper[0m - [36mINFO[0m - __init__:272 - QueryRouter initialized with 14 handlers
+2025-10-21 21:53:33 - [34mchat_helper[0m - [36mINFO[0m - route:289 - Query routed to GreetingHandler
+2025-10-21 22:00:23 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:771 - Processing chat query: 'Hello...'
+2025-10-21 22:00:23 - [34mchat_helper[0m - [36mINFO[0m - __init__:272 - QueryRouter initialized with 14 handlers
+2025-10-21 22:00:23 - [34mchat_helper[0m - [36mINFO[0m - route:289 - Query routed to GreetingHandler
+2025-10-21 22:08:24 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:771 - Processing chat query: 'Hello...'
+2025-10-21 22:08:24 - [34mchat_helper[0m - [36mINFO[0m - __init__:272 - QueryRouter initialized with 14 handlers
+2025-10-21 22:08:24 - [34mchat_helper[0m - [36mINFO[0m - route:289 - Query routed to GreetingHandler
+2025-10-21 22:08:33 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:771 - Processing chat query: 'Hi...'
+2025-10-21 22:08:33 - [34mchat_helper[0m - [36mINFO[0m - __init__:272 - QueryRouter initialized with 14 handlers
+2025-10-21 22:08:33 - [34mchat_helper[0m - [36mINFO[0m - route:289 - Query routed to GreetingHandler
+2025-10-21 23:18:25 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:771 - Processing chat query: 'Hello...'
+2025-10-21 23:18:25 - [34mchat_helper[0m - [36mINFO[0m - __init__:272 - QueryRouter initialized with 14 handlers
+2025-10-21 23:18:25 - [34mchat_helper[0m - [36mINFO[0m - route:289 - Query routed to GreetingHandler
+2025-10-21 23:35:22 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:771 - Processing chat query: 'Do you observe a growing trend in problems for any vehicle model?...'
+2025-10-21 23:35:22 - [34mchat_helper[0m - [36mINFO[0m - __init__:272 - QueryRouter initialized with 14 handlers
+2025-10-21 23:35:22 - [34mchat_helper[0m - [36mINFO[0m - route:289 - Query routed to TrendHandler
+2025-10-22 00:49:47 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:784 - Processing chat query: 'Do you observe a growing trend in problems for any vehicle model?...'
+2025-10-22 00:49:47 - [34mchat_helper[0m - [36mINFO[0m - __init__:287 - QueryRouter initialized with 19 handlers
+2025-10-22 00:49:47 - [34mchat_helper[0m - [36mINFO[0m - route:304 - Query routed to TrendHandler
+2025-10-22 00:50:03 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:784 - Processing chat query: 'Why do Battery parts fail?...'
+2025-10-22 00:50:03 - [34mchat_helper[0m - [36mINFO[0m - __init__:287 - QueryRouter initialized with 19 handlers
+2025-10-22 00:50:03 - [34mchat_helper[0m - [36mINFO[0m - route:304 - Query routed to FailureReasonHandler
+2025-10-22 00:50:03 - [34mchat_helper[0m - [36mINFO[0m - handle:265 - FailureReasonHandler processing: 'Why do Battery parts fail?...'
+2025-10-22 00:50:16 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:784 - Processing chat query: 'List all suppliers for Battery parts...'
+2025-10-22 00:50:16 - [34mchat_helper[0m - [36mINFO[0m - __init__:287 - QueryRouter initialized with 19 handlers
+2025-10-22 00:50:16 - [34mchat_helper[0m - [36mINFO[0m - route:304 - Query routed to SupplierListHandler
+2025-10-22 00:50:16 - [34mchat_helper[0m - [36mINFO[0m - handle:34 - SupplierListHandler processing: 'List all suppliers for Battery parts...'
+2025-10-22 00:50:30 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:784 - Processing chat query: 'Which supplier has the highest defect rate?...'
+2025-10-22 00:50:30 - [34mchat_helper[0m - [36mINFO[0m - __init__:287 - QueryRouter initialized with 19 handlers
+2025-10-22 00:50:30 - [34mchat_helper[0m - [36mINFO[0m - route:304 - Query routed to DefectiveSupplierHandler
+2025-10-22 00:50:30 - [34mchat_helper[0m - [36mINFO[0m - handle:103 - DefectiveSupplierHandler processing: 'Which supplier has the highest defect rate?...'
+2025-10-22 00:50:30 - [34mchat_helper[0m - [36mINFO[0m - handle:145 - Identified 2 problematic suppliers
+2025-10-22 00:50:51 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:784 - Processing chat query: 'Show me VINs with Battery failures...'
+2025-10-22 00:50:51 - [34mchat_helper[0m - [36mINFO[0m - __init__:287 - QueryRouter initialized with 19 handlers
+2025-10-22 00:50:51 - [34mchat_helper[0m - [36mINFO[0m - route:304 - Query routed to VINQueryHandler
+2025-10-22 00:50:51 - [34mchat_helper[0m - [36mINFO[0m - handle:160 - VINQueryHandler processing: 'Show me VINs with Battery failures...'
+2025-10-22 00:51:00 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:784 - Processing chat query: 'Where is VIN 1N4AZMA5100456?...'
+2025-10-22 00:51:00 - [34mchat_helper[0m - [36mINFO[0m - __init__:287 - QueryRouter initialized with 19 handlers
+2025-10-22 00:51:00 - [34mchat_helper[0m - [36mINFO[0m - route:304 - Query routed to VINQueryHandler
+2025-10-22 00:51:00 - [34mchat_helper[0m - [36mINFO[0m - handle:160 - VINQueryHandler processing: 'Where is VIN 1N4AZMA5100456?...'
+2025-10-22 00:51:12 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:784 - Processing chat query: 'Where is VIN 1N4AZMA5100456? What is the nearest service center for VIN 1N4AZMA5100456?...'
+2025-10-22 00:51:12 - [34mchat_helper[0m - [36mINFO[0m - __init__:287 - QueryRouter initialized with 19 handlers
+2025-10-22 00:51:12 - [34mchat_helper[0m - [36mINFO[0m - route:304 - Query routed to VINQueryHandler
+2025-10-22 00:51:12 - [34mchat_helper[0m - [36mINFO[0m - handle:160 - VINQueryHandler processing: 'Where is VIN 1N4AZMA5100456? What is the nearest s...'
+2025-10-22 00:51:23 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:784 - Processing chat query: 'At what mileage do Transmission parts fail most?...'
+2025-10-22 00:51:23 - [34mchat_helper[0m - [36mINFO[0m - __init__:287 - QueryRouter initialized with 19 handlers
+2025-10-22 00:51:23 - [34mchat_helper[0m - [36mINFO[0m - route:304 - Query routed to DefaultHandler
+2025-10-22 00:51:28 - [34mchat_helper[0m - [36mINFO[0m - retrieve_with_faiss_or_tfidf:428 - ✅ FAISS retrieval returned 6 results in 4970.92ms
+2025-10-22 00:51:44 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:784 - Processing chat query: 'At what age do Engine failures occur most frequently?...'
+2025-10-22 00:51:44 - [34mchat_helper[0m - [36mINFO[0m - __init__:287 - QueryRouter initialized with 19 handlers
+2025-10-22 00:51:44 - [34mchat_helper[0m - [36mINFO[0m - route:304 - Query routed to DefaultHandler
+2025-10-22 00:51:50 - [34mchat_helper[0m - [36mINFO[0m - retrieve_with_faiss_or_tfidf:428 - ✅ FAISS retrieval returned 6 results in 5219.48ms
+2025-10-22 01:12:52 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:784 - Processing chat query: 'Do you observe a growing trend in problems for any vehicle model?...'
+2025-10-22 01:12:52 - [34mchat_helper[0m - [36mINFO[0m - __init__:287 - QueryRouter initialized with 19 handlers
+2025-10-22 01:12:52 - [34mchat_helper[0m - [36mINFO[0m - route:304 - Query routed to TrendHandler
+2025-10-22 01:13:06 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:784 - Processing chat query: 'Why do Battery parts fail?...'
+2025-10-22 01:13:06 - [34mchat_helper[0m - [36mINFO[0m - __init__:287 - QueryRouter initialized with 19 handlers
+2025-10-22 01:13:06 - [34mchat_helper[0m - [36mINFO[0m - route:304 - Query routed to FailureReasonHandler
+2025-10-22 01:13:06 - [34mchat_helper[0m - [36mINFO[0m - handle:265 - FailureReasonHandler processing: 'Why do Battery parts fail?...'
+2025-10-22 01:13:06 - [34mchat_helper[0m - [36mINFO[0m - handle:314 - Found 5 unique failure reasons for Battery failures
+2025-10-22 01:13:33 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:784 - Processing chat query: 'List all suppliers for Battery parts...'
+2025-10-22 01:13:33 - [34mchat_helper[0m - [36mINFO[0m - __init__:287 - QueryRouter initialized with 19 handlers
+2025-10-22 01:13:33 - [34mchat_helper[0m - [36mINFO[0m - route:304 - Query routed to SupplierListHandler
+2025-10-22 01:13:33 - [34mchat_helper[0m - [36mINFO[0m - handle:34 - SupplierListHandler processing: 'List all suppliers for Battery parts...'
+2025-10-22 01:13:33 - [34mchat_helper[0m - [36mINFO[0m - handle:84 - Found 3 suppliers for Battery parts
+2025-10-22 01:13:46 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:784 - Processing chat query: 'Which supplier has the highest defect rate?...'
+2025-10-22 01:13:46 - [34mchat_helper[0m - [36mINFO[0m - __init__:287 - QueryRouter initialized with 19 handlers
+2025-10-22 01:13:46 - [34mchat_helper[0m - [36mINFO[0m - route:304 - Query routed to DefectiveSupplierHandler
+2025-10-22 01:13:46 - [34mchat_helper[0m - [36mINFO[0m - handle:103 - DefectiveSupplierHandler processing: 'Which supplier has the highest defect rate?...'
+2025-10-22 01:13:46 - [34mchat_helper[0m - [36mINFO[0m - handle:145 - Identified 8 problematic suppliers
+2025-10-22 01:14:09 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:784 - Processing chat query: 'Show me VINs with Battery failures...'
+2025-10-22 01:14:09 - [34mchat_helper[0m - [36mINFO[0m - __init__:287 - QueryRouter initialized with 19 handlers
+2025-10-22 01:14:09 - [34mchat_helper[0m - [36mINFO[0m - route:304 - Query routed to VINQueryHandler
+2025-10-22 01:14:09 - [34mchat_helper[0m - [36mINFO[0m - handle:160 - VINQueryHandler processing: 'Show me VINs with Battery failures...'
+2025-10-22 01:14:09 - [34mchat_helper[0m - [36mINFO[0m - handle:245 - Found 281 affected VINs
+2025-10-22 01:14:19 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:784 - Processing chat query: 'Where is VIN 1N4AZMA5100456?...'
+2025-10-22 01:14:19 - [34mchat_helper[0m - [36mINFO[0m - __init__:287 - QueryRouter initialized with 19 handlers
+2025-10-22 01:14:19 - [34mchat_helper[0m - [36mINFO[0m - route:304 - Query routed to VINQueryHandler
+2025-10-22 01:14:19 - [34mchat_helper[0m - [36mINFO[0m - handle:160 - VINQueryHandler processing: 'Where is VIN 1N4AZMA5100456?...'
+2025-10-22 01:14:33 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:784 - Processing chat query: 'What is the nearest service center for VIN 1N4AZMA5100456?...'
+2025-10-22 01:14:33 - [34mchat_helper[0m - [36mINFO[0m - __init__:287 - QueryRouter initialized with 19 handlers
+2025-10-22 01:14:33 - [34mchat_helper[0m - [36mINFO[0m - route:304 - Query routed to VINQueryHandler
+2025-10-22 01:14:33 - [34mchat_helper[0m - [36mINFO[0m - handle:160 - VINQueryHandler processing: 'What is the nearest service center for VIN 1N4AZMA...'
+2025-10-22 01:14:45 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:784 - Processing chat query: 'At what mileage do Transmission parts fail most?...'
+2025-10-22 01:14:45 - [34mchat_helper[0m - [36mINFO[0m - __init__:287 - QueryRouter initialized with 19 handlers
+2025-10-22 01:14:45 - [34mchat_helper[0m - [36mINFO[0m - route:304 - Query routed to DefaultHandler
+2025-10-22 01:14:51 - [34mchat_helper[0m - [36mINFO[0m - retrieve_with_faiss_or_tfidf:428 - ✅ FAISS retrieval returned 6 results in 6028.28ms
+2025-10-22 01:15:10 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:784 - Processing chat query: 'At what age do Engine failures occur most frequently?...'
+2025-10-22 01:15:10 - [34mchat_helper[0m - [36mINFO[0m - __init__:287 - QueryRouter initialized with 19 handlers
+2025-10-22 01:15:10 - [34mchat_helper[0m - [36mINFO[0m - route:304 - Query routed to DefaultHandler
+2025-10-22 01:15:15 - [34mchat_helper[0m - [36mINFO[0m - retrieve_with_faiss_or_tfidf:428 - ✅ FAISS retrieval returned 6 results in 4479.45ms
+2025-10-22 01:18:38 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:784 - Processing chat query: 'Where is VIN 1N4BGMF1800015?...'
+2025-10-22 01:18:38 - [34mchat_helper[0m - [36mINFO[0m - __init__:287 - QueryRouter initialized with 19 handlers
+2025-10-22 01:18:38 - [34mchat_helper[0m - [36mINFO[0m - route:304 - Query routed to VINQueryHandler
+2025-10-22 01:18:38 - [34mchat_helper[0m - [36mINFO[0m - handle:160 - VINQueryHandler processing: 'Where is VIN 1N4BGMF1800015?...'
+2025-10-22 01:18:38 - [34mchat_helper[0m - [36mINFO[0m - handle:216 - Retrieved info for VIN 1N4BGMF1800015
+2025-10-22 01:19:04 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:784 - Processing chat query: 'What is the nearest service center for VIN 1N4AAPF1100000?...'
+2025-10-22 01:19:04 - [34mchat_helper[0m - [36mINFO[0m - __init__:287 - QueryRouter initialized with 19 handlers
+2025-10-22 01:19:04 - [34mchat_helper[0m - [36mINFO[0m - route:304 - Query routed to VINQueryHandler
+2025-10-22 01:19:04 - [34mchat_helper[0m - [36mINFO[0m - handle:160 - VINQueryHandler processing: 'What is the nearest service center for VIN 1N4AAPF...'
+2025-10-22 01:19:04 - [34mchat_helper[0m - [36mINFO[0m - handle:216 - Retrieved info for VIN 1N4AAPF1100000
+2025-10-22 01:19:27 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:784 - Processing chat query: 'At what mileage do Battery parts fail most?...'
+2025-10-22 01:19:27 - [34mchat_helper[0m - [36mINFO[0m - __init__:287 - QueryRouter initialized with 19 handlers
+2025-10-22 01:19:27 - [34mchat_helper[0m - [36mINFO[0m - route:304 - Query routed to DefaultHandler
+2025-10-22 01:19:32 - [34mchat_helper[0m - [36mINFO[0m - retrieve_with_faiss_or_tfidf:428 - ✅ FAISS retrieval returned 6 results in 5246.91ms
+2025-10-22 01:19:45 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:784 - Processing chat query: 'At what age do Transmission failures occur?...'
+2025-10-22 01:19:45 - [34mchat_helper[0m - [36mINFO[0m - __init__:287 - QueryRouter initialized with 19 handlers
+2025-10-22 01:19:45 - [34mchat_helper[0m - [36mINFO[0m - route:304 - Query routed to DefaultHandler
+2025-10-22 01:19:50 - [34mchat_helper[0m - [36mINFO[0m - retrieve_with_faiss_or_tfidf:428 - ✅ FAISS retrieval returned 6 results in 4494.17ms
+2025-10-22 01:24:09 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:784 - Processing chat query: 'At what age do Transmission failures occur?...'
+2025-10-22 01:24:09 - [34mchat_helper[0m - [36mINFO[0m - __init__:296 - QueryRouter initialized with 21 handlers
+2025-10-22 01:24:09 - [34mchat_helper[0m - [36mINFO[0m - route:313 - Query routed to AgeDistributionHandler
+2025-10-22 01:24:09 - [34mchat_helper[0m - [36mINFO[0m - handle:144 - AgeDistributionHandler processing: 'At what age do Transmission failures occur?...'
+2025-10-22 01:24:09 - [34mchat_helper[0m - [36mINFO[0m - handle:233 - Age analysis for Transmission parts: Most failures in 1-3yr (92 failures)
+2025-10-22 01:24:39 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:784 - Processing chat query: 'At what mileage do Battery parts fail most?...'
+2025-10-22 01:24:39 - [34mchat_helper[0m - [36mINFO[0m - __init__:296 - QueryRouter initialized with 21 handlers
+2025-10-22 01:24:39 - [34mchat_helper[0m - [36mINFO[0m - route:313 - Query routed to MileageDistributionHandler
+2025-10-22 01:24:39 - [34mchat_helper[0m - [36mINFO[0m - handle:34 - MileageDistributionHandler processing: 'At what mileage do Battery parts fail most?...'
+2025-10-22 01:24:39 - [34mchat_helper[0m - [36mINFO[0m - handle:123 - Mileage analysis for Battery parts: Most failures in 10-30k (130 failures)
+2025-10-22 01:27:08 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:784 - Processing chat query: 'At what mileage do Battery parts fail most?...'
+2025-10-22 01:27:08 - [34mchat_helper[0m - [36mINFO[0m - __init__:296 - QueryRouter initialized with 21 handlers
+2025-10-22 01:27:08 - [34mchat_helper[0m - [36mINFO[0m - route:313 - Query routed to MileageDistributionHandler
+2025-10-22 01:27:08 - [34mchat_helper[0m - [36mINFO[0m - handle:34 - MileageDistributionHandler processing: 'At what mileage do Battery parts fail most?...'
+2025-10-22 01:27:08 - [34mchat_helper[0m - [36mINFO[0m - handle:123 - Mileage analysis for Battery parts: Most failures in 10-30k (130 failures)
+2025-10-22 01:27:29 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:784 - Processing chat query: 'At what age do Transmission failures occur?...'
+2025-10-22 01:27:29 - [34mchat_helper[0m - [36mINFO[0m - __init__:296 - QueryRouter initialized with 21 handlers
+2025-10-22 01:27:29 - [34mchat_helper[0m - [36mINFO[0m - route:313 - Query routed to AgeDistributionHandler
+2025-10-22 01:27:29 - [34mchat_helper[0m - [36mINFO[0m - handle:144 - AgeDistributionHandler processing: 'At what age do Transmission failures occur?...'
+2025-10-22 01:27:29 - [34mchat_helper[0m - [36mINFO[0m - handle:233 - Age analysis for Transmission parts: Most failures in 1-3yr (92 failures)
+2025-10-22 01:27:50 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:784 - Processing chat query: 'Do you observe a growing trend in problems for any vehicle model?...'
+2025-10-22 01:27:50 - [34mchat_helper[0m - [36mINFO[0m - __init__:296 - QueryRouter initialized with 21 handlers
+2025-10-22 01:27:50 - [34mchat_helper[0m - [36mINFO[0m - route:313 - Query routed to TrendHandler
+2025-10-22 01:28:04 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:784 - Processing chat query: 'provide the reasons behind the failure?...'
+2025-10-22 01:28:04 - [34mchat_helper[0m - [36mINFO[0m - __init__:296 - QueryRouter initialized with 21 handlers
+2025-10-22 01:28:04 - [34mchat_helper[0m - [36mINFO[0m - route:313 - Query routed to FailureReasonHandler
+2025-10-22 01:28:04 - [34mchat_helper[0m - [36mINFO[0m - handle:265 - FailureReasonHandler processing: 'provide the reasons behind the failure?...'
+2025-10-22 01:28:04 - [34mchat_helper[0m - [36mINFO[0m - handle:314 - Found 19 unique failure reasons across all failures
+2025-10-22 01:28:39 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:784 - Processing chat query: 'list of suppliers who supply failure  part?...'
+2025-10-22 01:28:39 - [34mchat_helper[0m - [36mINFO[0m - __init__:296 - QueryRouter initialized with 21 handlers
+2025-10-22 01:28:39 - [34mchat_helper[0m - [36mINFO[0m - route:313 - Query routed to DefaultHandler
+2025-10-22 01:28:44 - [34mchat_helper[0m - [36mINFO[0m - retrieve_with_faiss_or_tfidf:428 - FAISS retrieval returned 6 results in 4613.82ms
+2025-10-22 01:28:55 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:784 - Processing chat query: 'Which Supplier is suppling the defective part?...'
+2025-10-22 01:28:55 - [34mchat_helper[0m - [36mINFO[0m - __init__:296 - QueryRouter initialized with 21 handlers
+2025-10-22 01:28:55 - [34mchat_helper[0m - [36mINFO[0m - route:313 - Query routed to DefaultHandler
+2025-10-22 01:28:59 - [34mchat_helper[0m - [36mINFO[0m - retrieve_with_faiss_or_tfidf:428 - FAISS retrieval returned 6 results in 4505.53ms
+2025-10-22 01:31:58 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:784 - Processing chat query: 'Which Supplier is suppling the defective part?...'
+2025-10-22 01:31:58 - [34mchat_helper[0m - [36mINFO[0m - __init__:296 - QueryRouter initialized with 21 handlers
+2025-10-22 01:31:58 - [34mchat_helper[0m - [36mINFO[0m - route:313 - Query routed to DefectiveSupplierHandler
+2025-10-22 01:31:58 - [34mchat_helper[0m - [36mINFO[0m - handle:105 - DefectiveSupplierHandler processing: 'Which Supplier is suppling the defective part?...'
+2025-10-22 01:31:58 - [34mchat_helper[0m - [36mINFO[0m - handle:147 - Identified 8 problematic suppliers
+2025-10-22 01:32:26 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:784 - Processing chat query: 'provide the VINs of vehicles affected by these failures...'
+2025-10-22 01:32:26 - [34mchat_helper[0m - [36mINFO[0m - __init__:296 - QueryRouter initialized with 21 handlers
+2025-10-22 01:32:26 - [34mchat_helper[0m - [36mINFO[0m - route:313 - Query routed to VINQueryHandler
+2025-10-22 01:32:26 - [34mchat_helper[0m - [36mINFO[0m - handle:162 - VINQueryHandler processing: 'provide the VINs of vehicles affected by these fai...'
+2025-10-22 01:32:26 - [34mchat_helper[0m - [36mINFO[0m - handle:247 - Found 1044 affected VINs
+2025-10-22 01:32:45 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:784 - Processing chat query: 'At what mileage range does the auto transmission fail most frequently?...'
+2025-10-22 01:32:45 - [34mchat_helper[0m - [36mINFO[0m - __init__:296 - QueryRouter initialized with 21 handlers
+2025-10-22 01:32:45 - [34mchat_helper[0m - [36mINFO[0m - route:313 - Query routed to MileageDistributionHandler
+2025-10-22 01:32:45 - [34mchat_helper[0m - [36mINFO[0m - handle:34 - MileageDistributionHandler processing: 'At what mileage range does the auto transmission f...'
+2025-10-22 01:32:45 - [34mchat_helper[0m - [36mINFO[0m - handle:123 - Mileage analysis for Transmission parts: Most failures in 10-30k (85 failures)
+2025-10-22 01:33:03 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:784 - Processing chat query: 'At what vehicle age do auto transmission failures occur most frequently?...'
+2025-10-22 01:33:03 - [34mchat_helper[0m - [36mINFO[0m - __init__:296 - QueryRouter initialized with 21 handlers
+2025-10-22 01:33:03 - [34mchat_helper[0m - [36mINFO[0m - route:313 - Query routed to AgeDistributionHandler
+2025-10-22 01:33:03 - [34mchat_helper[0m - [36mINFO[0m - handle:144 - AgeDistributionHandler processing: 'At what vehicle age do auto transmission failures ...'
+2025-10-22 01:33:03 - [34mchat_helper[0m - [36mINFO[0m - handle:233 - Age analysis for Transmission parts: Most failures in 1-3yr (92 failures)
+2025-10-22 19:29:26 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:784 - Processing chat query: 'Do you observe a growing trend in failures for any vehicle model?...'
+2025-10-22 19:29:26 - [34mchat_helper[0m - [36mINFO[0m - __init__:296 - QueryRouter initialized with 21 handlers
+2025-10-22 19:29:26 - [34mchat_helper[0m - [36mINFO[0m - route:313 - Query routed to TrendHandler
+2025-10-22 19:32:16 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:784 - Processing chat query: 'Do you observe a growing trend in problems for any vehicle model?...'
+2025-10-22 19:32:16 - [34mchat_helper[0m - [36mINFO[0m - __init__:296 - QueryRouter initialized with 21 handlers
+2025-10-22 19:32:16 - [34mchat_helper[0m - [36mINFO[0m - route:313 - Query routed to TrendHandler
+2025-10-22 19:32:58 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:784 - Processing chat query: 'If so, can you provide the reasons behind the failure?...'
+2025-10-22 19:32:58 - [34mchat_helper[0m - [36mINFO[0m - __init__:296 - QueryRouter initialized with 21 handlers
+2025-10-22 19:32:58 - [34mchat_helper[0m - [36mINFO[0m - route:313 - Query routed to FailureReasonHandler
+2025-10-22 19:32:58 - [34mchat_helper[0m - [36mINFO[0m - handle:267 - FailureReasonHandler processing: 'If so, can you provide the reasons behind the fail...'
+2025-10-22 19:32:58 - [34mchat_helper[0m - [36mINFO[0m - handle:316 - Found 19 unique failure reasons across all failures
+2025-10-22 19:41:21 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:794 - Processing chat query: 'Do you observe a growing trend in problems for any vehicle model?...'
+2025-10-22 19:41:21 - [34mchat_helper[0m - [36mINFO[0m - __init__:296 - QueryRouter initialized with 21 handlers
+2025-10-22 19:41:21 - [34mchat_helper[0m - [36mINFO[0m - route:313 - Query routed to TrendHandler
+2025-10-22 19:41:36 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:794 - Processing chat query: 'can you provide the reasons behind the failure?...'
+2025-10-22 19:41:36 - [34mchat_helper[0m - [36mINFO[0m - __init__:296 - QueryRouter initialized with 21 handlers
+2025-10-22 19:41:36 - [34mchat_helper[0m - [36mINFO[0m - route:313 - Query routed to FailureReasonHandler
+2025-10-22 19:41:36 - [34mchat_helper[0m - [36mINFO[0m - handle:284 - FailureReasonHandler processing: 'can you provide the reasons behind the failure?...'
+2025-10-22 19:41:36 - [34mchat_helper[0m - [36mINFO[0m - handle:343 - Found 19 unique failure reasons across all failures
+2025-10-22 19:42:53 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:794 - Processing chat query: 'Lists actual models with quantified trends...'
+2025-10-22 19:42:53 - [34mchat_helper[0m - [36mINFO[0m - __init__:296 - QueryRouter initialized with 21 handlers
+2025-10-22 19:42:53 - [34mchat_helper[0m - [36mINFO[0m - route:313 - Query routed to TrendHandler
+2025-10-22 19:46:08 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:794 - Processing chat query: 'o you observe a growing trend in failures for any vehicle model?...'
+2025-10-22 19:46:08 - [34mchat_helper[0m - [36mINFO[0m - __init__:296 - QueryRouter initialized with 21 handlers
+2025-10-22 19:46:08 - [34mchat_helper[0m - [36mINFO[0m - route:313 - Query routed to TrendHandler
+2025-10-22 19:46:51 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:794 - Processing chat query: 'Lists actual models with quantified trends...'
+2025-10-22 19:46:51 - [34mchat_helper[0m - [36mINFO[0m - __init__:296 - QueryRouter initialized with 21 handlers
+2025-10-22 19:46:51 - [34mchat_helper[0m - [36mINFO[0m - route:313 - Query routed to TrendHandler
+2025-10-22 19:47:08 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:794 - Processing chat query: 'Can you provide the reasons behind the failure?...'
+2025-10-22 19:47:08 - [34mchat_helper[0m - [36mINFO[0m - __init__:296 - QueryRouter initialized with 21 handlers
+2025-10-22 19:47:08 - [34mchat_helper[0m - [36mINFO[0m - route:313 - Query routed to FailureReasonHandler
+2025-10-22 19:47:08 - [34mchat_helper[0m - [36mINFO[0m - handle:284 - FailureReasonHandler processing: 'Can you provide the reasons behind the failure?...'
+2025-10-22 19:47:08 - [34mchat_helper[0m - [36mINFO[0m - handle:343 - Found 19 unique failure reasons across all failures
+2025-10-22 22:17:38 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:794 - Processing chat query: 'Can you provide the current location of the VIN 1N4AAPF1700000?...'
+2025-10-22 22:17:38 - [34mchat_helper[0m - [36mINFO[0m - __init__:296 - QueryRouter initialized with 21 handlers
+2025-10-22 22:17:38 - [34mchat_helper[0m - [36mINFO[0m - route:313 - Query routed to VINQueryHandler
+2025-10-22 22:17:38 - [34mchat_helper[0m - [36mINFO[0m - handle:179 - VINQueryHandler processing: 'Can you provide the current location of the VIN 1N...'
+2025-10-22 22:17:38 - [34mchat_helper[0m - [36mINFO[0m - handle:235 - Retrieved info for VIN 1N4AAPF1700000
+2025-10-22 22:18:12 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:794 - Processing chat query: 'Can you provide the nearest service center for this VIN ?...'
+2025-10-22 22:18:12 - [34mchat_helper[0m - [36mINFO[0m - __init__:296 - QueryRouter initialized with 21 handlers
+2025-10-22 22:18:12 - [34mchat_helper[0m - [36mINFO[0m - route:313 - Query routed to VINQueryHandler
+2025-10-22 22:18:12 - [34mchat_helper[0m - [36mINFO[0m - handle:179 - VINQueryHandler processing: 'Can you provide the nearest service center for thi...'
+2025-10-22 22:18:39 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:794 - Processing chat query: 'Can you provide the nearest service center for the VIN  1N4AAPF1700000?...'
+2025-10-22 22:18:39 - [34mchat_helper[0m - [36mINFO[0m - __init__:296 - QueryRouter initialized with 21 handlers
+2025-10-22 22:18:39 - [34mchat_helper[0m - [36mINFO[0m - route:313 - Query routed to VINQueryHandler
+2025-10-22 22:18:39 - [34mchat_helper[0m - [36mINFO[0m - handle:179 - VINQueryHandler processing: 'Can you provide the nearest service center for the...'
+2025-10-22 22:18:39 - [34mchat_helper[0m - [36mINFO[0m - handle:235 - Retrieved info for VIN 1N4AAPF1700000
+2025-10-24 11:00:45 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'What's the failure rate for Sentra?...'
+2025-10-24 11:00:45 - [34mchat_helper[0m - [36mINFO[0m - __init__:309 - QueryRouter initialized with 23 handlers
+2025-10-24 11:00:45 - [34mchat_helper[0m - [36mINFO[0m - route:326 - Query routed to RateHandler
+2025-10-24 11:00:59 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'What about Leaf?...'
+2025-10-24 11:00:59 - [34mchat_helper[0m - [36mINFO[0m - __init__:309 - QueryRouter initialized with 23 handlers
+2025-10-24 11:00:59 - [34mchat_helper[0m - [36mINFO[0m - route:326 - Query routed to ContextAwareHandler
+2025-10-24 11:05:46 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'What's the failure rate for Sentra?...'
+2025-10-24 11:05:46 - [34mchat_helper[0m - [36mINFO[0m - __init__:309 - QueryRouter initialized with 23 handlers
+2025-10-24 11:05:46 - [34mchat_helper[0m - [36mINFO[0m - route:326 - Query routed to RateHandler
+2025-10-24 11:05:58 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'What about Leaf?...'
+2025-10-24 11:05:58 - [34mchat_helper[0m - [36mINFO[0m - __init__:309 - QueryRouter initialized with 23 handlers
+2025-10-24 11:05:58 - [34mchat_helper[0m - [36mINFO[0m - route:326 - Query routed to ContextAwareHandler
+2025-10-24 11:05:58 - [34mchat_helper[0m - [31mERROR[0m - route:333 - ContextAwareHandler failed: QueryContext.__init__() got an unexpected keyword argument 'get_bedrock_summary'
+Traceback (most recent call last):
+  File "D:\Biju\Telematics_Analytics\POC\chat\handlers.py", line 329, in route
+    response = handler.handle(context)
+  File "D:\Biju\Telematics_Analytics\POC\chat\handlers_context.py", line 35, in handle
+    return self._handle_follow_up(context)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "D:\Biju\Telematics_Analytics\POC\chat\handlers_context.py", line 99, in _handle_follow_up
+    enhanced_context = QueryContext(
+        query=enhanced_query,
+    ...<7 lines>...
+        conversation_context=context.conversation_context
+    )
+TypeError: QueryContext.__init__() got an unexpected keyword argument 'get_bedrock_summary'
+2025-10-24 11:08:34 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'What's the failure rate for Sentra?...'
+2025-10-24 11:08:34 - [34mchat_helper[0m - [36mINFO[0m - __init__:309 - QueryRouter initialized with 23 handlers
+2025-10-24 11:08:34 - [34mchat_helper[0m - [36mINFO[0m - route:326 - Query routed to RateHandler
+2025-10-24 11:08:41 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'What about Leaf?...'
+2025-10-24 11:08:41 - [34mchat_helper[0m - [36mINFO[0m - __init__:309 - QueryRouter initialized with 23 handlers
+2025-10-24 11:08:41 - [34mchat_helper[0m - [36mINFO[0m - route:326 - Query routed to ContextAwareHandler
+2025-10-24 11:08:41 - [34mchat_helper[0m - [36mINFO[0m - __init__:309 - QueryRouter initialized with 23 handlers
+2025-10-24 11:08:41 - [34mchat_helper[0m - [36mINFO[0m - route:326 - Query routed to RateHandler
+2025-10-24 11:09:08 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'conversation summary...'
+2025-10-24 11:09:08 - [34mchat_helper[0m - [36mINFO[0m - __init__:309 - QueryRouter initialized with 23 handlers
+2025-10-24 11:09:08 - [34mchat_helper[0m - [36mINFO[0m - route:326 - Query routed to ConversationSummaryHandler
+2025-10-24 11:14:12 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'What's the failure rate for Sentra?...'
+2025-10-24 11:14:12 - [34mchat_helper[0m - [36mINFO[0m - __init__:318 - QueryRouter initialized with 25 handlers
+2025-10-24 11:14:12 - [34mchat_helper[0m - [36mINFO[0m - route:335 - Query routed to ModelSpecificRateHandler
+2025-10-24 11:14:33 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'What about leaf?...'
+2025-10-24 11:14:33 - [34mchat_helper[0m - [36mINFO[0m - __init__:318 - QueryRouter initialized with 25 handlers
+2025-10-24 11:14:33 - [34mchat_helper[0m - [36mINFO[0m - route:335 - Query routed to ContextAwareHandler
+2025-10-24 11:14:33 - [34mchat_helper[0m - [36mINFO[0m - __init__:318 - QueryRouter initialized with 25 handlers
+2025-10-24 11:14:33 - [34mchat_helper[0m - [36mINFO[0m - route:335 - Query routed to ModelSpecificRateHandler
+2025-10-24 11:17:20 - [34mchat_helper[0m - [36mINFO[0m - __init__:318 - QueryRouter initialized with 25 handlers
+2025-10-24 11:17:20 - [34mchat_helper[0m - [36mINFO[0m - route:335 - Query routed to ModelSpecificRateHandler
+2025-10-24 11:18:40 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'What's the failure rate for Sentra?...'
+2025-10-24 11:18:40 - [34mchat_helper[0m - [36mINFO[0m - __init__:318 - QueryRouter initialized with 25 handlers
+2025-10-24 11:18:40 - [34mchat_helper[0m - [36mINFO[0m - route:335 - Query routed to ModelSpecificRateHandler
+2025-10-24 11:19:00 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'What about Leaf?...'
+2025-10-24 11:19:00 - [34mchat_helper[0m - [36mINFO[0m - __init__:318 - QueryRouter initialized with 25 handlers
+2025-10-24 11:19:00 - [34mchat_helper[0m - [36mINFO[0m - route:335 - Query routed to ContextAwareHandler
+2025-10-24 11:19:00 - [34mchat_helper[0m - [36mINFO[0m - __init__:318 - QueryRouter initialized with 25 handlers
+2025-10-24 11:19:00 - [34mchat_helper[0m - [36mINFO[0m - route:335 - Query routed to ModelSpecificRateHandler
+2025-10-24 11:19:13 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Hello...'
+2025-10-24 11:19:13 - [34mchat_helper[0m - [36mINFO[0m - __init__:318 - QueryRouter initialized with 25 handlers
+2025-10-24 11:19:13 - [34mchat_helper[0m - [36mINFO[0m - route:335 - Query routed to GreetingHandler
+2025-10-24 11:21:20 - [34mchat_helper[0m - [33mWARNING[0m - retrieve_with_faiss_or_tfidf:445 - TF-IDF retrieval unavailable - no index available
+2025-10-24 11:22:48 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Hello...'
+2025-10-24 11:22:48 - [34mchat_helper[0m - [36mINFO[0m - __init__:345 - QueryRouter initialized with 25 handlers
+2025-10-24 11:22:48 - [34mchat_helper[0m - [36mINFO[0m - route:362 - Query routed to GreetingHandler
+2025-10-24 11:26:30 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Hello...'
+2025-10-24 11:26:30 - [34mchat_helper[0m - [36mINFO[0m - __init__:345 - QueryRouter initialized with 25 handlers
+2025-10-24 11:26:30 - [34mchat_helper[0m - [36mINFO[0m - route:362 - Query routed to GreetingHandler
+2025-10-24 11:27:15 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Prescribe for model Leaf part Battery...'
+2025-10-24 11:27:15 - [34mchat_helper[0m - [36mINFO[0m - __init__:345 - QueryRouter initialized with 25 handlers
+2025-10-24 11:27:15 - [34mchat_helper[0m - [36mINFO[0m - route:362 - Query routed to PrescriptiveHandler
+2025-10-24 11:29:07 - [34mchat_helper[0m - [36mINFO[0m - handle:243 - Generating prescriptive summary via Bedrock for Leaf/Battery
+2025-10-24 11:29:07 - [34mchat_helper[0m - [31mERROR[0m - handle:248 - Bedrock prescriptive summary failed: 'NoneType' object is not callable
+Traceback (most recent call last):
+  File "D:\Biju\Telematics_Analytics\POC\chat\handlers.py", line 244, in handle
+    summary_html = context.get_bedrock_summary(model, part, mileage_bucket, age_bucket, pct)
+TypeError: 'NoneType' object is not callable
+2025-10-24 11:31:15 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Hello...'
+2025-10-24 11:31:15 - [34mchat_helper[0m - [36mINFO[0m - __init__:358 - QueryRouter initialized with 25 handlers
+2025-10-24 11:31:15 - [34mchat_helper[0m - [36mINFO[0m - route:375 - Query routed to GreetingHandler
+2025-10-24 11:31:32 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Prescribe for model Leaf part Battery...'
+2025-10-24 11:31:32 - [34mchat_helper[0m - [36mINFO[0m - __init__:358 - QueryRouter initialized with 25 handlers
+2025-10-24 11:31:32 - [34mchat_helper[0m - [36mINFO[0m - route:375 - Query routed to PrescriptiveHandler
+2025-10-24 11:31:50 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Prescribe for model Leaf part 12V Battery...'
+2025-10-24 11:31:50 - [34mchat_helper[0m - [36mINFO[0m - __init__:358 - QueryRouter initialized with 25 handlers
+2025-10-24 11:31:50 - [34mchat_helper[0m - [36mINFO[0m - route:375 - Query routed to PrescriptiveHandler
+2025-10-24 11:31:50 - [34mchat_helper[0m - [36mINFO[0m - handle:256 - Generating prescriptive summary via Bedrock for Leaf/12V Battery
+2025-10-24 11:33:13 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Show me failure trends...'
+2025-10-24 11:33:13 - [34mchat_helper[0m - [36mINFO[0m - __init__:358 - QueryRouter initialized with 25 handlers
+2025-10-24 11:33:13 - [34mchat_helper[0m - [36mINFO[0m - route:375 - Query routed to TrendHandler
+2025-10-24 11:37:17 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Hello...'
+2025-10-24 11:37:17 - [34mchat_helper[0m - [36mINFO[0m - __init__:358 - QueryRouter initialized with 25 handlers
+2025-10-24 11:37:17 - [34mchat_helper[0m - [36mINFO[0m - route:375 - Query routed to GreetingHandler
+2025-10-24 11:37:37 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Show me failure trends...'
+2025-10-24 11:37:37 - [34mchat_helper[0m - [36mINFO[0m - __init__:358 - QueryRouter initialized with 25 handlers
+2025-10-24 11:37:37 - [34mchat_helper[0m - [36mINFO[0m - route:375 - Query routed to TrendHandler
+2025-10-24 11:38:22 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Compare Leaf vs Ariya failure rate...'
+2025-10-24 11:38:22 - [34mchat_helper[0m - [36mINFO[0m - __init__:358 - QueryRouter initialized with 25 handlers
+2025-10-24 11:38:22 - [34mchat_helper[0m - [36mINFO[0m - route:375 - Query routed to ModelSpecificRateHandler
+2025-10-24 11:41:15 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Hello...'
+2025-10-24 11:41:15 - [34mchat_helper[0m - [36mINFO[0m - __init__:365 - QueryRouter initialized with 26 handlers
+2025-10-24 11:41:15 - [34mchat_helper[0m - [36mINFO[0m - route:382 - Query routed to GreetingHandler
+2025-10-24 11:41:48 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'What's the failure rate for Sentra?...'
+2025-10-24 11:41:48 - [34mchat_helper[0m - [36mINFO[0m - __init__:365 - QueryRouter initialized with 26 handlers
+2025-10-24 11:41:48 - [34mchat_helper[0m - [36mINFO[0m - route:382 - Query routed to ModelSpecificRateHandler
+2025-10-24 11:41:57 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Show me failure trends...'
+2025-10-24 11:41:57 - [34mchat_helper[0m - [36mINFO[0m - __init__:365 - QueryRouter initialized with 26 handlers
+2025-10-24 11:41:57 - [34mchat_helper[0m - [36mINFO[0m - route:382 - Query routed to TrendHandler
+2025-10-24 11:42:15 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Compare Leaf vs Ariya failure rates...'
+2025-10-24 11:42:15 - [34mchat_helper[0m - [36mINFO[0m - __init__:365 - QueryRouter initialized with 26 handlers
+2025-10-24 11:42:15 - [34mchat_helper[0m - [36mINFO[0m - route:382 - Query routed to ModelComparisonHandler
+2025-10-24 11:42:41 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Which model has the most failures?...'
+2025-10-24 11:42:41 - [34mchat_helper[0m - [36mINFO[0m - __init__:365 - QueryRouter initialized with 26 handlers
+2025-10-24 11:42:41 - [34mchat_helper[0m - [36mINFO[0m - route:382 - Query routed to ContextAwareHandler
+2025-10-24 11:46:05 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Which model has the most failures?...'
+2025-10-24 11:46:05 - [34mchat_helper[0m - [36mINFO[0m - __init__:374 - QueryRouter initialized with 28 handlers
+2025-10-24 11:46:05 - [34mchat_helper[0m - [36mINFO[0m - route:391 - Query routed to ModelRankingHandler
+2025-10-24 11:53:30 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Which model has the most failures?...'
+2025-10-24 11:53:30 - [34mchat_helper[0m - [36mINFO[0m - __init__:374 - QueryRouter initialized with 28 handlers
+2025-10-24 11:53:30 - [34mchat_helper[0m - [36mINFO[0m - route:391 - Query routed to ModelRankingHandler
+2025-10-24 11:57:54 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Which model has the most failures?...'
+2025-10-24 11:57:54 - [34mchat_helper[0m - [36mINFO[0m - __init__:374 - QueryRouter initialized with 28 handlers
+2025-10-24 11:57:54 - [34mchat_helper[0m - [36mINFO[0m - route:391 - Query routed to ModelRankingHandler
+2025-10-24 11:58:24 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Which model has the least failures?...'
+2025-10-24 11:58:24 - [34mchat_helper[0m - [36mINFO[0m - __init__:374 - QueryRouter initialized with 28 handlers
+2025-10-24 11:58:24 - [34mchat_helper[0m - [36mINFO[0m - route:391 - Query routed to ModelRankingHandler
+2025-10-24 11:58:41 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Show monthly failure trend...'
+2025-10-24 11:58:41 - [34mchat_helper[0m - [36mINFO[0m - __init__:374 - QueryRouter initialized with 28 handlers
+2025-10-24 11:58:41 - [34mchat_helper[0m - [36mINFO[0m - route:391 - Query routed to MonthlyAggregateHandler
+2025-10-24 12:00:15 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Show monthly failure trend...'
+2025-10-24 12:00:15 - [34mchat_helper[0m - [36mINFO[0m - __init__:374 - QueryRouter initialized with 28 handlers
+2025-10-24 12:00:15 - [34mchat_helper[0m - [36mINFO[0m - route:391 - Query routed to MonthlyAggregateHandler
+2025-10-24 12:00:39 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Show monthly failure trend...'
+2025-10-24 12:00:39 - [34mchat_helper[0m - [36mINFO[0m - __init__:374 - QueryRouter initialized with 28 handlers
+2025-10-24 12:00:39 - [34mchat_helper[0m - [36mINFO[0m - route:391 - Query routed to TrendHandler
+2025-10-24 12:01:47 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Show monthly failure trends...'
+2025-10-24 12:01:47 - [34mchat_helper[0m - [36mINFO[0m - __init__:374 - QueryRouter initialized with 28 handlers
+2025-10-24 12:01:47 - [34mchat_helper[0m - [36mINFO[0m - route:391 - Query routed to MonthlyAggregateHandler
+2025-10-24 12:02:19 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Show monthly failure trend...'
+2025-10-24 12:02:19 - [34mchat_helper[0m - [36mINFO[0m - __init__:374 - QueryRouter initialized with 28 handlers
+2025-10-24 12:02:19 - [34mchat_helper[0m - [36mINFO[0m - route:391 - Query routed to TrendHandler
+2025-10-24 12:02:24 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Show monthly failure trends...'
+2025-10-24 12:02:24 - [34mchat_helper[0m - [36mINFO[0m - __init__:374 - QueryRouter initialized with 28 handlers
+2025-10-24 12:02:24 - [34mchat_helper[0m - [36mINFO[0m - route:391 - Query routed to MonthlyAggregateHandler
+2025-10-24 12:03:44 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Show monthly failure trend...'
+2025-10-24 12:03:44 - [34mchat_helper[0m - [36mINFO[0m - __init__:374 - QueryRouter initialized with 28 handlers
+2025-10-24 12:03:44 - [34mchat_helper[0m - [36mINFO[0m - route:391 - Query routed to TrendHandler
+2025-10-24 12:03:44 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Show monthly failure trends...'
+2025-10-24 12:03:44 - [34mchat_helper[0m - [36mINFO[0m - __init__:374 - QueryRouter initialized with 28 handlers
+2025-10-24 12:03:44 - [34mchat_helper[0m - [36mINFO[0m - route:391 - Query routed to TrendHandler
+2025-10-24 12:04:46 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Show monthly failure trends...'
+2025-10-24 12:04:46 - [34mchat_helper[0m - [36mINFO[0m - __init__:374 - QueryRouter initialized with 28 handlers
+2025-10-24 12:04:46 - [34mchat_helper[0m - [36mINFO[0m - route:391 - Query routed to TrendHandler
+2025-10-24 12:05:06 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'What's the failure rate by age?...'
+2025-10-24 12:05:06 - [34mchat_helper[0m - [36mINFO[0m - __init__:374 - QueryRouter initialized with 28 handlers
+2025-10-24 12:05:06 - [34mchat_helper[0m - [36mINFO[0m - route:391 - Query routed to AgeDistributionHandler
+2025-10-24 12:05:06 - [34mchat_helper[0m - [36mINFO[0m - handle:144 - AgeDistributionHandler processing: 'What's the failure rate by age?...'
+2025-10-24 12:05:06 - [34mchat_helper[0m - [36mINFO[0m - handle:233 - Age analysis overall: Most failures in 1-3yr (519 failures)
+2025-10-24 12:07:04 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Prescribe for model Leaf part Battery...'
+2025-10-24 12:07:04 - [34mchat_helper[0m - [36mINFO[0m - __init__:374 - QueryRouter initialized with 28 handlers
+2025-10-24 12:07:04 - [34mchat_helper[0m - [36mINFO[0m - route:391 - Query routed to PrescriptiveHandler
+2025-10-24 12:07:16 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'What's the failure rate by age?...'
+2025-10-24 12:07:16 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'What's the failure rate by mileage?...'
+2025-10-24 12:07:49 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Show me failure distribution by age...'
+2025-10-24 12:07:49 - [34mchat_helper[0m - [36mINFO[0m - __init__:374 - QueryRouter initialized with 28 handlers
+2025-10-24 12:07:49 - [34mchat_helper[0m - [36mINFO[0m - route:391 - Query routed to AgeDistributionHandler
+2025-10-24 12:07:49 - [34mchat_helper[0m - [36mINFO[0m - handle:143 - AgeDistributionHandler processing: 'Show me failure distribution by age...'
+2025-10-24 12:07:49 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Show me failure distribution by mileage...'
+2025-10-24 12:07:49 - [34mchat_helper[0m - [36mINFO[0m - __init__:374 - QueryRouter initialized with 28 handlers
+2025-10-24 12:07:49 - [34mchat_helper[0m - [36mINFO[0m - route:391 - Query routed to MileageDistributionHandler
+2025-10-24 12:07:49 - [34mchat_helper[0m - [36mINFO[0m - handle:34 - MileageDistributionHandler processing: 'Show me failure distribution by mileage...'
+2025-10-24 12:08:35 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Show me failure distribution by age...'
+2025-10-24 12:08:35 - [34mchat_helper[0m - [36mINFO[0m - __init__:374 - QueryRouter initialized with 28 handlers
+2025-10-24 12:08:35 - [34mchat_helper[0m - [36mINFO[0m - route:391 - Query routed to AgeDistributionHandler
+2025-10-24 12:08:35 - [34mchat_helper[0m - [36mINFO[0m - handle:143 - AgeDistributionHandler processing: 'Show me failure distribution by age...'
+2025-10-24 12:08:35 - [34mchat_helper[0m - [31mERROR[0m - route:398 - AgeDistributionHandler failed: 'claims_count'
+Traceback (most recent call last):
+  File "C:\Users\niran\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\pandas\core\indexes\base.py", line 3812, in get_loc
+    return self._engine.get_loc(casted_key)
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "pandas/_libs/index.pyx", line 167, in pandas._libs.index.IndexEngine.get_loc
+  File "pandas/_libs/index.pyx", line 196, in pandas._libs.index.IndexEngine.get_loc
+  File "pandas/_libs/hashtable_class_helper.pxi", line 7088, in pandas._libs.hashtable.PyObjectHashTable.get_item
+  File "pandas/_libs/hashtable_class_helper.pxi", line 7096, in pandas._libs.hashtable.PyObjectHashTable.get_item
+KeyError: 'claims_count'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\Biju\Telematics_Analytics\POC\chat\handlers.py", line 394, in route
+    response = handler.handle(context)
+  File "D:\Biju\Telematics_Analytics\POC\chat\handlers_distribution.py", line 181, in handle
+    filtered["claims_count"].fillna(0) +
+    ~~~~~~~~^^^^^^^^^^^^^^^^
+  File "C:\Users\niran\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\pandas\core\frame.py", line 4107, in __getitem__
+    indexer = self.columns.get_loc(key)
+  File "C:\Users\niran\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\pandas\core\indexes\base.py", line 3819, in get_loc
+    raise KeyError(key) from err
+KeyError: 'claims_count'
+2025-10-24 12:08:35 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Show me failure distribution by mileage...'
+2025-10-24 12:08:35 - [34mchat_helper[0m - [36mINFO[0m - __init__:374 - QueryRouter initialized with 28 handlers
+2025-10-24 12:08:35 - [34mchat_helper[0m - [36mINFO[0m - route:391 - Query routed to MileageDistributionHandler
+2025-10-24 12:08:35 - [34mchat_helper[0m - [36mINFO[0m - handle:34 - MileageDistributionHandler processing: 'Show me failure distribution by mileage...'
+2025-10-24 12:08:35 - [34mchat_helper[0m - [31mERROR[0m - route:398 - MileageDistributionHandler failed: 'claims_count'
+Traceback (most recent call last):
+  File "C:\Users\niran\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\pandas\core\indexes\base.py", line 3812, in get_loc
+    return self._engine.get_loc(casted_key)
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "pandas/_libs/index.pyx", line 167, in pandas._libs.index.IndexEngine.get_loc
+  File "pandas/_libs/index.pyx", line 196, in pandas._libs.index.IndexEngine.get_loc
+  File "pandas/_libs/hashtable_class_helper.pxi", line 7088, in pandas._libs.hashtable.PyObjectHashTable.get_item
+  File "pandas/_libs/hashtable_class_helper.pxi", line 7096, in pandas._libs.hashtable.PyObjectHashTable.get_item
+KeyError: 'claims_count'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\Biju\Telematics_Analytics\POC\chat\handlers.py", line 394, in route
+    response = handler.handle(context)
+  File "D:\Biju\Telematics_Analytics\POC\chat\handlers_distribution.py", line 72, in handle
+    filtered["claims_count"].fillna(0) +
+    ~~~~~~~~^^^^^^^^^^^^^^^^
+  File "C:\Users\niran\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\pandas\core\frame.py", line 4107, in __getitem__
+    indexer = self.columns.get_loc(key)
+  File "C:\Users\niran\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\pandas\core\indexes\base.py", line 3819, in get_loc
+    raise KeyError(key) from err
+KeyError: 'claims_count'
+2025-10-24 12:09:05 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Show me failure distribution by age...'
+2025-10-24 12:09:05 - [34mchat_helper[0m - [36mINFO[0m - __init__:374 - QueryRouter initialized with 28 handlers
+2025-10-24 12:09:05 - [34mchat_helper[0m - [36mINFO[0m - route:391 - Query routed to AgeDistributionHandler
+2025-10-24 12:09:05 - [34mchat_helper[0m - [36mINFO[0m - handle:143 - AgeDistributionHandler processing: 'Show me failure distribution by age...'
+2025-10-24 12:09:05 - [34mchat_helper[0m - [31mERROR[0m - route:398 - AgeDistributionHandler failed: "Column(s) ['vin'] do not exist"
+Traceback (most recent call last):
+  File "D:\Biju\Telematics_Analytics\POC\chat\handlers.py", line 394, in route
+    response = handler.handle(context)
+  File "D:\Biju\Telematics_Analytics\POC\chat\handlers_distribution.py", line 186, in handle
+    age_stats = filtered.groupby("age_bucket").agg({
+                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+        "failures": "sum",
+        ^^^^^^^^^^^^^^^^^^
+        "vin": "count"
+        ^^^^^^^^^^^^^^
+    }).reset_index()
+    ^^
+  File "C:\Users\niran\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\pandas\core\groupby\generic.py", line 1432, in aggregate
+    result = op.agg()
+  File "C:\Users\niran\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\pandas\core\apply.py", line 190, in agg
+    return self.agg_dict_like()
+           ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\niran\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\pandas\core\apply.py", line 423, in agg_dict_like
+    return self.agg_or_apply_dict_like(op_name="agg")
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Users\niran\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\pandas\core\apply.py", line 1603, in agg_or_apply_dict_like
+    result_index, result_data = self.compute_dict_like(
+                                ~~~~~~~~~~~~~~~~~~~~~~^
+        op_name, selected_obj, selection, kwargs
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\niran\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\pandas\core\apply.py", line 462, in compute_dict_like
+    func = self.normalize_dictlike_arg(op_name, selected_obj, func)
+  File "C:\Users\niran\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\pandas\core\apply.py", line 663, in normalize_dictlike_arg
+    raise KeyError(f"Column(s) {list(cols)} do not exist")
+KeyError: "Column(s) ['vin'] do not exist"
+2025-10-24 12:09:05 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Show me failure distribution by mileage...'
+2025-10-24 12:09:05 - [34mchat_helper[0m - [36mINFO[0m - __init__:374 - QueryRouter initialized with 28 handlers
+2025-10-24 12:09:05 - [34mchat_helper[0m - [36mINFO[0m - route:391 - Query routed to MileageDistributionHandler
+2025-10-24 12:09:05 - [34mchat_helper[0m - [36mINFO[0m - handle:34 - MileageDistributionHandler processing: 'Show me failure distribution by mileage...'
+2025-10-24 12:09:05 - [34mchat_helper[0m - [31mERROR[0m - route:398 - MileageDistributionHandler failed: "Column(s) ['vin'] do not exist"
+Traceback (most recent call last):
+  File "D:\Biju\Telematics_Analytics\POC\chat\handlers.py", line 394, in route
+    response = handler.handle(context)
+  File "D:\Biju\Telematics_Analytics\POC\chat\handlers_distribution.py", line 77, in handle
+    mileage_stats = filtered.groupby("mileage_bucket").agg({
+                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+        "failures": "sum",
+        ^^^^^^^^^^^^^^^^^^
+        "vin": "count"
+        ^^^^^^^^^^^^^^
+    }).reset_index()
+    ^^
+  File "C:\Users\niran\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\pandas\core\groupby\generic.py", line 1432, in aggregate
+    result = op.agg()
+  File "C:\Users\niran\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\pandas\core\apply.py", line 190, in agg
+    return self.agg_dict_like()
+           ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\niran\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\pandas\core\apply.py", line 423, in agg_dict_like
+    return self.agg_or_apply_dict_like(op_name="agg")
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Users\niran\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\pandas\core\apply.py", line 1603, in agg_or_apply_dict_like
+    result_index, result_data = self.compute_dict_like(
+                                ~~~~~~~~~~~~~~~~~~~~~~^
+        op_name, selected_obj, selection, kwargs
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\niran\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\pandas\core\apply.py", line 462, in compute_dict_like
+    func = self.normalize_dictlike_arg(op_name, selected_obj, func)
+  File "C:\Users\niran\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\pandas\core\apply.py", line 663, in normalize_dictlike_arg
+    raise KeyError(f"Column(s) {list(cols)} do not exist")
+KeyError: "Column(s) ['vin'] do not exist"
+2025-10-24 12:09:39 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Show me failure distribution by age...'
+2025-10-24 12:09:39 - [34mchat_helper[0m - [36mINFO[0m - __init__:374 - QueryRouter initialized with 28 handlers
+2025-10-24 12:09:39 - [34mchat_helper[0m - [36mINFO[0m - route:391 - Query routed to AgeDistributionHandler
+2025-10-24 12:09:39 - [34mchat_helper[0m - [36mINFO[0m - handle:143 - AgeDistributionHandler processing: 'Show me failure distribution by age...'
+2025-10-24 12:09:39 - [34mchat_helper[0m - [36mINFO[0m - handle:231 - Age analysis overall: Most failures in 1-3yr (819 failures)
+2025-10-24 12:09:39 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Show me failure distribution by mileage...'
+2025-10-24 12:09:39 - [34mchat_helper[0m - [36mINFO[0m - __init__:374 - QueryRouter initialized with 28 handlers
+2025-10-24 12:09:39 - [34mchat_helper[0m - [36mINFO[0m - route:391 - Query routed to MileageDistributionHandler
+2025-10-24 12:09:39 - [34mchat_helper[0m - [36mINFO[0m - handle:34 - MileageDistributionHandler processing: 'Show me failure distribution by mileage...'
+2025-10-24 12:09:39 - [34mchat_helper[0m - [36mINFO[0m - handle:122 - Mileage analysis overall: Most failures in 10k-30k (600 failures)
+2025-10-24 12:11:42 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'What's the failure rate by age?...'
+2025-10-24 12:11:42 - [34mchat_helper[0m - [36mINFO[0m - __init__:374 - QueryRouter initialized with 28 handlers
+2025-10-24 12:11:42 - [34mchat_helper[0m - [36mINFO[0m - route:391 - Query routed to AgeDistributionHandler
+2025-10-24 12:11:42 - [34mchat_helper[0m - [36mINFO[0m - handle:143 - AgeDistributionHandler processing: 'What's the failure rate by age?...'
+2025-10-24 12:11:42 - [34mchat_helper[0m - [36mINFO[0m - handle:231 - Age analysis overall: Most failures in 1-3yr (519 failures)
+2025-10-24 12:12:10 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'What should I do about high failure rates?...'
+2025-10-24 12:12:10 - [34mchat_helper[0m - [36mINFO[0m - __init__:374 - QueryRouter initialized with 28 handlers
+2025-10-24 12:12:10 - [34mchat_helper[0m - [36mINFO[0m - route:391 - Query routed to RateHandler
+2025-10-24 12:13:50 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Prescribe for model Leaf part Battery...'
+2025-10-24 12:13:50 - [34mchat_helper[0m - [36mINFO[0m - __init__:374 - QueryRouter initialized with 28 handlers
+2025-10-24 12:13:50 - [34mchat_helper[0m - [36mINFO[0m - route:391 - Query routed to PrescriptiveHandler
+2025-10-24 12:14:34 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'What should I do about high failure rates?...'
+2025-10-24 12:14:34 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:14:34 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to PrescriptiveHandler
+2025-10-24 12:14:34 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'How to fix high failure rates?...'
+2025-10-24 12:14:34 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:14:34 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to PrescriptiveHandler
+2025-10-24 12:14:34 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'What recommendations do you have for failures?...'
+2025-10-24 12:14:34 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:14:34 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to PrescriptiveHandler
+2025-10-24 12:14:34 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'What should we do about problems?...'
+2025-10-24 12:14:34 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:14:34 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to PrescriptiveHandler
+2025-10-24 12:14:34 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Suggestions for improving failure rates?...'
+2025-10-24 12:14:34 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:14:34 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to VINQueryHandler
+2025-10-24 12:14:34 - [34mchat_helper[0m - [36mINFO[0m - handle:179 - VINQueryHandler processing: 'Suggestions for improving failure rates?...'
+2025-10-24 12:15:21 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'What should I do about high failure rates?...'
+2025-10-24 12:15:21 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:15:21 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to PrescriptiveHandler
+2025-10-24 12:15:21 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'How to fix high failure rates?...'
+2025-10-24 12:15:21 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:15:21 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to PrescriptiveHandler
+2025-10-24 12:15:21 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'What recommendations do you have for failures?...'
+2025-10-24 12:15:21 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:15:21 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to PrescriptiveHandler
+2025-10-24 12:15:21 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'What should we do about problems?...'
+2025-10-24 12:15:21 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:15:21 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to PrescriptiveHandler
+2025-10-24 12:15:21 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Suggestions for improving failure rates?...'
+2025-10-24 12:15:21 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:15:21 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to VINQueryHandler
+2025-10-24 12:15:21 - [34mchat_helper[0m - [36mINFO[0m - handle:179 - VINQueryHandler processing: 'Suggestions for improving failure rates?...'
+2025-10-24 12:15:28 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Prescribe for model Leaf part Battery...'
+2025-10-24 12:15:28 - [34mchat_helper[0m - [36mINFO[0m - __init__:374 - QueryRouter initialized with 28 handlers
+2025-10-24 12:15:28 - [34mchat_helper[0m - [36mINFO[0m - route:391 - Query routed to PrescriptiveHandler
+2025-10-24 12:16:52 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:17:11 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:18:07 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'What should I do about high failure rates?...'
+2025-10-24 12:18:07 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:18:07 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to PrescriptiveHandler
+2025-10-24 12:18:07 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'How to fix high failure rates?...'
+2025-10-24 12:18:07 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:18:07 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to PrescriptiveHandler
+2025-10-24 12:18:07 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'What recommendations do you have for failures?...'
+2025-10-24 12:18:07 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:18:07 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to PrescriptiveHandler
+2025-10-24 12:18:07 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'What should we do about problems?...'
+2025-10-24 12:18:07 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:18:07 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to PrescriptiveHandler
+2025-10-24 12:18:07 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Suggestions for improving failure rates?...'
+2025-10-24 12:18:07 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:18:07 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to PrescriptiveHandler
+2025-10-24 12:19:13 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'What should I do about high failure rates?...'
+2025-10-24 12:19:13 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:19:13 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to PrescriptiveHandler
+2025-10-24 12:20:38 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'predcribe for model Leaf part Battery Cable for detailed recommendations...'
+2025-10-24 12:20:38 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:20:38 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to PrescriptiveHandler
+2025-10-24 12:20:38 - [34mchat_helper[0m - [36mINFO[0m - handle:265 - Generating prescriptive summary via Bedrock for Leaf/12V Battery
+2025-10-24 12:21:13 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Prescribe for model Leaf part Battery...'
+2025-10-24 12:21:13 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:21:13 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to PrescriptiveHandler
+2025-10-24 12:21:13 - [34mchat_helper[0m - [36mINFO[0m - handle:265 - Generating prescriptive summary via Bedrock for Leaf/12V Battery
+2025-10-24 12:21:45 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Which dealers have the most issues?...'
+2025-10-24 12:21:45 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:21:45 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to ContextAwareHandler
+2025-10-24 12:23:31 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Which dealers have the most issues?...'
+2025-10-24 12:23:31 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:23:31 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to LocationQueryHandler
+2025-10-24 12:23:31 - [34mchat_helper[0m - [36mINFO[0m - handle:370 - LocationQueryHandler processing: 'Which dealers have the most issues?...'
+2025-10-24 12:23:31 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Show me dealers with most problems...'
+2025-10-24 12:23:31 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:23:31 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to LocationQueryHandler
+2025-10-24 12:23:31 - [34mchat_helper[0m - [36mINFO[0m - handle:370 - LocationQueryHandler processing: 'Show me dealers with most problems...'
+2025-10-24 12:23:31 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Dealer analysis...'
+2025-10-24 12:23:31 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:23:31 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to LocationQueryHandler
+2025-10-24 12:23:31 - [34mchat_helper[0m - [36mINFO[0m - handle:370 - LocationQueryHandler processing: 'Dealer analysis...'
+2025-10-24 12:23:31 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Which dealers have problems?...'
+2025-10-24 12:23:31 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:23:31 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to LocationQueryHandler
+2025-10-24 12:23:31 - [34mchat_helper[0m - [36mINFO[0m - handle:370 - LocationQueryHandler processing: 'Which dealers have problems?...'
+2025-10-24 12:25:39 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Which dealers have the most issues?...'
+2025-10-24 12:25:39 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:25:39 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to LocationQueryHandler
+2025-10-24 12:25:39 - [34mchat_helper[0m - [36mINFO[0m - handle:370 - LocationQueryHandler processing: 'Which dealers have the most issues?...'
+2025-10-24 12:26:13 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'What are major issues from United Nissan?...'
+2025-10-24 12:26:13 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:26:13 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to ContextAwareHandler
+2025-10-24 12:27:01 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:27:56 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:28:13 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:28:36 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'What are major issues from United Nissan?...'
+2025-10-24 12:28:36 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:28:36 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to LocationQueryHandler
+2025-10-24 12:28:36 - [34mchat_helper[0m - [36mINFO[0m - handle:373 - LocationQueryHandler processing: 'What are major issues from United Nissan?...'
+2025-10-24 12:28:36 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'What issues does United Nissan have?...'
+2025-10-24 12:28:36 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:28:36 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to LocationQueryHandler
+2025-10-24 12:28:36 - [34mchat_helper[0m - [36mINFO[0m - handle:373 - LocationQueryHandler processing: 'What issues does United Nissan have?...'
+2025-10-24 12:28:36 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'United Nissan problems...'
+2025-10-24 12:28:36 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:28:36 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to LocationQueryHandler
+2025-10-24 12:28:36 - [34mchat_helper[0m - [36mINFO[0m - handle:373 - LocationQueryHandler processing: 'United Nissan problems...'
+2025-10-24 12:28:36 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Show me United Nissan issues...'
+2025-10-24 12:28:36 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:28:36 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to LocationQueryHandler
+2025-10-24 12:28:36 - [34mchat_helper[0m - [36mINFO[0m - handle:373 - LocationQueryHandler processing: 'Show me United Nissan issues...'
+2025-10-24 12:28:36 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'What problems does Portland Nissan Center have?...'
+2025-10-24 12:28:36 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:28:36 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to LocationQueryHandler
+2025-10-24 12:28:36 - [34mchat_helper[0m - [36mINFO[0m - handle:373 - LocationQueryHandler processing: 'What problems does Portland Nissan Center have?...'
+2025-10-24 12:30:35 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Which dealers have the most issues?...'
+2025-10-24 12:30:35 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:30:35 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to LocationQueryHandler
+2025-10-24 12:30:35 - [34mchat_helper[0m - [36mINFO[0m - handle:373 - LocationQueryHandler processing: 'Which dealers have the most issues?...'
+2025-10-24 12:31:04 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'What are the major issues from dealer United Nissan?...'
+2025-10-24 12:31:04 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:31:04 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to LocationQueryHandler
+2025-10-24 12:31:04 - [34mchat_helper[0m - [36mINFO[0m - handle:373 - LocationQueryHandler processing: 'What are the major issues from dealer United Nissa...'
+2025-10-24 12:31:42 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Show failures by region...'
+2025-10-24 12:31:42 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:31:42 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to ContextAwareHandler
+2025-10-24 12:32:27 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:33:12 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:33:32 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Show failures by region...'
+2025-10-24 12:33:32 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:33:32 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to LocationQueryHandler
+2025-10-24 12:33:32 - [34mchat_helper[0m - [36mINFO[0m - handle:377 - LocationQueryHandler processing: 'Show failures by region...'
+2025-10-24 12:33:32 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Show failures by city...'
+2025-10-24 12:33:32 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:33:32 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to LocationQueryHandler
+2025-10-24 12:33:32 - [34mchat_helper[0m - [36mINFO[0m - handle:377 - LocationQueryHandler processing: 'Show failures by city...'
+2025-10-24 12:33:32 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Failures by location...'
+2025-10-24 12:33:32 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:33:32 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to LocationQueryHandler
+2025-10-24 12:33:32 - [34mchat_helper[0m - [36mINFO[0m - handle:377 - LocationQueryHandler processing: 'Failures by location...'
+2025-10-24 12:33:32 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Regional failure analysis...'
+2025-10-24 12:33:32 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:33:32 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to LocationQueryHandler
+2025-10-24 12:33:32 - [34mchat_helper[0m - [36mINFO[0m - handle:377 - LocationQueryHandler processing: 'Regional failure analysis...'
+2025-10-24 12:33:32 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Which region has most failures?...'
+2025-10-24 12:33:32 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:33:32 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to LocationQueryHandler
+2025-10-24 12:33:32 - [34mchat_helper[0m - [36mINFO[0m - handle:377 - LocationQueryHandler processing: 'Which region has most failures?...'
+2025-10-24 12:33:32 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Show me failures by area...'
+2025-10-24 12:33:32 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 12:33:32 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to LocationQueryHandler
+2025-10-24 12:33:32 - [34mchat_helper[0m - [36mINFO[0m - handle:377 - LocationQueryHandler processing: 'Show me failures by area...'
+2025-10-24 13:03:36 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Show failures by region...'
+2025-10-24 13:03:36 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 13:03:36 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to LocationQueryHandler
+2025-10-24 13:03:36 - [34mchat_helper[0m - [36mINFO[0m - handle:377 - LocationQueryHandler processing: 'Show failures by region...'
+2025-10-24 13:22:55 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Hello...'
+2025-10-24 13:22:55 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 13:22:55 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to GreetingHandler
+2025-10-24 13:30:48 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Which dealers have the most issues?...'
+2025-10-24 13:30:48 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 13:30:48 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to LocationQueryHandler
+2025-10-24 13:30:48 - [34mchat_helper[0m - [36mINFO[0m - handle:377 - LocationQueryHandler processing: 'Which dealers have the most issues?...'
+2025-10-24 13:31:16 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Show failures by region...'
+2025-10-24 13:31:16 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 13:31:16 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to LocationQueryHandler
+2025-10-24 13:31:16 - [34mchat_helper[0m - [36mINFO[0m - handle:377 - LocationQueryHandler processing: 'Show failures by region...'
+2025-10-24 13:31:54 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'What should I do about high failure rates...'
+2025-10-24 13:31:54 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 13:31:54 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to PrescriptiveHandler
+2025-10-24 13:32:37 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'What should I do about high failure rates...'
+2025-10-24 13:32:37 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 13:32:37 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to PrescriptiveHandler
+2025-10-24 13:33:02 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Hi...'
+2025-10-24 13:33:02 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-10-24 13:33:02 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to GreetingHandler
+2025-11-01 23:33:17 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Hi...'
+2025-11-01 23:33:17 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-11-01 23:33:17 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to GreetingHandler
+2025-11-02 01:19:15 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Hello....'
+2025-11-02 01:19:15 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-11-02 01:19:15 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to GreetingHandler
+2025-11-02 01:20:30 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Which dealers have the most issues?...'
+2025-11-02 01:20:30 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-11-02 01:20:30 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to LocationQueryHandler
+2025-11-02 01:20:30 - [34mchat_helper[0m - [36mINFO[0m - handle:377 - LocationQueryHandler processing: 'Which dealers have the most issues?...'
+2025-11-02 01:21:30 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Hello....'
+2025-11-02 01:21:30 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-11-02 01:21:30 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to GreetingHandler
+2025-11-03 10:20:53 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Hi...'
+2025-11-03 10:20:53 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-11-03 10:20:53 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to GreetingHandler
+2025-11-03 10:21:00 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'claim rate for model Sentra...'
+2025-11-03 10:21:00 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-11-03 10:21:00 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to ModelSpecificRateHandler
+2025-11-03 10:21:41 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Hello....'
+2025-11-03 10:21:41 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-11-03 10:21:41 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to GreetingHandler
+2025-11-03 10:27:25 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Hi there....'
+2025-11-03 10:27:25 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-11-03 10:27:25 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to GreetingHandler
+2025-11-03 10:37:00 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Hi...'
+2025-11-03 10:37:00 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-11-03 10:37:00 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to GreetingHandler
+2025-11-03 11:29:13 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Hi. Can you hear me?...'
+2025-11-03 11:29:13 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-11-03 11:29:13 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to DefaultHandler
+2025-11-03 11:29:18 - [34mchat_helper[0m - [36mINFO[0m - retrieve_with_faiss_or_tfidf:438 - FAISS retrieval returned 6 results in 5619.20ms
+2025-11-03 11:33:49 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Hi, how are you?...'
+2025-11-03 11:33:49 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-11-03 11:33:49 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to DefaultHandler
+2025-11-03 11:33:54 - [34mchat_helper[0m - [36mINFO[0m - retrieve_with_faiss_or_tfidf:438 - FAISS retrieval returned 6 results in 5466.80ms
+2025-11-03 11:37:23 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Hi, how are you?...'
+2025-11-03 11:37:23 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-11-03 11:37:23 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to DefaultHandler
+2025-11-03 11:37:28 - [34mchat_helper[0m - [36mINFO[0m - retrieve_with_faiss_or_tfidf:438 - FAISS retrieval returned 6 results in 5306.41ms
+2025-11-03 12:13:08 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'How...'
+2025-11-03 12:13:08 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-11-03 12:13:08 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to DefaultHandler
+2025-11-03 12:13:40 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Hello. How are you doing?...'
+2025-11-03 12:13:40 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-11-03 12:13:40 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to ContextAwareHandler
+2025-11-03 12:14:21 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Hi....'
+2025-11-03 12:14:21 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-11-03 12:14:21 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to GreetingHandler
+2025-11-03 12:27:32 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Hello....'
+2025-11-03 12:27:32 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-11-03 12:27:32 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to GreetingHandler
+2025-11-03 12:45:43 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Hello, how are you?...'
+2025-11-03 12:45:43 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-11-03 12:45:43 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to DefaultHandler
+2025-11-03 12:45:47 - [34mchat_helper[0m - [36mINFO[0m - retrieve_with_faiss_or_tfidf:438 - FAISS retrieval returned 6 results in 4079.46ms
+2025-11-03 12:46:35 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Hi...'
+2025-11-03 12:46:35 - [34mchat_helper[0m - [36mINFO[0m - __init__:465 - QueryRouter initialized with 28 handlers
+2025-11-03 12:46:35 - [34mchat_helper[0m - [36mINFO[0m - route:482 - Query routed to GreetingHandler
+2025-11-03 12:52:45 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Hello, how are you?...'
+2025-11-03 12:52:45 - [34mchat_helper[0m - [36mINFO[0m - __init__:475 - QueryRouter initialized with 28 handlers
+2025-11-03 12:52:45 - [34mchat_helper[0m - [36mINFO[0m - route:492 - Query routed to GreetingHandler
+2025-11-03 12:53:18 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'What is the current claim rate of Model Sendra?...'
+2025-11-03 12:53:18 - [34mchat_helper[0m - [36mINFO[0m - __init__:475 - QueryRouter initialized with 28 handlers
+2025-11-03 12:53:18 - [34mchat_helper[0m - [36mINFO[0m - route:492 - Query routed to RateHandler
+2025-11-03 12:54:14 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'How many records are there in the database?...'
+2025-11-03 12:54:14 - [34mchat_helper[0m - [36mINFO[0m - __init__:475 - QueryRouter initialized with 28 handlers
+2025-11-03 12:54:14 - [34mchat_helper[0m - [36mINFO[0m - route:492 - Query routed to CountAndAverageHandler
+2025-11-03 12:59:33 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Hi...'
+2025-11-03 12:59:33 - [34mchat_helper[0m - [36mINFO[0m - __init__:475 - QueryRouter initialized with 28 handlers
+2025-11-03 12:59:33 - [34mchat_helper[0m - [36mINFO[0m - route:492 - Query routed to GreetingHandler
+2025-11-04 12:03:37 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Hello....'
+2025-11-04 12:03:37 - [34mchat_helper[0m - [36mINFO[0m - __init__:475 - QueryRouter initialized with 28 handlers
+2025-11-04 12:03:37 - [34mchat_helper[0m - [36mINFO[0m - route:492 - Query routed to GreetingHandler
+2025-11-04 12:24:40 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Hello....'
+2025-11-04 12:24:40 - [34mchat_helper[0m - [36mINFO[0m - __init__:475 - QueryRouter initialized with 28 handlers
+2025-11-04 12:24:40 - [34mchat_helper[0m - [36mINFO[0m - route:492 - Query routed to GreetingHandler
+2025-11-04 12:41:49 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Hello....'
+2025-11-04 12:41:49 - [34mchat_helper[0m - [36mINFO[0m - __init__:475 - QueryRouter initialized with 28 handlers
+2025-11-04 12:41:49 - [34mchat_helper[0m - [36mINFO[0m - route:492 - Query routed to GreetingHandler
+2025-11-04 12:42:35 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Hello....'
+2025-11-04 12:42:35 - [34mchat_helper[0m - [36mINFO[0m - __init__:475 - QueryRouter initialized with 28 handlers
+2025-11-04 12:42:35 - [34mchat_helper[0m - [36mINFO[0m - route:492 - Query routed to GreetingHandler
+2025-11-04 12:43:15 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Hello....'
+2025-11-04 12:43:15 - [34mchat_helper[0m - [36mINFO[0m - __init__:475 - QueryRouter initialized with 28 handlers
+2025-11-04 12:43:15 - [34mchat_helper[0m - [36mINFO[0m - route:492 - Query routed to GreetingHandler
+2025-11-04 12:43:43 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Hello....'
+2025-11-04 12:43:43 - [34mchat_helper[0m - [36mINFO[0m - __init__:475 - QueryRouter initialized with 28 handlers
+2025-11-04 12:43:43 - [34mchat_helper[0m - [36mINFO[0m - route:492 - Query routed to GreetingHandler
+2025-11-04 12:46:43 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Hi...'
+2025-11-04 12:46:43 - [34mchat_helper[0m - [36mINFO[0m - __init__:475 - QueryRouter initialized with 28 handlers
+2025-11-04 12:46:43 - [34mchat_helper[0m - [36mINFO[0m - route:492 - Query routed to GreetingHandler
+2025-11-04 12:47:31 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Hi....'
+2025-11-04 12:47:31 - [34mchat_helper[0m - [36mINFO[0m - __init__:475 - QueryRouter initialized with 28 handlers
+2025-11-04 12:47:31 - [34mchat_helper[0m - [36mINFO[0m - route:492 - Query routed to GreetingHandler
+2025-11-04 12:48:11 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'What is the current claim rate?...'
+2025-11-04 12:48:11 - [34mchat_helper[0m - [36mINFO[0m - __init__:475 - QueryRouter initialized with 28 handlers
+2025-11-04 12:48:11 - [34mchat_helper[0m - [36mINFO[0m - route:492 - Query routed to RateHandler
+2025-11-04 12:48:51 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'What is the current claim rate?...'
+2025-11-04 12:48:51 - [34mchat_helper[0m - [36mINFO[0m - __init__:475 - QueryRouter initialized with 28 handlers
+2025-11-04 12:48:51 - [34mchat_helper[0m - [36mINFO[0m - route:492 - Query routed to RateHandler
+2025-11-04 12:50:14 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Hello...'
+2025-11-04 12:50:14 - [34mchat_helper[0m - [36mINFO[0m - __init__:475 - QueryRouter initialized with 28 handlers
+2025-11-04 12:50:14 - [34mchat_helper[0m - [36mINFO[0m - route:492 - Query routed to GreetingHandler
+2025-11-04 12:52:06 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Hi...'
+2025-11-04 12:52:06 - [34mchat_helper[0m - [36mINFO[0m - __init__:475 - QueryRouter initialized with 28 handlers
+2025-11-04 12:52:06 - [34mchat_helper[0m - [36mINFO[0m - route:492 - Query routed to GreetingHandler
+2025-11-04 12:52:10 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Hello...'
+2025-11-04 12:52:10 - [34mchat_helper[0m - [36mINFO[0m - __init__:475 - QueryRouter initialized with 28 handlers
+2025-11-04 12:52:10 - [34mchat_helper[0m - [36mINFO[0m - route:492 - Query routed to GreetingHandler
+2025-11-04 12:52:46 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'What is the current claim rate?...'
+2025-11-04 12:52:46 - [34mchat_helper[0m - [36mINFO[0m - __init__:475 - QueryRouter initialized with 28 handlers
+2025-11-04 12:52:46 - [34mchat_helper[0m - [36mINFO[0m - route:492 - Query routed to RateHandler
+2025-11-04 12:53:48 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'nothing...'
+2025-11-04 12:53:48 - [34mchat_helper[0m - [36mINFO[0m - __init__:475 - QueryRouter initialized with 28 handlers
+2025-11-04 12:53:48 - [34mchat_helper[0m - [36mINFO[0m - route:492 - Query routed to GreetingHandler
