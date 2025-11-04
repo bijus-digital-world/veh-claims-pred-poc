@@ -41,18 +41,60 @@ except Exception as e:
 try:
     from pydub import AudioSegment
     import os
-    # Try to find ffmpeg in common locations
-    ffmpeg_paths = [
-        r"C:\ffmpeg\bin\ffmpeg.exe",
-        r"C:\Program Files\ffmpeg\bin\ffmpeg.exe",
-        r"C:\tools\ffmpeg\bin\ffmpeg.exe",
-    ]
-    for path in ffmpeg_paths:
-        if os.path.exists(path):
-            AudioSegment.converter = path
-            AudioSegment.ffprobe = path.replace("ffmpeg.exe", "ffprobe.exe")
-            logger.info(f"Configured pydub to use FFmpeg at {path}")
-            break
+    import shutil
+    import platform
+    
+    ffmpeg_found = False
+    
+    # First, check if ffmpeg is in system PATH (works on both Windows and Linux)
+    ffmpeg_cmd = shutil.which("ffmpeg")
+    if ffmpeg_cmd:
+        AudioSegment.converter = ffmpeg_cmd
+        ffprobe_cmd = shutil.which("ffprobe")
+        if ffprobe_cmd:
+            AudioSegment.ffprobe = ffprobe_cmd
+        else:
+            # Try to find ffprobe in same directory as ffmpeg
+            ffprobe_path = os.path.join(os.path.dirname(ffmpeg_cmd), "ffprobe" + (".exe" if platform.system() == "Windows" else ""))
+            if os.path.exists(ffprobe_path):
+                AudioSegment.ffprobe = ffprobe_path
+        logger.info(f"Configured pydub to use FFmpeg from PATH: {ffmpeg_cmd}")
+        ffmpeg_found = True
+    else:
+        # Fallback: Try common Windows locations
+        if platform.system() == "Windows":
+            ffmpeg_paths = [
+                r"C:\ffmpeg\bin\ffmpeg.exe",
+                r"C:\Program Files\ffmpeg\bin\ffmpeg.exe",
+                r"C:\tools\ffmpeg\bin\ffmpeg.exe",
+            ]
+            for path in ffmpeg_paths:
+                if os.path.exists(path):
+                    AudioSegment.converter = path
+                    AudioSegment.ffprobe = path.replace("ffmpeg.exe", "ffprobe.exe")
+                    logger.info(f"Configured pydub to use FFmpeg at {path}")
+                    ffmpeg_found = True
+                    break
+        else:
+            # Linux/Unix common locations
+            linux_paths = [
+                "/usr/bin/ffmpeg",
+                "/usr/local/bin/ffmpeg",
+                "/opt/ffmpeg/bin/ffmpeg",
+            ]
+            for path in linux_paths:
+                if os.path.exists(path):
+                    AudioSegment.converter = path
+                    ffprobe_path = path.replace("ffmpeg", "ffprobe")
+                    if os.path.exists(ffprobe_path):
+                        AudioSegment.ffprobe = ffprobe_path
+                    logger.info(f"Configured pydub to use FFmpeg at {path}")
+                    ffmpeg_found = True
+                    break
+    
+    if not ffmpeg_found:
+        logger.warning("FFmpeg not found in common locations. pydub may not work correctly for audio processing.")
+        
 except Exception as e:
     logger.debug(f"Could not configure pydub FFmpeg paths: {e}")
 
