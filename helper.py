@@ -140,26 +140,59 @@ def append_inference_log(inf_row: dict, pred_prob: float, filepath: str = "infer
         "pred_prob": float(round(pred_prob, 6)),
         "pred_prob_pct": float(round(pred_prob * 100.0, 4)),
     }
-    last = _last_log_row(filepath)
-    if last:
+    # Add latitude and longitude if available (for CSV but not displayed in table)
+    if "lat" in inf_row and inf_row.get("lat") is not None:
+        row["lat"] = float(inf_row.get("lat"))
+    if "lon" in inf_row and inf_row.get("lon") is not None:
+        row["lon"] = float(inf_row.get("lon"))
+    
+    # Check for duplicates and append using pandas (handles column alignment automatically)
+    if os.path.isfile(filepath):
         try:
-            same_inputs = (
-                str(last.get("model")) == row["model"] and
-                str(last.get("primary_failed_part")) == row["primary_failed_part"] and
-                abs(float(last.get("mileage", 0)) - row["mileage"]) < 100 and  # Within 100 miles
-                abs(float(last.get("age", 0)) - row["age"]) < 0.1  # Within 0.1 years
-            )
-            last_prob = float(last.get("pred_prob", 0.0))
-            if same_inputs and abs(last_prob - row["pred_prob"]) <= DUP_TOL:
-                return False
-        except Exception:
-            pass
-    write_header = not os.path.isfile(filepath)
-    with open(filepath, mode="a", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=list(row.keys()))
-        if write_header:
+            # Read existing file
+            df_existing = pd.read_csv(filepath)
+            if not df_existing.empty:
+                last = df_existing.iloc[-1].to_dict()
+                try:
+                    same_inputs = (
+                        str(last.get("model")) == str(row["model"]) and
+                        str(last.get("primary_failed_part")) == str(row["primary_failed_part"]) and
+                        abs(float(last.get("mileage", 0)) - row["mileage"]) < 100 and  # Within 100 miles
+                        abs(float(last.get("age", 0)) - row["age"]) < 0.1  # Within 0.1 years
+                    )
+                    last_prob = float(last.get("pred_prob", 0.0))
+                    if same_inputs and abs(last_prob - row["pred_prob"]) <= DUP_TOL:
+                        return False
+                except Exception:
+                    pass
+            # Append new row using pandas (handles column alignment automatically)
+            df_new = pd.DataFrame([row])
+            df_combined = pd.concat([df_existing, df_new], ignore_index=True)
+            df_combined.to_csv(filepath, index=False)
+        except Exception as e:
+            # Fallback to simple append if pandas fails
+            logger.warning(f"Pandas append failed, using CSV writer: {e}")
+            # Get existing columns from file first
+            existing_columns = []
+            try:
+                with open(filepath, mode="r", newline="") as f_read:
+                    reader = csv.DictReader(f_read)
+                    existing_columns = reader.fieldnames or []
+            except Exception:
+                pass
+            # Merge columns: existing first, then new ones
+            all_columns = list(existing_columns) + [k for k in row.keys() if k not in existing_columns]
+            # Append row (note: this won't update header if new columns were added)
+            with open(filepath, mode="a", newline="") as f:
+                writer = csv.DictWriter(f, fieldnames=all_columns)
+                # Only write row, not header (header already exists)
+                writer.writerow(row)
+    else:
+        # New file - write header and row
+        with open(filepath, mode="w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=list(row.keys()))
             writer.writeheader()
-        writer.writerow(row)
+            writer.writerow(row)
     return True
 
 def append_inference_log_s3(inf_row: dict, pred_prob: float,
@@ -187,6 +220,11 @@ def append_inference_log_s3(inf_row: dict, pred_prob: float,
         "pred_prob": float(round(pred_prob, 6)),
         "pred_prob_pct": float(round(pred_prob * 100.0, 4)),
     }
+    # Add latitude and longitude if available (for CSV but not displayed in table)
+    if "lat" in inf_row and inf_row.get("lat") is not None:
+        row["lat"] = float(inf_row.get("lat"))
+    if "lon" in inf_row and inf_row.get("lon") is not None:
+        row["lon"] = float(inf_row.get("lon"))
 
     try:
         fs = s3fs.S3FileSystem()

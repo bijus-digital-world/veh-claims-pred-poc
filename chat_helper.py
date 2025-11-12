@@ -720,6 +720,10 @@ _COLUMN_SYNONYMS = {
     "city": ["city", "location", "current city", "current location"],
     "dealer_name": ["dealer", "dealer_name", "service center", "nearest dealer", "dealer name"],
     "dealer_distance_km": ["dealer distance", "dealer_distance_km", "distance to dealer", "how far"],
+    
+    # Manufacturing and diagnostic data
+    "manufacturing_date": ["manufacturing date", "manufacturing_date", "manufacture date", "production date", "build date", "when manufactured"],
+    "dtc_code": ["dtc", "dtc code", "dtc_code", "diagnostic trouble code", "trouble code", "error code", "fault code", "obd code"],
 }
 
 

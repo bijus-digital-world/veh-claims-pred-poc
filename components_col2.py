@@ -80,7 +80,7 @@ def render_predictive_controls():
     
     with dropdown_col:
         st.selectbox(
-            "⚠️",
+            "Threshold",
             options=threshold_options,
             key="predictive_threshold_pct",
             label_visibility="collapsed",

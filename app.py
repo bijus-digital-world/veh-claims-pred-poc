@@ -13,13 +13,8 @@ import streamlit.components.v1 as components
 from pathlib import Path
 import time
 
-# Configuration
 from config import config
-
-# Logging
 from utils.logger import app_logger as logger, log_dataframe_info, log_performance
-
-# Voice services
 try:
     from voice_service import create_voice_service
     voice_service = create_voice_service()
@@ -36,11 +31,8 @@ except Exception as e:
     voice_service = None
     VOICE_AVAILABLE = False
 
-# Configure pydub to use FFmpeg if available (for audio processing)
-# This helps streamlit-audiorecorder work properly
 try:
     from pydub import AudioSegment
-    import os
     import shutil
     import platform
     
@@ -101,7 +93,6 @@ except Exception as e:
 if config.debug:
     logger.info(f"Voice available: {VOICE_AVAILABLE}, Voice enabled in config: {config.model.voice_enabled}")
 
-# Local helper imports
 from helper import (
     load_history_data,
     load_model,
@@ -135,44 +126,26 @@ IDX_PATH = config.paths.faiss_index_path
 EMB_PATH = config.paths.embeddings_path
 META_PATH = config.paths.metadata_path
 JSON_META = config.paths.metadata_json_path
-
-# Embedding model name
 EMBED_MODEL_NAME = config.model.embedding_model_name
-
-# AWS and S3 configuration
 USE_S3 = config.aws.use_s3
 S3_BUCKET = config.aws.s3_bucket
 S3_KEY = config.paths.s3_data_key
 AWS_REGION = config.aws.region
 PLACE_INDEX_NAME = config.aws.place_index_name
-
-# Model and log paths
 MODEL_PATH = config.paths.model_path
 LOG_FILE_LOCAL = config.paths.inference_log_local
 LOG_FILE_S3_KEY = config.paths.inference_log_s3_key
-
-# Chat log path
 LOG_DIR = config.paths.logs_dir
 CHAT_LOG_PATH = Path(config.paths.chat_log_file)
-
-# Location and UI settings
 LOCATION_PROB_THRESHOLD = config.data.location_prob_threshold
 SHOW_REPAIR_COST = config.ui.show_repair_cost
 IS_POC = config.ui.is_poc
-
-# Data constants
 MODELS = config.data.models
 MILEAGE_BUCKETS = config.data.mileage_buckets
 AGE_BUCKETS = config.data.age_buckets
-
-# Color constants
 NISSAN_RED = config.colors.nissan_red
 NISSAN_GOLD = config.colors.nissan_gold
 NISSAN_HEATMAP_SCALE = config.colors.heatmap_scale
-
-# ------------------------
-# Page config and styles
-# ------------------------
 st.set_page_config(
     page_title=config.ui.page_title,
     page_icon=config.ui.page_icon,
@@ -429,11 +402,11 @@ try:
     log_dataframe_info(logger, "df_history", df_history)
 except FileNotFoundError as e:
     logger.critical(f"Data load failed - file not found: {e}", exc_info=True)
-    st.error(f"❌ Data load failed: {e}")
+    st.error(f"Data load failed: {e}")
     st.stop()
 except Exception as e:
     logger.critical(f"Unexpected error loading data: {e}", exc_info=True)
-    st.error(f"❌ Unexpected error loading data: {e}")
+    st.error(f"Unexpected error loading data: {e}")
     st.stop()
 
 REQUIRED_COLS = config.data.required_columns
@@ -498,13 +471,20 @@ page = query_params.get("page", "dashboard")
 # ------------------------
 # Email Confirmation Modal (render at top level)
 # ------------------------
-# Import email modal component
-from email_modal_component import render_email_confirmation_modal
-
-# Check if email confirmation should be shown and render dialog
-modal_keys = [key for key in st.session_state.keys() if key.startswith("show_email_confirm_")]
-if modal_keys:
-    render_email_confirmation_modal()
+# Import email modal component (with error handling)
+try:
+    from email_modal_component import render_email_confirmation_modal
+    
+    # Check if email confirmation should be shown and render dialog
+    modal_keys = [key for key in st.session_state.keys() if key.startswith("show_email_confirm_")]
+    if modal_keys:
+        render_email_confirmation_modal()
+except ImportError as e:
+    # If email modal component can't be imported, log the error but don't crash the app
+    st.error(f"Email modal component not available: {str(e)}")
+except Exception as e:
+    # Handle any other errors gracefully
+    st.error(f"Error loading email modal: {str(e)}")
 
 
 # ------------------------
@@ -761,6 +741,134 @@ def render_col1():
         fig_trend.update_yaxes(tickfont=dict(size=11, color="#94a3b8"))
         st.plotly_chart(fig_trend, use_container_width=True)
 
+    # DTC per Model by Manufacturing Year Chart
+    st.markdown('<div class="chart-header">DTC/Model by Manufacturing Year:</div>', unsafe_allow_html=True)
+    
+    # Check if required columns exist
+    if "manufacturing_date" not in filtered.columns or "dtc_code" not in filtered.columns:
+        st.markdown("<div style='padding:6px;color:#94a3b8;'>Manufacturing date or DTC code data not available for this selection.</div>", unsafe_allow_html=True)
+    else:
+        # Filter to only records with DTC codes (failures)
+        dtc_data = filtered[filtered["dtc_code"].notna()].copy()
+        
+        if dtc_data.empty:
+            st.markdown("<div style='padding:6px;color:#94a3b8;'>No DTC data available for this selection.</div>", unsafe_allow_html=True)
+        else:
+            # Convert manufacturing_date to datetime if not already
+            dtc_data["manufacturing_date"] = pd.to_datetime(dtc_data["manufacturing_date"], errors="coerce")
+            dtc_data = dtc_data[dtc_data["manufacturing_date"].notna()]
+            
+            if dtc_data.empty:
+                st.markdown("<div style='padding:6px;color:#94a3b8;'>No valid manufacturing date data available for this selection.</div>", unsafe_allow_html=True)
+            else:
+                # Extract manufacturing year
+                dtc_data["manufacturing_year"] = dtc_data["manufacturing_date"].dt.year.astype(str)
+                
+                # Group by model and manufacturing year, count DTC codes
+                dtc_summary = dtc_data.groupby(["model", "manufacturing_year"]).agg(
+                    dtc_count=("dtc_code", "count")
+                ).reset_index()
+                
+                if dtc_summary.empty:
+                    st.markdown("<div style='padding:6px;color:#94a3b8;'>No DTC data to display for this selection.</div>", unsafe_allow_html=True)
+                else:
+                    year_totals = dtc_summary.groupby("manufacturing_year")["dtc_count"].transform("sum")
+                    dtc_summary["dtc_percentage"] = (dtc_summary["dtc_count"] / year_totals * 100).round(2)
+                    
+                    dtc_summary["manufacturing_year_int"] = dtc_summary["manufacturing_year"].astype(int)
+                    dtc_summary = dtc_summary.sort_values(["manufacturing_year_int", "model"])
+                    
+                    model_colors = {
+                        "Sentra": "#f43f5e",
+                        "Leaf": "#14b8a6",
+                        "Ariya": "#6366f1"
+                    }
+                    fig_dtc = px.bar(
+                        dtc_summary,
+                        x="manufacturing_year",
+                        y="dtc_percentage",
+                        color="model",
+                        labels=dict(manufacturing_year="Manufacturing Year", dtc_percentage="DTC %", model="Model"),
+                        template="plotly_dark",
+                        barmode="stack",
+                        color_discrete_map=model_colors
+                    )
+                    
+                    for trace in fig_dtc.data:
+                        model_name = trace.name
+                        trace.update(
+                            marker=dict(
+                                line=dict(width=2, color="rgba(255,255,255,0.15)"),
+                                opacity=0.95
+                            ),
+                            hovertemplate="<b>%{fullData.name}</b><br>" +
+                                        "Year: %{x}<br>" +
+                                        "DTC %: %{y:.1f}%<br>" +
+                                        "<extra></extra>",
+                            hoverlabel=dict(
+                                bgcolor="rgba(15, 23, 42, 0.98)",
+                                bordercolor=model_colors.get(model_name, "#94a3b8"),
+                                font=dict(
+                                    size=12,
+                                    family="Inter, system-ui, -apple-system, sans-serif",
+                                    color="#e2e8f0"
+                                )
+                            )
+                        )
+                    
+                    fig_dtc.update_traces(width=0.65)
+                    
+                    fig_dtc.update_layout(
+                        margin=dict(l=4, r=4, t=6, b=50),
+                        height=260,
+                        bargap=0.15,
+                        showlegend=True,
+                        legend=dict(
+                            orientation="h",
+                            yanchor="top",
+                            y=-0.20,
+                            xanchor="left",
+                            x=0.0,
+                            font=dict(
+                                size=11,
+                                color="#94a3b8",
+                                family="Inter, system-ui, -apple-system, sans-serif"
+                            ),
+                            bgcolor="rgba(15, 23, 42, 0.85)",
+                            bordercolor="rgba(255,255,255,0.12)",
+                            borderwidth=1,
+                            itemwidth=35,
+                            tracegroupgap=12
+                        ),
+                        plot_bgcolor="rgba(0,0,0,0)",
+                        paper_bgcolor="rgba(0,0,0,0)",
+                        font=dict(family="Inter, system-ui, -apple-system, sans-serif", size=11)
+                    )
+                    
+                    fig_dtc.update_xaxes(
+                        tickfont=dict(size=11, color="#94a3b8"),
+                        title_font=dict(size=12, color="#cbd5e1"),
+                        showgrid=False,
+                        zeroline=False,
+                        showline=True,
+                        linecolor="rgba(255,255,255,0.08)",
+                        linewidth=1
+                    )
+                    fig_dtc.update_yaxes(
+                        tickfont=dict(size=11, color="#94a3b8"),
+                        title_font=dict(size=12, color="#cbd5e1"),
+                        title_text="DTC %",
+                        tickformat=".0f",
+                        showgrid=True,
+                        gridcolor="rgba(255,255,255,0.04)",
+                        gridwidth=1,
+                        zeroline=False,
+                        showline=True,
+                        linecolor="rgba(255,255,255,0.08)",
+                        linewidth=1
+                    )
+                    
+                    st.plotly_chart(fig_dtc, use_container_width=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -870,6 +978,19 @@ def render_chat_interface():
     chat_container = st.container()
 
     # -------- helpers (same as before) --------
+    def _format_timestamp(ts: str) -> str:
+        """Return a human-friendly timestamp without sub-second precision."""
+        if not ts:
+            return ""
+        try:
+            # Handle possible Z suffix by normalizing to ISO format compatible with fromisoformat
+            ts_norm = ts.replace("Z", "+00:00") if ts.endswith("Z") else ts
+            dt = datetime.fromisoformat(ts_norm)
+            dt_local = dt.astimezone(timezone.utc)
+            return dt_local.strftime("%Y-%m-%d %H:%M")
+        except Exception:
+            return ts
+    
     def _render_chat_html_and_scroll():
         """Return the HTML that will be rendered inside components.html (includes JS scroll)."""
         pane_height = 300
@@ -879,7 +1000,7 @@ def render_chat_interface():
         else:
             for m in st.session_state.chat_history:
                 role = m.get("role", "user")
-                ts = m.get("ts", "")
+                ts = _format_timestamp(m.get("ts", ""))
                 if role == "user":
                     text = _html.escape(m.get("text", ""))
                     messages_html += (
@@ -953,7 +1074,7 @@ def render_chat_interface():
             )
         
         if config.debug or not VOICE_AVAILABLE:
-            with st.expander("🔍 Voice Debug Info", expanded=False):
+            with st.expander("Voice Debug Info", expanded=False):
                 st.write(f"**AUDIO_RECORDER_AVAILABLE**: {AUDIO_RECORDER_AVAILABLE}")
                 st.write(f"**VOICE_AVAILABLE**: {VOICE_AVAILABLE}")
                 st.write(f"**voice_enabled (config)**: {config.model.voice_enabled}")
@@ -1279,19 +1400,28 @@ python -m pip install streamlit-audiorecorder==0.0.6 pydub==0.25.1
                         audio_bytes.export(audio_buffer, format="wav")
                         audio_buffer.seek(0)
                         audio_bytes_data = audio_buffer.read()
-                        st.session_state["pending_audio_bytes"] = audio_bytes_data
-                        st.session_state["pending_audio_format"] = "wav"
-                        audio_hash = hashlib.md5(audio_bytes_data[:1000] if len(audio_bytes_data) > 1000 else audio_bytes_data).hexdigest()[:12]
-                        st.session_state["pending_audio_id"] = f"audio_{int(time.time())}_{audio_hash}"
-                        logger.info(f"✅ Stored audio in session_state ({len(audio_bytes_data)} bytes), ID: {st.session_state['pending_audio_id']}")
+                        
+                        # Only store if we have valid audio data
+                        if len(audio_bytes_data) > 0:
+                            st.session_state["pending_audio_bytes"] = audio_bytes_data
+                            st.session_state["pending_audio_format"] = "wav"
+                            audio_hash = hashlib.md5(audio_bytes_data[:1000] if len(audio_bytes_data) > 1000 else audio_bytes_data).hexdigest()[:12]
+                            st.session_state["pending_audio_id"] = f"audio_{int(time.time())}_{audio_hash}"
+                            logger.info(f"Stored audio in session_state ({len(audio_bytes_data)} bytes), ID: {st.session_state['pending_audio_id']}")
+                            # Trigger rerun to process audio immediately
+                            st.rerun()
+                        else:
+                            logger.warning("Audio export resulted in empty bytes")
+                            if config.debug:
+                                st.warning("Audio recording was empty. Please try again.")
                     except Exception as e:
-                        logger.error(f"❌ Failed to store audio in session_state: {e}", exc_info=True)
+                        logger.error(f"Failed to store audio in session_state: {e}", exc_info=True)
                         if config.debug:
                             st.error(f"Failed to store audio: {e}")
             except FileNotFoundError as ffmpeg_error:
                 if "ffprobe" in str(ffmpeg_error).lower() or "ffmpeg" in str(ffmpeg_error).lower():
                     if config.debug:
-                        st.error("⚠️ FFmpeg not installed.")
+                        st.error("FFmpeg not installed.")
                     audio_bytes = None
                 else:
                     raise
@@ -1317,10 +1447,10 @@ python -m pip install streamlit-audiorecorder==0.0.6 pydub==0.25.1
             current_audio_id = None
     
     if pending_audio_bytes and len(pending_audio_bytes) > 0 and not clear_chat_clicked and not text_submitted:
-        logger.info(f"🔍 Found pending audio in session_state ({len(pending_audio_bytes)} bytes), ID: {pending_audio_id}")
+        logger.info(f"Found pending audio in session_state ({len(pending_audio_bytes)} bytes), ID: {pending_audio_id}")
         # Check if we already processed this audio
         if pending_audio_id and pending_audio_id == st.session_state.get("_last_processed_audio_id"):
-            logger.debug("⏭️ Skipping duplicate audio processing")
+            logger.debug("Skipping duplicate audio processing")
             audio_bytes = None
         else:
             # Use pending audio from session_state
@@ -1329,22 +1459,33 @@ python -m pip install streamlit-audiorecorder==0.0.6 pydub==0.25.1
                 try:
                     from pydub import AudioSegment
                     import io
-                    logger.debug(f"🔄 Reconstructing AudioSegment from {len(pending_audio_bytes)} bytes")
+                    logger.info(f"Reconstructing AudioSegment from {len(pending_audio_bytes)} bytes")
                     audio_buffer = io.BytesIO(pending_audio_bytes)
                     audio_bytes = AudioSegment.from_wav(audio_buffer)
-                    logger.info(f"✅ Successfully reconstructed AudioSegment ({len(audio_bytes)} frames)")
+                    logger.info(f"Successfully reconstructed AudioSegment ({len(audio_bytes)} frames, {audio_bytes.duration_seconds:.2f}s)")
                 except Exception as e:
-                    logger.error(f"❌ Failed to reconstruct audio from session_state: {e}", exc_info=True)
+                    logger.error(f"Failed to reconstruct audio from session_state: {e}", exc_info=True)
+                    if config.debug:
+                        st.error(f"Failed to reconstruct audio: {e}")
+                    # Clear invalid audio from session_state
+                    st.session_state["pending_audio_bytes"] = None
+                    st.session_state["pending_audio_format"] = None
+                    st.session_state["pending_audio_id"] = None
                     audio_bytes = None
             else:
-                logger.debug(f"✅ Using live audio_bytes ({len(audio_bytes)} frames)")
+                logger.info(f"Using live audio_bytes ({len(audio_bytes)} frames, {audio_bytes.duration_seconds:.2f}s)")
     
     if audio_bytes and len(audio_bytes) > 0 and not clear_chat_clicked and not text_submitted:
         if not VOICE_AVAILABLE or voice_service is None:
-            st.error("⚠️ Voice service not configured. Please set up AWS credentials and IAM permissions.")
+            st.error("Voice service not configured. Please set up AWS credentials and IAM permissions.")
             logger.error("Voice recording attempted but voice service is not available")
+            # Clear audio to prevent retry loop
+            st.session_state["pending_audio_bytes"] = None
+            st.session_state["pending_audio_format"] = None
+            st.session_state["pending_audio_id"] = None
         else:
             try:
+                logger.info(f"🎤 Starting transcription for audio ({len(audio_bytes)} frames, {audio_bytes.duration_seconds:.2f}s)")
                 with st.spinner("🎤 Transcribing audio..."):
                     # Convert AudioSegment to bytes (optimized format for faster processing)
                     import io
@@ -1353,20 +1494,27 @@ python -m pip install streamlit-audiorecorder==0.0.6 pydub==0.25.1
                     # Optimize audio: 16kHz mono WAV (smaller file, faster upload/processing)
                     # This reduces file size significantly while maintaining transcription quality
                     try:
+                        logger.debug("Attempting to export audio with 16kHz mono optimization...")
                         # Try compressed format first (faster)
                         audio_bytes.export(
                             audio_buffer, 
                             format="wav",
                             parameters=["-ar", "16000", "-ac", "1"]  # 16kHz sample rate, mono channel
                         )
-                    except Exception:
+                        logger.debug("Audio exported with optimization")
+                    except Exception as export_err:
+                        logger.warning(f"Audio optimization failed, using standard export: {export_err}")
                         # Fallback to standard WAV if compression fails
+                        audio_buffer = io.BytesIO()  # Reset buffer
                         audio_bytes.export(audio_buffer, format="wav")
                     
                     audio_buffer.seek(0)
                     audio_bytes_data = audio_buffer.read()
                     
-                    logger.debug(f"Audio prepared: {len(audio_bytes_data)} bytes for transcription")
+                    logger.info(f"Audio prepared: {len(audio_bytes_data)} bytes for transcription")
+                    
+                    if len(audio_bytes_data) == 0:
+                        raise ValueError("Audio export resulted in empty bytes")
                     
                     transcription_result = voice_service.transcribe_audio_bytes(
                         audio_bytes=audio_bytes_data,
@@ -1374,6 +1522,7 @@ python -m pip install streamlit-audiorecorder==0.0.6 pydub==0.25.1
                         media_format="wav"
                     )
                     transcribed_text = transcription_result.get("text", "").strip()
+                    logger.info(f"Transcription completed: '{transcribed_text[:50]}...'")
                     
                     # Mark this audio as processed to prevent duplicate processing
                     if pending_audio_id:
@@ -1470,10 +1619,19 @@ python -m pip install streamlit-audiorecorder==0.0.6 pydub==0.25.1
                                 # The form will clear automatically on next submission due to clear_on_submit=True
                                 logger.info("Voice query processed and added to chat history - no rerun needed")
                     else:
-                        st.warning("Could not transcribe audio. Please try again.")
+                        st.warning("Could not transcribe audio. The audio may be too short or unclear. Please try again.")
+                        logger.warning("Transcription returned empty text")
             except Exception as e:
                 logger.error(f"Voice transcription error: {e}", exc_info=True)
-                st.error(f"Transcription failed: {str(e)}. Check AWS setup.")
+                error_msg = str(e)
+                if "transcribe" in error_msg.lower() or "aws" in error_msg.lower():
+                    st.error(f"Transcription failed: {error_msg}. Please check AWS Transcribe setup and permissions.")
+                else:
+                    st.error(f"Transcription failed: {error_msg}. Please try again or check the logs.")
+                # Clear audio to prevent retry loop
+                st.session_state["pending_audio_bytes"] = None
+                st.session_state["pending_audio_format"] = None
+                st.session_state["pending_audio_id"] = None
 
     # -------- handlers (no rendering here) --------
     # Initialize clear to False if not set (e.g., when voice/mic is shown and Clear button absent)
@@ -1730,79 +1888,156 @@ if page == "inference":
     # Create a compact header with controls on the same row
     st.markdown('<div style="height:1px;"></div>', unsafe_allow_html=True)
     
-    # Header row with title and controls
-    header_col1, header_col2, header_col3, header_col4 = st.columns([2, 1.5, 1.2, 1], gap="small")
+    # Header row with title and controls - 60% table, 40% empty
+    # Load inference log data first (needed by both columns)
+    df_log = None
+    date_range = None
+    text_filter = ""
+    rows_to_show = 50
     
-    with header_col1:
-        st.markdown('<div class="card-header" style="margin-bottom:0; padding:8px 12px;">Real-Time Vehicle Feed</div>', unsafe_allow_html=True)
+    if os.path.isfile(LOG_FILE_LOCAL):
+        try:
+            df_log = pd.read_csv(LOG_FILE_LOCAL, parse_dates=["timestamp"])
+        except Exception as e:
+            st.error(f"Error loading inference log: {e}")
+            df_log = None
     
-    if not os.path.isfile(LOG_FILE_LOCAL):
-        st.markdown("<div style='padding:12px; color:#94a3b8;'>No real-time vehicle information found yet. Predictions will be logged as they run.</div>", unsafe_allow_html=True)
-    else:
-        df_log = pd.read_csv(LOG_FILE_LOCAL, parse_dates=["timestamp"])
-        
-        with header_col2:
-            min_date = df_log["timestamp"].min().date()
-            max_date = df_log["timestamp"].max().date()
-            date_range = st.date_input("Date range", value=(min_date, max_date), key="inference_date_range")
-        with header_col3:
-            text_filter = st.text_input("Filter (model / part)", value="", key="inference_text_filter")
-        with header_col4:
-            rows_to_show = st.selectbox("Rows", options=[25, 50, 100, 500, 1000], index=1, key="inference_rows_count")
-
-        dr_start, dr_end = date_range
-        mask = (df_log["timestamp"].dt.date >= dr_start) & (df_log["timestamp"].dt.date <= dr_end)
-        if text_filter.strip():
-            t = text_filter.strip().lower()
-            mask &= df_log["model"].str.lower().str.contains(t) | df_log["primary_failed_part"].str.lower().str.contains(t)
-        df_show = df_log[mask].sort_values("timestamp", ascending=False).head(rows_to_show)
-
-        # Rename columns for better readability and hide pred_prob
-        df_display = df_show.copy()
-        
-        # Define column renaming (handles both old bucket and new continuous formats)
-        column_renames = {
-            "timestamp": "Event Timestamp",
-            "model": "Model",
-            "primary_failed_part": "Primary Failed Part",
-            "mileage": "Mileage",
-            "mileage_bucket": "Mileage",  # Old format (backward compatibility)
-            "age": "Age",
-            "age_bucket": "Age",          # Old format (backward compatibility)
-            "pred_prob_pct": "Predictive %"
-        }
-        
-        # Rename columns that exist
-        df_display = df_display.rename(columns=column_renames)
-        
-        # Hide pred_prob column if it exists
-        columns_to_display = [col for col in df_display.columns if col != "pred_prob"]
-        df_display = df_display[columns_to_display]
-
-        # Import enhanced table functionality
-        from enhanced_inference_table import render_enhanced_inference_table
-        
-        # Render enhanced table with action buttons
-        render_enhanced_inference_table(df_log, date_range, text_filter, rows_to_show)
-
-        btn_col1, btn_col2 = st.columns([1, 1], gap="small")
-        with btn_col1:
-            csv_bytes = df_log.to_csv(index=False).encode("utf-8")
-            st.download_button("Download full log (CSV)", data=csv_bytes, file_name="inference_log.csv", mime="text/csv")
-        with btn_col2:
-            if st.button("Clear full log"):
-                confirm = st.checkbox("Confirm clearing the log (this is permanent).")
-                if confirm:
-                    try:
-                        os.remove(LOG_FILE_LOCAL)
-                        st.success("Real-Time Vehicle Feed log cleared.")
-                        st.experimental_rerun()
-                    except Exception as e:
-                        st.error(f"Failed to delete log: {e}")
-
-    st.markdown("</div>", unsafe_allow_html=True)
-    st.markdown('<div style="height:8px;"></div>', unsafe_allow_html=True)
-    st.stop()
+    table_col, empty_col = st.columns([6, 4], gap="large")
+    
+    # Render headers in both columns simultaneously for alignment
+    with table_col:
+        header_cols = st.columns([1.6, 1.1, 1.4, 0.5], gap="small")
+        with header_cols[0]:
+            st.markdown('<div class="card-header" style="margin-bottom:0; padding:8px 12px;">Real-Time Vehicle Feed</div>', unsafe_allow_html=True)
+    
+    with empty_col:
+        # Render header matching Streamlit input label style (like "Date range")
+        st.markdown('<div style="font-size: 12px; color: #94a3b8; margin-bottom: 2px; font-weight: 500; line-height: 1.2;">Regional Risk Analysis</div>', unsafe_allow_html=True)
+    
+    # Now render the controls and content
+    with table_col:
+        if df_log is None or df_log.empty:
+            # Placeholder for empty columns when no data
+            with header_cols[1]:
+                st.empty()
+            with header_cols[2]:
+                st.empty()
+            with header_cols[3]:
+                st.empty()
+        else:
+            # Initialize date range and filters (needed for map as well)
+            with header_cols[1]:
+                min_date = df_log["timestamp"].min().date()
+                max_date = df_log["timestamp"].max().date()
+                date_range = st.date_input("Date range", value=(min_date, max_date), key="inference_date_range")
+            with header_cols[2]:
+                # Use text_input - autocomplete will be disabled via JavaScript below
+                text_filter = st.text_input(
+                    "Filter (model / part)", 
+                    value="", 
+                    key="inference_text_filter"
+                )
+                
+                # Add JavaScript to disable autocomplete and prevent chat suggestions
+                # This must be after the text_input is created
+                st.markdown("""
+                <script>
+                // Disable browser autocomplete for inference filter input
+                (function() {{
+                    function disableFilterAutocomplete() {{
+                        // Find all text inputs
+                        const allInputs = document.querySelectorAll('input[type="text"], input[data-testid="textInput"]');
+                        allInputs.forEach(input => {{
+                            // Check if this is the inference filter by looking at the label or nearby text
+                            const container = input.closest('[data-testid="stTextInput"]');
+                            if (!container) return;
+                            
+                            // Get the label text
+                            const label = container.querySelector('label');
+                            const labelText = label ? label.textContent || '' : '';
+                            
+                            // Check if this is the filter input
+                            if (labelText.includes('Filter (model / part)') || 
+                                labelText.includes('Filter')) {{
+                                // Disable all autocomplete features
+                                input.setAttribute('autocomplete', 'new-password'); // 'new-password' is a hack to disable autocomplete
+                                input.setAttribute('autocapitalize', 'off');
+                                input.setAttribute('autocorrect', 'off');
+                                input.setAttribute('spellcheck', 'false');
+                                input.setAttribute('data-lpignore', 'true'); // Disable LastPass
+                                input.setAttribute('data-form-type', 'other'); // Disable password managers
+                                
+                                // Remove any datalist associations
+                                if (input.hasAttribute('list')) {{
+                                    input.removeAttribute('list');
+                                }}
+                                
+                                // Clear any browser-stored values for this field
+                                input.value = input.value; // Force browser to not suggest
+                            }}
+                        }});
+                    }}
+                    
+                    // Run multiple times to catch the input when it's rendered
+                    disableFilterAutocomplete();
+                    setTimeout(disableFilterAutocomplete, 50);
+                    setTimeout(disableFilterAutocomplete, 200);
+                    setTimeout(disableFilterAutocomplete, 500);
+                    setTimeout(disableFilterAutocomplete, 1000);
+                    
+                    // Watch for DOM changes
+                    const observer = new MutationObserver(function(mutations) {{
+                        let shouldCheck = false;
+                        mutations.forEach(function(mutation) {{
+                            if (mutation.addedNodes.length > 0) {{
+                                shouldCheck = true;
+                            }}
+                        }});
+                        if (shouldCheck) {{
+                            disableFilterAutocomplete();
+                        }}
+                    }});
+                    observer.observe(document.body, {{ childList: true, subtree: true }});
+                }})();
+                </script>
+                """, unsafe_allow_html=True)
+            with header_cols[3]:
+                rows_to_show = st.selectbox("Rows", options=[25, 50, 100, 500, 1000], index=1, key="inference_rows_count")
+            
+            # Import enhanced table functionality
+            from enhanced_inference_table import render_enhanced_inference_table
+            
+            render_enhanced_inference_table(df_log, date_range, text_filter, rows_to_show)
+            
+            btn_col1, btn_col2 = st.columns([1, 1], gap="small")
+            with btn_col1:
+                csv_bytes = df_log.to_csv(index=False).encode("utf-8")
+                st.download_button("Download full log (CSV)", data=csv_bytes, file_name="inference_log.csv", mime="text/csv")
+            with btn_col2:
+                if st.button("Clear full log"):
+                    confirm = st.checkbox("Confirm clearing the log (this is permanent).")
+                    if confirm:
+                        try:
+                            os.remove(LOG_FILE_LOCAL)
+                            st.success("Real-Time Vehicle Feed log cleared.")
+                            st.experimental_rerun()
+                        except Exception as e:
+                            st.error(f"Failed to delete log: {e}")
+    
+    # Severity map column (40% of page) - content below the header
+    with empty_col:
+        if df_log is not None and not df_log.empty and date_range is not None:
+            # Import severity map functionality
+            from inference_severity_map import render_severity_map
+            # Skip header since we already rendered it above
+            render_severity_map(df_log, date_range, text_filter, skip_header=True)
+        else:
+            # Show placeholder when no data (header already rendered above)
+            st.markdown(
+                "<div style='padding:20px; color:#94a3b8; text-align:center;'>"
+                "Map visualization will appear here when inference log data is available with location coordinates.</div>",
+                unsafe_allow_html=True
+            )
 else:
     # Render all three columns
     with col1:

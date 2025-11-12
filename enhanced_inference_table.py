@@ -75,15 +75,50 @@ def create_enhanced_dataframe(df_show: pd.DataFrame) -> pd.DataFrame:
     
     return df_enhanced
 
-def render_enhanced_inference_table(df_log: pd.DataFrame, date_range: tuple, text_filter: str, rows_to_show: int):
+def render_enhanced_inference_table(df_log: pd.DataFrame, date_range=None, text_filter: str = "", rows_to_show: int = 50):
     """Render the enhanced Real-Time Vehicle Feed table with integrated action buttons."""
     
     # Apply filters
-    dr_start, dr_end = date_range
-    mask = (df_log["timestamp"].dt.date >= dr_start) & (df_log["timestamp"].dt.date <= dr_end)
-    if text_filter.strip():
-        t = text_filter.strip().lower()
-        mask &= df_log["model"].str.lower().str.contains(t) | df_log["primary_failed_part"].str.lower().str.contains(t)
+    # Handle different date_range formats from Streamlit
+    mask = pd.Series([True] * len(df_log), index=df_log.index)
+    
+    if date_range is not None:
+        try:
+            # Handle different date_range formats from Streamlit
+            # Streamlit date_input can return tuple, list, single date, or empty tuple/list during selection
+            if isinstance(date_range, (tuple, list)):
+                if len(date_range) == 2:
+                    # Date range: (start_date, end_date)
+                    dr_start, dr_end = date_range
+                    if dr_start is not None and dr_end is not None:
+                        mask = (df_log["timestamp"].dt.date >= dr_start) & (df_log["timestamp"].dt.date <= dr_end)
+                elif len(date_range) == 1:
+                    # Single date in a list/tuple (user selected only one date)
+                    if date_range[0] is not None:
+                        mask = df_log["timestamp"].dt.date == date_range[0]
+                # If empty tuple/list (len == 0), use all data (mask already set to True)
+            else:
+                # Single date object (not in tuple/list)
+                mask = df_log["timestamp"].dt.date == date_range
+        except Exception as e:
+            # If date filtering fails, continue without date filter (use all data)
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Error applying date range filter: {e}")
+    
+    if text_filter and text_filter.strip():
+        try:
+            t = text_filter.strip().lower()
+            text_mask = (
+                df_log["model"].astype(str).str.lower().str.contains(t, na=False, regex=False) | 
+                df_log["primary_failed_part"].astype(str).str.lower().str.contains(t, na=False, regex=False)
+            )
+            mask = mask & text_mask
+        except Exception as e:
+            # If text filtering fails, continue without text filter
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Error applying text filter: {e}")
     
     df_show = df_log[mask].sort_values("timestamp", ascending=False).head(rows_to_show)
     
@@ -106,8 +141,9 @@ def render_enhanced_inference_table(df_log: pd.DataFrame, date_range: tuple, tex
     # Rename columns that exist
     df_display = df_show.rename(columns=column_renames)
     
-    # Hide pred_prob column if it exists
-    columns_to_display = [col for col in df_display.columns if col != "pred_prob"]
+    # Hide pred_prob, lat, and lon columns from table display (but keep them in data for CSV download)
+    columns_to_hide = ["pred_prob", "lat", "lon", "latitude", "longitude"]
+    columns_to_display = [col for col in df_display.columns if col not in columns_to_hide]
     df_display = df_display[columns_to_display]
     
     # Display the table with integrated action buttons - no spacing div
@@ -115,24 +151,38 @@ def render_enhanced_inference_table(df_log: pd.DataFrame, date_range: tuple, tex
     header_col1, header_col2, header_col3, header_col4, header_col5, header_col6, header_col7, header_col8 = st.columns([2, 1.5, 1.5, 1, 1, 1, 1, 1])
     
     with header_col1:
-        st.markdown('<div style="margin: 0; padding: 2px 0;"><strong>Event Timestamp</strong></div>', unsafe_allow_html=True)
+        st.markdown('<div style="margin: 0; padding: 2px 0;"><strong>Event</strong></div>', unsafe_allow_html=True)
     with header_col2:
         st.markdown('<div style="margin: 0; padding: 2px 0;"><strong>Model</strong></div>', unsafe_allow_html=True)
     with header_col3:
-        st.markdown('<div style="margin: 0; padding: 2px 0;"><strong>Primary Failed Part</strong></div>', unsafe_allow_html=True)
+        st.markdown('<div style="margin: 0; padding: 2px 0;"><strong>PFP</strong></div>', unsafe_allow_html=True)
     with header_col4:
         st.markdown('<div style="margin: 0; padding: 2px 0;"><strong>Mileage</strong></div>', unsafe_allow_html=True)
     with header_col5:
         st.markdown('<div style="margin: 0; padding: 2px 0;"><strong>Age</strong></div>', unsafe_allow_html=True)
     with header_col6:
-        st.markdown('<div style="margin: 0; padding: 2px 0;"><strong>Predictive %</strong></div>', unsafe_allow_html=True)
+        st.markdown('<div style="margin: 0; padding: 2px 0;"><strong>Pred %</strong></div>', unsafe_allow_html=True)
     with header_col7:
-        st.markdown('<div style="margin: 0; padding: 2px 0;"><strong>Email</strong></div>', unsafe_allow_html=True)
+        st.markdown('<div style="margin: 0; padding: 2px 0; text-align: center;"><strong>Email</strong></div>', unsafe_allow_html=True)
     with header_col8:
-        st.markdown('<div style="margin: 0; padding: 2px 0;"><strong>SMS</strong></div>', unsafe_allow_html=True)
+        st.markdown('<div style="margin: 0; padding: 2px 0; text-align: center;"><strong>SMS</strong></div>', unsafe_allow_html=True)
     
     # Add separator line with minimal spacing
     st.markdown('<div style="margin: 0; padding: 1px 0;"><hr style="border: 1px solid #374151; margin: 0;"></div>', unsafe_allow_html=True)
+    
+    # Add CSS to center Email and SMS buttons
+    # Use the simplest CSS approach that should work reliably
+    st.markdown("""
+    <style>
+    /* Center all primary and secondary buttons in the inference table */
+    /* Since only Email (primary) and SMS (secondary) buttons exist in this table, this is safe */
+    button[kind="primary"],
+    button[kind="secondary"] {
+        margin: 0 auto !important;
+        display: block !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
     
     # Create action buttons for each row with reduced spacing
     for idx, (_, row) in enumerate(df_show.iterrows()):
@@ -176,7 +226,6 @@ def render_enhanced_inference_table(df_log: pd.DataFrame, date_range: tuple, tex
             if pred_pct > 50:
                 # Create unique key for this email button
                 email_key = f"email_{idx}_{row['timestamp']}"
-                
                 if st.button("Email", key=email_key, type="primary"):
                     # Store vehicle data in session state for confirmation
                     vehicle_data = {
@@ -199,10 +248,15 @@ def render_enhanced_inference_table(df_log: pd.DataFrame, date_range: tuple, tex
                     st.session_state[f"email_data_{email_key}"] = vehicle_data
                     st.session_state[f"show_email_confirm_{email_key}"] = True
                     st.rerun()
-                
                 # Modal confirmation is handled at app level
             else:
-                st.markdown('<div style="margin: 0; padding: 1px 0; font-size: 13px; text-align: center;">—</div>', unsafe_allow_html=True)
+                # Center the hyphen in the Email column - use container with explicit centering
+                st.markdown(
+                    '<div style="display: flex; justify-content: center; align-items: center; width: 100%; min-height: 38.4px; margin: 0; padding: 0;">'
+                    '<span style="font-size: 13px; text-align: center;">—</span>'
+                    '</div>',
+                    unsafe_allow_html=True
+                )
         
         with col8:
             # SMS button - only show for high-risk vehicles
@@ -218,7 +272,13 @@ def render_enhanced_inference_table(df_log: pd.DataFrame, date_range: tuple, tex
                     except:
                         st.info("SMS text ready to copy")
             else:
-                st.markdown('<div style="margin: 0; padding: 1px 0; font-size: 13px; text-align: center;">—</div>', unsafe_allow_html=True)
+                # Center the hyphen in the SMS column - use container with explicit centering
+                st.markdown(
+                    '<div style="display: flex; justify-content: center; align-items: center; width: 100%; min-height: 38.4px; margin: 0; padding: 0;">'
+                    '<span style="font-size: 13px; text-align: center;">—</span>'
+                    '</div>',
+                    unsafe_allow_html=True
+                )
     
     # Add summary statistics
     high_risk_count = len(df_show[df_show['pred_prob_pct'] > 50])
@@ -237,7 +297,7 @@ def render_enhanced_inference_table(df_log: pd.DataFrame, date_range: tuple, tex
                 High Risk Alert Summary
             </div>
             <div style="color: #374151; font-size: 14px;">
-                {high_risk_count} out of {total_count} vehicles require immediate attention (Predictive % > 50%)
+                {high_risk_count} out of {total_count} vehicles require immediate attention (Pred % > 50%)
             </div>
         </div>
         """, unsafe_allow_html=True)

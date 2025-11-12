@@ -168,7 +168,11 @@ class DataConfig:
         "supplier_name", "supplier_id", "supplier_quality_score", "defect_rate",  # Supplier data
         "failure_description",  # Root cause analysis
         "current_lat", "current_lon", "city",  # Location data
-        "dealer_name", "dealer_lat", "dealer_lon", "dealer_distance_km"  # Service center data
+        "dealer_name", "dealer_lat", "dealer_lon", "dealer_distance_km",  # Service center data
+        
+        # Manufacturing and diagnostic data for DTC chart analysis
+        "manufacturing_date",  # Vehicle manufacturing date (for production analysis)
+        "dtc_code"  # Diagnostic Trouble Code (OBD-II standard, nullable for non-failures)
     })
     
     # Note: Inference rows use 'mileage' and 'age' (continuous values)
