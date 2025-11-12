@@ -377,6 +377,13 @@ from chat.handlers_analysis import (
     TopFailedPartsHandler,
     IncidentDetailsHandler
 )
+from chat.handlers_dtc import (
+    DTCCommonCodesHandler,
+    DTCByModelHandler,
+    DTCByManufacturingYearHandler,
+    ModelSpecificDTCHandler,
+    DTCTrendHandler
+)
 
 from chat.handlers_default import DefaultHandler
 
@@ -449,6 +456,15 @@ class QueryRouter:
             VINQueryHandler(),
             FailureReasonHandler(),
             LocationQueryHandler(),
+            
+            # NEW: DTC (Diagnostic Trouble Code) queries
+            # Model-specific DTC handler first (more specific)
+            ModelSpecificDTCHandler(),
+            # Then general DTC handlers
+            DTCCommonCodesHandler(),
+            DTCByModelHandler(),
+            DTCByManufacturingYearHandler(),
+            DTCTrendHandler(),
             
             # NEW: Mileage and Age distribution queries
             MileageDistributionHandler(),

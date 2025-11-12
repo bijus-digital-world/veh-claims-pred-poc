@@ -18,7 +18,8 @@ from chat_helper import (
     _has_word,
     summarize_top_failed_parts,
     summarize_incident_details,
-    _compute_model_trends
+    _compute_model_trends,
+    parse_model_part_from_text
 )
 from utils.logger import chat_logger as logger
 
@@ -28,7 +29,7 @@ class MonthlyAggregateHandler(QueryHandler):
     
     def can_handle(self, context: QueryContext) -> bool:
         # Only handle specific monthly aggregate queries, not trend queries
-        monthly_keywords = r"\b(per month|monthly|claims per month|repairs per month|recalls per month)\b"
+        monthly_keywords = r"\b(per month|monthly|by month|month[- ]?wise|monthwise|stats? by month|statistics by month)\b"
         trend_keywords = r"\b(trend|trends|increasing|decreasing|rising|declining)\b"
         
         has_monthly = bool(re.search(monthly_keywords, context.query_lower))
@@ -49,6 +50,16 @@ class MonthlyAggregateHandler(QueryHandler):
         else:
             df = context.df_history
         
+        # Check if a specific model was referenced
+        mentioned_model = None
+        if "model" in df.columns:
+            try:
+                model_candidate, _ = parse_model_part_from_text(df, context.query)
+                if model_candidate:
+                    mentioned_model = model_candidate
+            except Exception:
+                mentioned_model = None
+        
         # Determine metric column
         if metric_col is None:
             if "claim" in context.query_lower:
@@ -66,6 +77,12 @@ class MonthlyAggregateHandler(QueryHandler):
         
         if metric_col not in df.columns:
             return "<p>Requested metric not available to compute monthly aggregates. Try 'claims', 'repairs', or 'failures'.</p>"
+        
+        # Filter to the specific model if mentioned
+        if mentioned_model:
+            df = df[df.get("model", "").astype(str).str.lower() == mentioned_model.lower()]
+            if df.empty:
+                return f"<p>No monthly data available for model {_html.escape(mentioned_model)}.</p>"
         
         try:
             df = df.copy()
@@ -94,7 +111,7 @@ class MonthlyAggregateHandler(QueryHandler):
             label = "failures" if metric_col == "failures_count" else metric_col.replace("_", " ")
             
             # By-model breakdown if requested
-            if "by model" in context.query_lower or "per model" in context.query_lower:
+            if (not mentioned_model) and ("by model" in context.query_lower or "per model" in context.query_lower):
                 grp = df.dropna(subset=["date_parsed"]).set_index("date_parsed").groupby(
                     [pd.Grouper(freq="M"), "model"]
                 )[metric_col].sum()
@@ -110,11 +127,43 @@ class MonthlyAggregateHandler(QueryHandler):
                            f"The overall trend is {trend}.</p>"
                            f"<p><strong>Average per month by model (top):</strong><br>{'<br>'.join(lines)}</p>")
             
-            return (f"<p>Between {first_month} and {last_month}, monthly {label} totals ranged "
-                   f"between {min_val} – {max_val} per month. "
-                   f"{max_month} showed the highest activity (≈{max_val}) while {min_month} was the lowest (≈{min_val}). "
-                   f"Total over the period = {total_over_period}, average ≈ {avg_per_month} per month. "
-                   f"The overall trend is {trend} (slope={slope:.2f} {label}/month).</p>")
+            # Build professional formatted response
+            subject_title = f"{label.title()}"
+            if mentioned_model:
+                subject_title = f"{_html.escape(mentioned_model)} — {label.replace('_', ' ').title()}"
+            
+            trend_strength = abs(slope)
+            if trend_strength < 0.5:
+                trend_note = "minimal change"
+            elif trend_strength < 2.0:
+                trend_note = "moderate change"
+            else:
+                trend_note = "pronounced change"
+            
+            html_parts = [
+                f"<p><strong>Monthly Summary ({first_month} – {last_month}) · {subject_title}</strong></p>",
+                "<ul style='margin-top:6px;'>",
+                f"<li><strong>Total {label.replace('_', ' ')}:</strong> {total_over_period:,}</li>",
+                f"<li><strong>Average per month:</strong> {avg_per_month:.1f}</li>",
+                f"<li><strong>Highest month:</strong> {max_month} (≈{max_val:,})</li>",
+                f"<li><strong>Lowest month:</strong> {min_month} (≈{min_val:,})</li>",
+                f"<li><strong>Trend:</strong> {trend} ({trend_note}, slope={slope:.2f} per month)</li>",
+                "</ul>"
+            ]
+            
+            # Detailed monthly breakdown (limit to 24 months to avoid very long lists)
+            if len(monthly_vals) <= 24:
+                html_parts.extend([
+                    "<p><strong>Month-by-month details:</strong></p>",
+                    "<ul style='margin-top:6px;'>"
+                ])
+                for date, value in monthly_vals.items():
+                    html_parts.append(
+                        f"<li><strong>{date.strftime('%B %Y')}:</strong> {int(value):,} {label.replace('_', ' ')}</li>"
+                    )
+                html_parts.append("</ul>")
+            
+            return "".join(html_parts)
         
         except Exception as e:
             logger.error(f"Monthly aggregate calculation failed: {e}", exc_info=True)
@@ -125,6 +174,20 @@ class RateHandler(QueryHandler):
     """Handle rate queries (per 100, rate calculations)"""
     
     def can_handle(self, context: QueryContext) -> bool:
+        # Avoid hijacking trend-focused questions like "increasing trend in failure rate"
+        trend_tokens = (
+            "trend",
+            "trends",
+            "increasing",
+            "increase",
+            "rising",
+            "growing",
+            "declining",
+            "decreasing",
+            "falling"
+        )
+        if any(tok in context.query_lower for tok in trend_tokens):
+            return False
         return "rate" in context.query_lower or "per 100" in context.query_lower
     
     def handle(self, context: QueryContext) -> str:
