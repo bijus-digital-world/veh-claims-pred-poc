@@ -847,3 +847,48 @@ KeyError: "Column(s) ['vin'] do not exist"
 2025-11-04 12:53:48 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'nothing...'
 2025-11-04 12:53:48 - [34mchat_helper[0m - [36mINFO[0m - __init__:475 - QueryRouter initialized with 28 handlers
 2025-11-04 12:53:48 - [34mchat_helper[0m - [36mINFO[0m - route:492 - Query routed to GreetingHandler
+2025-11-11 14:30:28 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'What is the failure trend?...'
+2025-11-11 14:30:28 - [34mchat_helper[0m - [36mINFO[0m - __init__:475 - QueryRouter initialized with 28 handlers
+2025-11-11 14:30:28 - [34mchat_helper[0m - [36mINFO[0m - route:492 - Query routed to TrendHandler
+2025-11-11 14:30:57 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'is there any increasing trend in the vehicle failure rate?...'
+2025-11-11 14:30:57 - [34mchat_helper[0m - [36mINFO[0m - __init__:475 - QueryRouter initialized with 28 handlers
+2025-11-11 14:30:57 - [34mchat_helper[0m - [36mINFO[0m - route:492 - Query routed to RateHandler
+2025-11-11 14:39:54 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'is there any increasing trend in the vehicle failure rate?...'
+2025-11-11 14:39:54 - [34mchat_helper[0m - [36mINFO[0m - __init__:475 - QueryRouter initialized with 28 handlers
+2025-11-11 14:39:54 - [34mchat_helper[0m - [36mINFO[0m - route:492 - Query routed to TrendHandler
+2025-11-11 14:40:31 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'can you give me the statistics by month for model Sentra?...'
+2025-11-11 14:40:31 - [34mchat_helper[0m - [36mINFO[0m - __init__:475 - QueryRouter initialized with 28 handlers
+2025-11-11 14:40:31 - [34mchat_helper[0m - [36mINFO[0m - route:492 - Query routed to ContextAwareHandler
+2025-11-11 14:47:07 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'can you give me the statistics by month for model Sentra?...'
+2025-11-11 14:47:07 - [34mchat_helper[0m - [36mINFO[0m - __init__:475 - QueryRouter initialized with 28 handlers
+2025-11-11 14:47:07 - [34mchat_helper[0m - [36mINFO[0m - route:492 - Query routed to MonthlyAggregateHandler
+2025-11-11 14:50:59 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'can you give me the statistics by month for model Sentra?...'
+2025-11-11 14:50:59 - [34mchat_helper[0m - [36mINFO[0m - __init__:475 - QueryRouter initialized with 28 handlers
+2025-11-11 14:50:59 - [34mchat_helper[0m - [36mINFO[0m - route:492 - Query routed to MonthlyAggregateHandler
+2025-11-11 14:54:12 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'Hi...'
+2025-11-11 14:54:12 - [34mchat_helper[0m - [36mINFO[0m - __init__:475 - QueryRouter initialized with 28 handlers
+2025-11-11 14:54:12 - [34mchat_helper[0m - [36mINFO[0m - route:492 - Query routed to GreetingHandler
+2025-11-11 14:56:45 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'claim rate for model Sentra...'
+2025-11-11 14:56:45 - [34mchat_helper[0m - [36mINFO[0m - __init__:475 - QueryRouter initialized with 28 handlers
+2025-11-11 14:56:45 - [34mchat_helper[0m - [36mINFO[0m - route:492 - Query routed to ModelSpecificRateHandler
+2025-11-11 15:17:27 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'can you give me the montly breakdown of the failure trend for model Leaf?...'
+2025-11-11 15:17:27 - [34mchat_helper[0m - [36mINFO[0m - __init__:475 - QueryRouter initialized with 28 handlers
+2025-11-11 15:17:27 - [34mchat_helper[0m - [36mINFO[0m - route:492 - Query routed to TrendHandler
+2025-11-12 01:50:54 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:795 - Processing chat query: 'What is the current failure trend?...'
+2025-11-12 01:50:54 - [34mchat_helper[0m - [36mINFO[0m - __init__:475 - QueryRouter initialized with 28 handlers
+2025-11-12 01:50:54 - [34mchat_helper[0m - [36mINFO[0m - route:492 - Query routed to TrendHandler
+2025-11-12 12:16:39 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:799 - Processing chat query: 'What are the most common DTC codes?...'
+2025-11-12 12:16:39 - [34mchat_helper[0m - [36mINFO[0m - __init__:489 - QueryRouter initialized with 33 handlers
+2025-11-12 12:16:39 - [34mchat_helper[0m - [36mINFO[0m - route:506 - Query routed to DTCCommonCodesHandler
+2025-11-12 12:16:57 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:799 - Processing chat query: 'Show DTC codes by model...'
+2025-11-12 12:16:57 - [34mchat_helper[0m - [36mINFO[0m - __init__:489 - QueryRouter initialized with 33 handlers
+2025-11-12 12:16:57 - [34mchat_helper[0m - [36mINFO[0m - route:506 - Query routed to DTCByModelHandler
+2025-11-12 12:17:06 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:799 - Processing chat query: 'What DTC codes does Sentra have?...'
+2025-11-12 12:17:06 - [34mchat_helper[0m - [36mINFO[0m - __init__:489 - QueryRouter initialized with 33 handlers
+2025-11-12 12:17:06 - [34mchat_helper[0m - [36mINFO[0m - route:506 - Query routed to DTCCommonCodesHandler
+2025-11-12 12:17:45 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:799 - Processing chat query: 'Show DTC trend over time...'
+2025-11-12 12:17:45 - [34mchat_helper[0m - [36mINFO[0m - __init__:489 - QueryRouter initialized with 33 handlers
+2025-11-12 12:17:45 - [34mchat_helper[0m - [36mINFO[0m - route:506 - Query routed to DTCTrendHandler
+2025-11-12 12:20:21 - [34mchat_helper[0m - [36mINFO[0m - generate_reply:799 - Processing chat query: 'What DTC codes does Sentra have?...'
+2025-11-12 12:20:21 - [34mchat_helper[0m - [36mINFO[0m - __init__:491 - QueryRouter initialized with 33 handlers
+2025-11-12 12:20:21 - [34mchat_helper[0m - [36mINFO[0m - route:508 - Query routed to ModelSpecificDTCHandler
