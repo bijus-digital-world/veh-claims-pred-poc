@@ -14,6 +14,7 @@ import pandas as pd
 from typing import Optional
 from chat.handlers import QueryHandler, QueryContext
 from utils.logger import chat_logger as logger
+from helper import km_to_miles
 
 
 class SupplierListHandler(QueryHandler):
@@ -206,14 +207,18 @@ class VINQueryHandler(QueryHandler):
                 if pd.notna(row.get('dealer_name')):
                     html += f"<li><strong>Nearest Dealer:</strong> {row['dealer_name']}</li>"
                 if pd.notna(row.get('dealer_distance_km')):
-                    html += f"<li><strong>Distance to Dealer:</strong> {row['dealer_distance_km']:.2f} km</li>"
+                    miles_val = km_to_miles(row['dealer_distance_km'])
+                    if miles_val is not None:
+                        html += f"<li><strong>Distance to Dealer:</strong> {miles_val:.2f} mi</li>"
                 html += "</ul>"
                 
             elif any(word in query_lower for word in ["service center", "dealer", "nearest"]):
                 # Service center query
                 html = f"<p><strong>Nearest service center for VIN {vin}:</strong></p><ul style='margin-top:6px;'>"
                 html += f"<li><strong>Dealer:</strong> {row.get('dealer_name', 'N/A')}</li>"
-                html += f"<li><strong>Distance:</strong> {row.get('dealer_distance_km', 0):.2f} km</li>"
+                miles_val = km_to_miles(row.get('dealer_distance_km'))
+                distance_text = f"{miles_val:.2f} mi" if miles_val is not None else "N/A"
+                html += f"<li><strong>Distance:</strong> {distance_text}</li>"
                 if pd.notna(row.get('dealer_lat')) and pd.notna(row.get('dealer_lon')):
                     html += f"<li><strong>Dealer Location:</strong> {row['dealer_lat']:.6f}, {row['dealer_lon']:.6f}</li>"
                 html += f"<li><strong>Vehicle City:</strong> {row.get('city', 'N/A')}</li>"
