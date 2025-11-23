@@ -178,7 +178,7 @@ def calculate_risk_level(claim_pct: float) -> str:
     Returns:
         Risk level: "High", "Medium", or "Low" (based on claim likelihood)
     """
-    if claim_pct >= config.risk.high_threshold:
+    if claim_pct > config.risk.high_threshold:
         return "High"
     elif claim_pct >= config.risk.medium_threshold:
         return "Medium"
@@ -187,9 +187,6 @@ def calculate_risk_level(claim_pct: float) -> str:
 @st.cache_resource(show_spinner=True)
 def load_persisted_faiss():
     """Load FAISS index, embeddings, and metadata if available on disk."""
-    # Attempting to load persisted FAISS index
-    
-    # Check if FAISS is available before attempting to load
     if not HAS_FAISS:
         logger.warning("FAISS library not installed - vector search will use TF-IDF fallback")
         return {
@@ -203,7 +200,6 @@ def load_persisted_faiss():
     
     if not IDX_PATH.exists() or not EMB_PATH.exists() or not META_PATH.exists():
         logger.warning(f"FAISS index files not found at {VECTOR_DIR}")
-        # Run build_faiss_index.py to create FAISS index for faster retrieval
         return {
             "available": False,
             "index": None,
@@ -220,8 +216,6 @@ def load_persisted_faiss():
         meta = list(np.load(META_PATH, allow_pickle=True))
         d = embs.shape[1]
         duration_ms = (time.time() - start_time) * 1000
-        
-        # FAISS index loaded successfully
         
         return {
             "available": True,
@@ -242,7 +236,6 @@ def load_persisted_faiss():
             "message": f"Failed to load persisted FAISS: {e}"
         }
 
-# call this once at startup
 faiss_res = load_persisted_faiss()
 
 
@@ -286,8 +279,9 @@ def _badge_html(risk_token, pct):
 
 
 def render_summary_ui(model_name, part_name, mileage_bucket, age_bucket, claim_pct, nearest_dealer=None, llm_model_id=None, region="us-east-1"):
+    default_threshold = config.model.default_threshold_pct
     try:
-        if claim_pct >= int(st.session_state.get('predictive_threshold_pct', 50)):
+        if claim_pct >= int(st.session_state.get('predictive_threshold_pct', default_threshold)):
             # Use enhanced prescriptive summary for high-risk predictions (above threshold)
             summary_html = generate_enhanced_prescriptive_summary(
                 model_name, part_name, mileage_bucket, age_bucket, claim_pct, 
@@ -310,9 +304,8 @@ def render_summary_ui(model_name, part_name, mileage_bucket, age_bucket, claim_p
         if config.debug:
             st.warning(f"Enhanced prescriptive summary generation failed: {e}")
         
-        # Fallback to Bedrock if enhanced summary fails
         try:
-            if claim_pct >= int(st.session_state.get('predictive_threshold_pct', 50)):
+            if claim_pct >= int(st.session_state.get('predictive_threshold_pct', default_threshold)):
                 summary_html = get_bedrock_summary(model_name, part_name, mileage_bucket, age_bucket, claim_pct, 
                                                 llm_model_id=llm_model_id, region=region)
             else:
@@ -362,6 +355,7 @@ def render_summary_ui(model_name, part_name, mileage_bucket, age_bucket, claim_p
         # else:
         #     # with st.expander("Details / Analyst Evidence", expanded=False):
         #     st.markdown("<div style='color:#94a3b8;'>No additional details.</div>", unsafe_allow_html=True)
+    return summary_html
 
 @st.cache_data(show_spinner=False)
 def load_history_cached(use_s3=None, s3_bucket=None, s3_key=None, local_path=None):
@@ -420,9 +414,6 @@ else:
     # Data validation passed - all required columns present
     pass
 
-# Note: FAISS index is already loaded via load_persisted_faiss() at line ~152
-# and stored in faiss_res global variable. No need to rebuild here.
-# For TF-IDF fallback, chat helper will build it on-demand when needed.
 
 
 # ------------------------
@@ -455,6 +446,7 @@ st.markdown(
       <div style="display:flex;align-items:center;gap:18px; font-size:12px; color:#374151;">
         <a href="?page=dashboard" style="text-decoration:none; color:inherit;">Dashboard</a>
         <a href="?page=inference" style="text-decoration:none; color:inherit;">Real-Time Vehicle Feed</a>
+        <a href="?page=digital_twin" style="text-decoration:none; color:inherit;">Digital Twin</a>
         <img src="data:image/svg+xml;base64,{logo_b64}" style="height:26px"/>
       </div>
     </div>
@@ -467,25 +459,6 @@ st.markdown(
 # ------------------------
 query_params = st.query_params
 page = query_params.get("page", "dashboard")
-
-# ------------------------
-# Email Confirmation Modal (render at top level)
-# ------------------------
-# Import email modal component (with error handling)
-try:
-    from email_modal_component import render_email_confirmation_modal
-    
-    # Check if email confirmation should be shown and render dialog
-    modal_keys = [key for key in st.session_state.keys() if key.startswith("show_email_confirm_")]
-    if modal_keys:
-        render_email_confirmation_modal()
-except ImportError as e:
-    # If email modal component can't be imported, log the error but don't crash the app
-    st.error(f"Email modal component not available: {str(e)}")
-except Exception as e:
-    # Handle any other errors gracefully
-    st.error(f"Error loading email modal: {str(e)}")
-
 
 # ------------------------
 # Layout columns
@@ -527,11 +500,16 @@ def render_col1():
     part = st.session_state.part_sel
     sev_abs = st.session_state.sev_abs
 
+    model_series = df_history["model"].astype(str).str.strip()
+    part_series = df_history["primary_failed_part"].astype(str).str.strip()
+
     mask = pd.Series(True, index=df_history.index)
     if model != "All":
-        mask &= df_history["model"] == model
+        selected_model = str(model).strip().lower()
+        mask &= model_series.str.lower() == selected_model
     if part != "All":
-        mask &= df_history["primary_failed_part"] == part
+        selected_part = str(part).strip().lower()
+        mask &= part_series.str.lower() == selected_part
     filtered = df_history.loc[mask].copy()
     filtered["failures_count"] = (
                                     filtered[["claims_count", "repairs_count", "recalls_count"]]
@@ -548,20 +526,15 @@ def render_col1():
     # Number of incidents (rows)
     total_incidents = int(filtered.shape[0])
 
-    # Total failure events (sum of claims + repairs + recalls)
     total_failures = int(filtered["failures_count"].sum())
-
-    #  claims
     total_claims = int(filtered["claims_count"].sum())
     claim_rate = (total_claims / total_incidents * 100.0) if total_incidents > 0 else 0.0
     claim_tooltip_text = f"{total_claims} claims out of {total_incidents} incidents"
 
-    # repairs
     total_repairs = int(filtered["repairs_count"].sum())
     repair_rate = (total_repairs / total_incidents * 100.0) if total_incidents > 0 else 0.0
     repair_tooltip_text = f"{total_repairs} repairs out of {total_incidents} incidents"
 
-    # recalls
     total_recalls = int(filtered["recalls_count"].sum())
     recall_rate = (total_recalls / total_incidents * 100.0) if total_incidents > 0 else 0.0
     recall_tooltip_text = f"{total_recalls} recalls out of {total_incidents} incidents"
@@ -742,7 +715,7 @@ def render_col1():
         st.plotly_chart(fig_trend, use_container_width=True)
 
     # DTC per Model by Manufacturing Year Chart
-    st.markdown('<div class="chart-header">DTC/Model by Manufacturing Year:</div>', unsafe_allow_html=True)
+    st.markdown('<div class="chart-header">Failure/Model by Production Year:</div>', unsafe_allow_html=True)
     
     # Check if required columns exist
     if "manufacturing_date" not in filtered.columns or "dtc_code" not in filtered.columns:
@@ -788,7 +761,7 @@ def render_col1():
                         x="manufacturing_year",
                         y="dtc_percentage",
                         color="model",
-                        labels=dict(manufacturing_year="Manufacturing Year", dtc_percentage="DTC %", model="Model"),
+                        labels=dict(manufacturing_year="Production Year", dtc_percentage="Failure %", model="Model"),
                         template="plotly_dark",
                         barmode="stack",
                         color_discrete_map=model_colors
@@ -857,7 +830,7 @@ def render_col1():
                     fig_dtc.update_yaxes(
                         tickfont=dict(size=11, color="#94a3b8"),
                         title_font=dict(size=12, color="#cbd5e1"),
-                        title_text="DTC %",
+                        title_text="Failure %",
                         tickformat=".0f",
                         showgrid=True,
                         gridcolor="rgba(255,255,255,0.04)",
@@ -1056,7 +1029,7 @@ def render_chat_interface():
             if config.debug:
                 logger.warning(f"streamlit-audiorecorder import failed: {e}")
     
-    show_voice_button = AUDIO_RECORDER_AVAILABLE
+    show_voice_button = False  # Temporarily disabled
     # Default for clear action (may be overridden when Clear button exists)
     clear = False
     
@@ -1754,10 +1727,7 @@ def render_col2():
     # 2. Generate prediction
     inf_row, pred_prob = generate_prediction(df_history, model_pipe)
     
-    # 3. Log inference
-    log_inference(inf_row, pred_prob)
-    
-    # 4. Get nearest dealers data FIRST (outside any column context to avoid nesting)
+    # 3. Get nearest dealers data FIRST (outside any column context to avoid nesting)
     nearest_dealers = None
     if inf_row and pred_prob is not None:
         # Get the data without rendering (to avoid column nesting)
@@ -1782,6 +1752,8 @@ def render_col2():
             logger.error(f"fetch_nearest_dealers failed: {e}")
             nearest_dealers = []
     
+    prescriptive_summary_html = None
+
     # 5. Create side-by-side layout with Predictive Information and Map
     pred_col, map_col = st.columns([1.5, 1], gap="medium")
     
@@ -1794,7 +1766,7 @@ def render_col2():
             pct_text = f"{80.8:.1f}%"
         
         # Get threshold from session state
-        threshold_pct = st.session_state.get('predictive_threshold_pct', 80)
+        threshold_pct = st.session_state.get('predictive_threshold_pct', config.model.default_threshold_pct)
         
         # Determine KPI color based on threshold
         kpi_color = config.colors.nissan_red if pred_prob * 100 >= threshold_pct else '#10b981'
@@ -1834,14 +1806,12 @@ def render_col2():
         </div>"""
         
         st.markdown(vehicle_info_html, unsafe_allow_html=True)
-        st.markdown('<div style="height:2px;"></div>', unsafe_allow_html=True)
-        
-        # Render prescriptive summary below the predictive information (left side)
-        st.markdown('<div style="height:8px;"></div>', unsafe_allow_html=True)
+        # Minimal spacing before prescriptive summary
+        st.markdown('<div style="height:4px;"></div>', unsafe_allow_html=True)
         
         if inf_row and pred_prob is not None and nearest_dealers is not None:
             # Render prescriptive summary (this creates its own columns internally)
-            render_prescriptive_section(inf_row, pred_prob, render_summary_ui)
+            _, prescriptive_summary_html = render_prescriptive_section(inf_row, pred_prob, render_summary_ui)
         else:
             st.markdown('<div class="card"><div class="card-header">Prescriptive Summary</div>', unsafe_allow_html=True)
             # st.markdown("<div style='padding:12px; color:#94a3b8;'>Waiting for prediction data...</div>", unsafe_allow_html=True)
@@ -1859,27 +1829,15 @@ def render_col2():
             # st.markdown("<div style='padding:12px; color:#94a3b8;'>Waiting for prediction data...</div>", unsafe_allow_html=True)
             # st.markdown('</div>', unsafe_allow_html=True)
         
+    # 6. Log inference with prescriptive summary
+    if inf_row and pred_prob is not None:
+        summary_plain = None
+        if prescriptive_summary_html:
+            summary_plain, _, _, _ = _extract_plain_and_bullets(prescriptive_summary_html)
+        log_inference(inf_row, pred_prob, prescriptive_summary=summary_plain)
+
 
     # Prescriptive summary is now rendered inside pred_col (left side)
-
-    # st.markdown("</div>", unsafe_allow_html=True)
-    
-    # Add custom CSS to override Streamlit's default expander spacing and reduce gaps
-    # st.markdown("""
-    # <style>
-    # .streamlit-expander {
-    #     margin-top: -20px !important;
-    #     margin-bottom: -10px !important;
-    # }
-    # .streamlit-expander > div {
-    #     margin-top: -15px !important;
-    #     margin-bottom: -5px !important;
-    # }
-    # .stPydeckChart {
-    #     margin-bottom: -15px !important;
-    # }
-    # </style>
-    # """, unsafe_allow_html=True)
 
 # ------------------------
 # Inference page (separate route)
@@ -1902,7 +1860,7 @@ if page == "inference":
             st.error(f"Error loading inference log: {e}")
             df_log = None
     
-    table_col, empty_col = st.columns([6, 4], gap="large")
+    table_col, empty_col = st.columns([0.65, 0.35], gap="large")
     
     # Render headers in both columns simultaneously for alignment
     with table_col:
@@ -1931,16 +1889,60 @@ if page == "inference":
                 max_date = df_log["timestamp"].max().date()
                 date_range = st.date_input("Date range", value=(min_date, max_date), key="inference_date_range")
             with header_cols[2]:
+                # Clear any chat-like values from session state
+                if "inference_text_filter" in st.session_state:
+                    current_value = st.session_state.get("inference_text_filter", "")
+                    # If the value looks like a chat query (contains "claim rate", "what", etc.), clear it
+                    if current_value and any(phrase in current_value.lower() for phrase in ["claim rate", "what's", "what is", "show me", "tell me", "how many"]):
+                        st.session_state["inference_text_filter"] = ""
+                
                 # Use text_input - autocomplete will be disabled via JavaScript below
                 text_filter = st.text_input(
                     "Filter (model / part)", 
                     value="", 
-                    key="inference_text_filter"
+                    key="inference_text_filter",
+                    placeholder="Enter model or part name"
                 )
                 
-                # Add JavaScript to disable autocomplete and prevent chat suggestions
+                # Add CSS and JavaScript to disable autocomplete and prevent chat suggestions
                 # This must be after the text_input is created
                 st.markdown("""
+                <style>
+                /* Hide any autocomplete dropdowns for filter input */
+                input[data-testid="textInput"]:focus + datalist,
+                input[data-testid="textInput"] ~ datalist,
+                [data-testid="stTextInput"]:has(input:focus) + * datalist,
+                [data-testid="stTextInput"]:has(input:focus) ~ * datalist {{
+                    display: none !important;
+                    visibility: hidden !important;
+                    opacity: 0 !important;
+                    height: 0 !important;
+                    overflow: hidden !important;
+                }}
+                /* Hide browser autocomplete dropdowns - target all possible selectors */
+                input::-webkit-autofill,
+                input:-webkit-autofill:hover,
+                input:-webkit-autofill:focus {{
+                    -webkit-box-shadow: 0 0 0 30px transparent inset !important;
+                    -webkit-text-fill-color: inherit !important;
+                }}
+                /* Hide any suggestion boxes that appear below inputs */
+                [data-testid="stTextInput"]:has(input:focus) ~ div,
+                [data-testid="stTextInput"]:has(input:focus) + div,
+                [data-testid="stTextInput"]:has(input:focus) + * > div {{
+                    display: none !important;
+                }}
+                /* Hide browser autocomplete suggestion lists */
+                input[list] + datalist,
+                datalist {{
+                    display: none !important;
+                }}
+                /* More aggressive: hide any div that appears below the filter input */
+                label:has-text("Filter (model / part)") + * + div,
+                label:has-text("Filter (model / part)") ~ div {{
+                    display: none !important;
+                }}
+                </style>
                 <script>
                 // Disable browser autocomplete for inference filter input
                 (function() {{
@@ -1960,30 +1962,192 @@ if page == "inference":
                             if (labelText.includes('Filter (model / part)') || 
                                 labelText.includes('Filter')) {{
                                 // Disable all autocomplete features
-                                input.setAttribute('autocomplete', 'new-password'); // 'new-password' is a hack to disable autocomplete
+                                input.setAttribute('autocomplete', 'off'); // Changed from 'new-password' to 'off'
                                 input.setAttribute('autocapitalize', 'off');
                                 input.setAttribute('autocorrect', 'off');
                                 input.setAttribute('spellcheck', 'false');
                                 input.setAttribute('data-lpignore', 'true'); // Disable LastPass
                                 input.setAttribute('data-form-type', 'other'); // Disable password managers
+                                input.setAttribute('name', 'filter-input-' + Date.now()); // Unique name to prevent autocomplete
+                                input.setAttribute('id', 'filter-input-' + Date.now()); // Unique ID
                                 
                                 // Remove any datalist associations
                                 if (input.hasAttribute('list')) {{
+                                    const listId = input.getAttribute('list');
                                     input.removeAttribute('list');
+                                    // Also remove the datalist element if it exists
+                                    const datalist = document.getElementById(listId);
+                                    if (datalist) {{
+                                        datalist.remove();
+                                    }}
                                 }}
                                 
-                                // Clear any browser-stored values for this field
-                                input.value = input.value; // Force browser to not suggest
+                                // Find and remove any nearby datalist elements
+                                const nearbyDatalists = container.querySelectorAll('datalist');
+                                nearbyDatalists.forEach(dl => dl.remove());
+                                
+                                // Clear any chat-like or autofilled values immediately
+                                const currentValue = input.value || '';
+                                // If value looks like a chat query or is longer than a simple model/part name, clear it
+                                if (currentValue && (currentValue.toLowerCase().includes('claim rate') || 
+                                    currentValue.toLowerCase().includes("what's") || 
+                                    currentValue.toLowerCase().includes('what is') ||
+                                    currentValue.toLowerCase().includes('show me') ||
+                                    currentValue.toLowerCase().includes('tell me') ||
+                                    currentValue.toLowerCase().includes('how many') ||
+                                    currentValue.toLowerCase().includes('failure rate') ||
+                                    currentValue.length > 30)) {{
+                                    input.value = '';
+                                    // Clear the value attribute as well
+                                    input.setAttribute('value', '');
+                                    // Trigger input and change events to update Streamlit
+                                    input.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                                    input.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                                }}
+                                
+                                // Function to hide all suggestion boxes near this input
+                                const hideSuggestions = function(inputElement) {{
+                                    // Hide all datalists
+                                    document.querySelectorAll('datalist').forEach(dl => {{
+                                        dl.style.display = 'none';
+                                        dl.style.visibility = 'hidden';
+                                        dl.style.opacity = '0';
+                                        dl.style.height = '0';
+                                        dl.style.overflow = 'hidden';
+                                    }});
+                                    
+                                    // Find the container and hide any suggestion boxes below it
+                                    const container = inputElement.closest('[data-testid="stTextInput"]');
+                                    if (container) {{
+                                        // Hide any divs that appear after the container (browser autocomplete)
+                                        let nextSibling = container.nextElementSibling;
+                                        let count = 0;
+                                        while (nextSibling && count < 5) {{
+                                            const text = nextSibling.textContent || '';
+                                            // If it looks like a suggestion box (contains chat-like text)
+                                            if (text.toLowerCase().includes('claim rate') || 
+                                                text.toLowerCase().includes("what's") || 
+                                                text.toLowerCase().includes('failure rate') ||
+                                                text.toLowerCase().includes('show me') ||
+                                                text.toLowerCase().includes('tell me')) {{
+                                                nextSibling.style.display = 'none';
+                                                nextSibling.style.visibility = 'hidden';
+                                                nextSibling.style.opacity = '0';
+                                                nextSibling.style.height = '0';
+                                                nextSibling.style.overflow = 'hidden';
+                                            }}
+                                            nextSibling = nextSibling.nextElementSibling;
+                                            count++;
+                                        }}
+                                        
+                                        // Also check parent's next siblings
+                                        let parentNext = container.parentElement?.nextElementSibling;
+                                        count = 0;
+                                        while (parentNext && count < 3) {{
+                                            const text = parentNext.textContent || '';
+                                            if (text.toLowerCase().includes('claim rate') || 
+                                                text.toLowerCase().includes("what's") || 
+                                                text.toLowerCase().includes('failure rate')) {{
+                                                parentNext.style.display = 'none';
+                                                parentNext.style.visibility = 'hidden';
+                                            }}
+                                            parentNext = parentNext.nextElementSibling;
+                                            count++;
+                                        }}
+                                    }}
+                                }};
+                                
+                                // Add focus event to clear chat-like text when user clicks
+                                input.addEventListener('focus', function() {{
+                                    const val = this.value || '';
+                                    if (val && (val.toLowerCase().includes('claim rate') || 
+                                        val.toLowerCase().includes("what's") || 
+                                        val.toLowerCase().includes('what is') ||
+                                        val.toLowerCase().includes('show me') ||
+                                        val.toLowerCase().includes('tell me') ||
+                                        val.toLowerCase().includes('how many') ||
+                                        val.toLowerCase().includes('failure rate') ||
+                                        val.length > 30)) {{
+                                        this.value = '';
+                                        this.setAttribute('value', '');
+                                    }}
+                                    // Hide suggestions immediately
+                                    hideSuggestions(this);
+                                }}, {{ once: false }});
+                                
+                                // Prevent autocomplete dropdown on input
+                                input.addEventListener('input', function(e) {{
+                                    // Hide suggestions
+                                    hideSuggestions(this);
+                                }});
+                                
+                                // Continuously monitor and hide suggestions
+                                const suggestionMonitor = setInterval(function() {{
+                                    if (document.activeElement === input) {{
+                                        hideSuggestions(input);
+                                    }}
+                                }}, 100);
+                                
+                                // Stop monitoring when input loses focus
+                                input.addEventListener('blur', function() {{
+                                    setTimeout(() => clearInterval(suggestionMonitor), 1000);
+                                }});
+                            }}
+                        }});
+                    }}
+                    
+                    // Function to hide all suggestion boxes globally
+                    function hideAllSuggestions() {{
+                        // Hide all datalists
+                        document.querySelectorAll('datalist').forEach(dl => {{
+                            dl.style.display = 'none';
+                            dl.style.visibility = 'hidden';
+                            dl.style.opacity = '0';
+                            dl.remove();
+                        }});
+                        
+                        // Find filter input and hide nearby suggestion boxes
+                        const filterInputs = document.querySelectorAll('input[data-testid="textInput"]');
+                        filterInputs.forEach(input => {{
+                            const container = input.closest('[data-testid="stTextInput"]');
+                            if (container) {{
+                                const label = container.querySelector('label');
+                                const labelText = label ? label.textContent || '' : '';
+                                if (labelText.includes('Filter (model / part)') || labelText.includes('Filter')) {{
+                                    // Hide any divs that appear after the container
+                                    let nextSibling = container.nextElementSibling;
+                                    let count = 0;
+                                    while (nextSibling && count < 5) {{
+                                        const text = nextSibling.textContent || '';
+                                        if (text.toLowerCase().includes('claim rate') || 
+                                            text.toLowerCase().includes("what's") || 
+                                            text.toLowerCase().includes('failure rate') ||
+                                            text.toLowerCase().includes('show me') ||
+                                            text.toLowerCase().includes('tell me')) {{
+                                            nextSibling.style.display = 'none';
+                                            nextSibling.style.visibility = 'hidden';
+                                            nextSibling.style.opacity = '0';
+                                            nextSibling.style.height = '0';
+                                            nextSibling.remove();
+                                        }}
+                                        nextSibling = nextSibling.nextElementSibling;
+                                        count++;
+                                    }}
+                                }}
                             }}
                         }});
                     }}
                     
                     // Run multiple times to catch the input when it's rendered
                     disableFilterAutocomplete();
-                    setTimeout(disableFilterAutocomplete, 50);
-                    setTimeout(disableFilterAutocomplete, 200);
-                    setTimeout(disableFilterAutocomplete, 500);
-                    setTimeout(disableFilterAutocomplete, 1000);
+                    hideAllSuggestions();
+                    setTimeout(() => {{ disableFilterAutocomplete(); hideAllSuggestions(); }}, 50);
+                    setTimeout(() => {{ disableFilterAutocomplete(); hideAllSuggestions(); }}, 200);
+                    setTimeout(() => {{ disableFilterAutocomplete(); hideAllSuggestions(); }}, 500);
+                    setTimeout(() => {{ disableFilterAutocomplete(); hideAllSuggestions(); }}, 1000);
+                    
+                    // Continuously monitor and hide suggestions
+                    const globalSuggestionMonitor = setInterval(hideAllSuggestions, 200);
                     
                     // Watch for DOM changes
                     const observer = new MutationObserver(function(mutations) {{
@@ -1991,10 +2155,27 @@ if page == "inference":
                         mutations.forEach(function(mutation) {{
                             if (mutation.addedNodes.length > 0) {{
                                 shouldCheck = true;
+                                // Immediately hide any newly added suggestion boxes
+                                mutation.addedNodes.forEach(node => {{
+                                    if (node.nodeType === 1) {{ // Element node
+                                        const text = node.textContent || '';
+                                        if (text.toLowerCase().includes('claim rate') || 
+                                            text.toLowerCase().includes("what's") || 
+                                            text.toLowerCase().includes('failure rate') ||
+                                            text.toLowerCase().includes('show me') ||
+                                            text.toLowerCase().includes('tell me')) {{
+                                            node.style.display = 'none';
+                                            node.style.visibility = 'hidden';
+                                            node.style.opacity = '0';
+                                            node.remove();
+                                        }}
+                                    }}
+                                }});
                             }}
                         }});
                         if (shouldCheck) {{
                             disableFilterAutocomplete();
+                            hideAllSuggestions();
                         }}
                     }});
                     observer.observe(document.body, {{ childList: true, subtree: true }});
@@ -2020,7 +2201,7 @@ if page == "inference":
                         try:
                             os.remove(LOG_FILE_LOCAL)
                             st.success("Real-Time Vehicle Feed log cleared.")
-                            st.experimental_rerun()
+                            st.rerun()
                         except Exception as e:
                             st.error(f"Failed to delete log: {e}")
     
@@ -2038,6 +2219,31 @@ if page == "inference":
                 "Map visualization will appear here when inference log data is available with location coordinates.</div>",
                 unsafe_allow_html=True
             )
+elif page == "digital_twin":
+    try:
+        from digital_twin_component import render_digital_twin_dashboard
+        
+        # Load inference log data
+        df_inference = None
+        if os.path.isfile(LOG_FILE_LOCAL):
+            try:
+                df_inference = pd.read_csv(LOG_FILE_LOCAL, parse_dates=["timestamp"])
+            except Exception as e:
+                logger.error(f"Error loading inference log: {e}")
+                st.error(f"Error loading inference log: {e}")
+                df_inference = None
+        
+        if df_inference is None or df_inference.empty:
+            st.warning("Inference log data not available. Please run predictions first.")
+        else:
+            # Render Digital Twin dashboard
+            render_digital_twin_dashboard(df_history, df_inference)
+    except ImportError as e:
+        logger.error(f"Failed to import digital_twin_component: {e}")
+        st.error("Digital Twin component not available. Please check the installation.")
+    except Exception as e:
+        logger.error(f"Error rendering Digital Twin: {e}", exc_info=True)
+        st.error(f"Error rendering Digital Twin: {e}")
 else:
     # Render all three columns
     with col1:
@@ -2050,17 +2256,6 @@ else:
         
         # Chat function below column 2, right adjacent to column 1, stretching till the end
         render_chat_interface()
-        
-    # 
-    # chat_col1, chat_col2 = st.columns([2, 3], gap="medium")
-    
-    # with chat_col1:
-    #     # Empty space to align with column 1
-    #     st.markdown('<div style="height: 20px;"></div>', unsafe_allow_html=True)
-    
-    # with chat_col2:
-    #     # Chat interface in the remaining space
-    #     render_chat_interface()
 
 # Footer
 st.markdown(

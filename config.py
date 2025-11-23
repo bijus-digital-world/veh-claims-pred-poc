@@ -40,8 +40,8 @@ class PathsConfig:
     images_dir: Path = field(default_factory=lambda: Path("images"))
     
     # Data files
-    local_data_file: str = "data/vehicle_claims_extended.csv"
-    s3_data_key: str = "data/vehicle_claims_extended.csv"
+    local_data_file: str = "data/vehicle_claims_extended_enhanced.csv"
+    s3_data_key: str = "data/vehicle_claims_extended_enhanced.csv"
     
     # Model files
     model_path: str = "models/claim_rate_model.joblib"
@@ -71,8 +71,8 @@ class PathsConfig:
             vector_dir=base / os.getenv("VECTOR_DIR", "vector_store"),
             logs_dir=base / os.getenv("LOGS_DIR", "logs"),
             images_dir=base / os.getenv("IMAGES_DIR", "images"),
-            local_data_file=os.getenv("LOCAL_DATA_FILE", "data/vehicle_claims_extended.csv"),
-            s3_data_key=os.getenv("S3_DATA_KEY", "data/vehicle_claims_extended.csv"),
+            local_data_file=os.getenv("LOCAL_DATA_FILE", "data/vehicle_claims_extended_enhanced.csv"),
+            s3_data_key=os.getenv("S3_DATA_KEY", "data/vehicle_claims_extended_enhanced.csv"),
             model_path=os.getenv("MODEL_PATH", "models/claim_rate_model.joblib"),
             inference_log_local=os.getenv("INFERENCE_LOG_LOCAL", "inference_log.csv"),
             inference_log_s3_key=os.getenv("INFERENCE_LOG_S3_KEY", "logs/inference_log.csv"),
@@ -96,7 +96,7 @@ class ModelConfig:
     bedrock_temperature: float = 0.18
     
     # Prediction thresholds
-    default_threshold_pct: int = 50  # Lowered to show enhanced summary more often
+    default_threshold_pct: int = 30  # Lowered to show enhanced summary more often
     threshold_options: List[int] = field(default_factory=lambda: [30, 40, 50, 60, 70, 75, 80, 85, 90, 95])
     
     # Voice settings
@@ -113,7 +113,7 @@ class ModelConfig:
             bedrock_model_id=os.getenv("BEDROCK_MODEL_ID", "anthropic.claude-3-haiku-20240307-v1:0"),
             bedrock_max_tokens=int(os.getenv("BEDROCK_MAX_TOKENS", "320")),
             bedrock_temperature=float(os.getenv("BEDROCK_TEMPERATURE", "0.18")),
-            default_threshold_pct=int(os.getenv("DEFAULT_THRESHOLD_PCT", "80")),
+            default_threshold_pct=int(os.getenv("DEFAULT_THRESHOLD_PCT", "30")),
             voice_enabled=os.getenv("VOICE_ENABLED", "true").lower() == "true",
             transcribe_language_code=os.getenv("TRANSCRIBE_LANGUAGE_CODE", "en-US"),
             polly_voice_id=os.getenv("POLLY_VOICE_ID", "Joanna"),
@@ -172,7 +172,34 @@ class DataConfig:
         
         # Manufacturing and diagnostic data for DTC chart analysis
         "manufacturing_date",  # Vehicle manufacturing date (for production analysis)
-        "dtc_code"  # Diagnostic Trouble Code (OBD-II standard, nullable for non-failures)
+        "dtc_code",  # Diagnostic Trouble Code (OBD-II standard, nullable for non-failures)
+        
+        # Digital Twin telematics data
+        "model_year",  # Manufacturing year (extracted from manufacturing_date)
+        "telematics_timestamp",  # Timestamp for joining with inference log
+        
+        # Battery sensors
+        "battery_soc", "battery_voltage", "battery_temperature",
+        "battery_health_status", "battery_charge_cycles", "battery_degradation_pct",
+        
+        # Engine sensors
+        "engine_rpm", "coolant_temperature", "water_pump_speed",
+        "oil_pressure", "engine_load", "engine_health_status",
+        
+        # Brake sensors
+        "brake_pressure", "brake_pad_wear_pct", "brake_fluid_level",
+        "brake_torque", "brake_health_status",
+        
+        # Environmental sensors
+        "ambient_temperature", "vehicle_speed",
+        
+        # Enhanced DTC data
+        "dtc_subsystem", "dtc_severity", "dtc_recommendation",
+        "dtc_explanation", "dtc_timestamp",
+        
+        # Anomaly tracking
+        "anomaly_type", "anomaly_timestamp", "anomaly_severity",
+        "anomaly_description", "anomaly_icon"
     })
     
     # Note: Inference rows use 'mileage' and 'age' (continuous values)
@@ -228,15 +255,15 @@ class ColorConfig:
 @dataclass
 class RiskConfig:
     """Risk level thresholds"""
-    high_threshold: float = 75.0
-    medium_threshold: float = 50.0
+    high_threshold: float = 60.0  # > 60% = High risk
+    medium_threshold: float = 31.0  # 31% - 60% inclusive = Medium risk
     low_threshold: float = 0.0
     
     @classmethod
     def from_env(cls):
         return cls(
-            high_threshold=float(os.getenv("RISK_HIGH_THRESHOLD", "75.0")),
-            medium_threshold=float(os.getenv("RISK_MEDIUM_THRESHOLD", "50.0")),
+            high_threshold=float(os.getenv("RISK_HIGH_THRESHOLD", "60.0")),
+            medium_threshold=float(os.getenv("RISK_MEDIUM_THRESHOLD", "31.0")),
             low_threshold=float(os.getenv("RISK_LOW_THRESHOLD", "0.0"))
         )
 

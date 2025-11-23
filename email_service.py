@@ -12,6 +12,8 @@ from typing import Dict, Any, Optional
 from dataclasses import dataclass
 import streamlit as st
 
+from helper import km_to_miles
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -74,6 +76,8 @@ class EmailGenerator:
     
     def _create_email_prompt(self, alert: VehicleAlert) -> str:
         """Create a detailed prompt for email generation"""
+        distance_miles = km_to_miles(alert.dealer_distance_km)
+        distance_text = f"{distance_miles:.1f} mi" if distance_miles is not None else "N/A"
         return f"""
 You are a professional automotive service advisor writing an urgent vehicle maintenance alert email.
 
@@ -93,7 +97,7 @@ CUSTOMER INFORMATION:
 
 DEALER INFORMATION:
 - Nearest Dealer: {alert.dealer_name}
-- Distance: {alert.dealer_distance_km:.1f} km
+- Distance: {distance_text}
 - Location: {alert.city}
 
 Please generate a professional email with the following structure:
@@ -144,7 +148,9 @@ Return the response in this exact JSON format:
     def _create_fallback_email(self, alert: VehicleAlert) -> Dict[str, str]:
         """Create a fallback email if AI generation fails"""
         subject = f"URGENT: Vehicle Service Required - {alert.model} ({alert.vin[:8]}...)"
-        
+        distance_miles = km_to_miles(alert.dealer_distance_km)
+        distance_text = f"{distance_miles:.1f} mi" if distance_miles is not None else "N/A"
+
         body = f"""
 Dear Valued Customer,
 
@@ -168,7 +174,7 @@ RECOMMENDED ACTIONS:
 
 NEAREST SERVICE CENTER:
 • Dealer: {alert.dealer_name}
-• Distance: {alert.dealer_distance_km:.1f} km from your location
+• Distance: {distance_text} from your location
 • Location: {alert.city}
 
 Please contact us immediately to schedule service. Your safety is our priority.

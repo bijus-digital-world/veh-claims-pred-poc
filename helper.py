@@ -43,6 +43,25 @@ MODELS: List[str] = config.data.models
 MILEAGE_BUCKETS: List[str] = config.data.mileage_buckets
 AGE_BUCKETS: List[str] = config.data.age_buckets
 NISSAN_HEATMAP_SCALE = config.colors.heatmap_scale
+KM_TO_MILES = 0.621371
+
+
+def km_to_miles(value: Optional[float]) -> Optional[float]:
+    """Convert kilometers to miles with safe handling."""
+    try:
+        if value is None:
+            return None
+        return round(float(value) * KM_TO_MILES, 2)
+    except (TypeError, ValueError):
+        return None
+
+VIN_ALLOWED_CHARS = "0123456789ABCDEFGHJKLMNPRSTUVWXYZ"
+VIN_YEAR_CODES = "ABCDEFGHJKLMNPRSTVWXY123456789"
+VIN_MODEL_PREFIX = {
+    "Leaf": "1N4",
+    "Ariya": "JN1",
+    "Sentra": "3N1",
+}
 
 def load_svg_as_base64(path: str) -> str:
     with open(path, "rb") as f:
@@ -89,7 +108,11 @@ def load_history_data(use_s3: Optional[bool] = None,
         # Loading from local file
         start_time = time.time()
         
-        df = pd.read_csv(local_path, parse_dates=["date"])
+        # Parse date columns
+        date_columns = ["date"]
+        if "telematics_timestamp" in pd.read_csv(local_path, nrows=0).columns:
+            date_columns.append("telematics_timestamp")
+        df = pd.read_csv(local_path, parse_dates=date_columns)
         
         duration_ms = (time.time() - start_time) * 1000
         # Loaded from local file successfully
@@ -129,10 +152,54 @@ def _last_log_row(filepath: str) -> Optional[Dict]:
     except Exception:
         return None
 
-def append_inference_log(inf_row: dict, pred_prob: float, filepath: str = "inference_log.csv") -> bool:
+
+def _generate_realistic_vin(model: Optional[str] = None) -> str:
+    """Generate a realistic-looking 17-character VIN."""
+    prefix = VIN_MODEL_PREFIX.get(model, "1N4")
+    vin_chars: List[str] = list(prefix[:3])
+
+    # Vehicle descriptor section positions 4-8
+    while len(vin_chars) < 8:
+        vin_chars.append(random.choice(VIN_ALLOWED_CHARS))
+
+    # Check digit placeholder (position 9)
+    vin_chars.append(random.choice(VIN_ALLOWED_CHARS))
+
+    # Model year code (position 10)
+    vin_chars.append(random.choice(VIN_YEAR_CODES))
+
+    # Plant code (position 11)
+    vin_chars.append(random.choice(VIN_ALLOWED_CHARS))
+
+    # Serial number positions 12-17 (digits)
+    while len(vin_chars) < 17:
+        vin_chars.append(random.choice("0123456789"))
+
+    return "".join(vin_chars[:17])
+
+
+def _ensure_vin(raw_vin: Optional[str], model: Optional[str] = None) -> str:
+    """Return sanitized VIN if available, otherwise generate a realistic VIN."""
+    if raw_vin:
+        candidate = "".join(ch for ch in str(raw_vin).upper() if ch in VIN_ALLOWED_CHARS)
+        if candidate:
+            if len(candidate) >= 17:
+                return candidate[:17]
+            return candidate
+    return _generate_realistic_vin(model)
+
+def append_inference_log(
+    inf_row: dict,
+    pred_prob: float,
+    filepath: str = "inference_log.csv",
+    prescriptive_summary: Optional[str] = None,
+) -> bool:
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    vin_value = _ensure_vin(inf_row.get("vin"), inf_row.get("model"))
+    inf_row["vin"] = vin_value
     row = {
         "timestamp": ts,
+        "vin": vin_value,
         "model": inf_row.get("model"),
         "primary_failed_part": inf_row.get("primary_failed_part"),
         "mileage": float(inf_row.get("mileage", 0)),
@@ -145,6 +212,8 @@ def append_inference_log(inf_row: dict, pred_prob: float, filepath: str = "infer
         row["lat"] = float(inf_row.get("lat"))
     if "lon" in inf_row and inf_row.get("lon") is not None:
         row["lon"] = float(inf_row.get("lon"))
+    if prescriptive_summary is not None:
+        row["prescriptive_summary"] = str(prescriptive_summary).strip()
     
     # Check for duplicates and append using pandas (handles column alignment automatically)
     if os.path.isfile(filepath):
@@ -195,10 +264,14 @@ def append_inference_log(inf_row: dict, pred_prob: float, filepath: str = "infer
             writer.writerow(row)
     return True
 
-def append_inference_log_s3(inf_row: dict, pred_prob: float,
-                            s3_bucket: Optional[str] = None,
-                            s3_key: Optional[str] = None,
-                            local_fallback: Optional[str] = None) -> bool:
+def append_inference_log_s3(
+    inf_row: dict,
+    pred_prob: float,
+    s3_bucket: Optional[str] = None,
+    s3_key: Optional[str] = None,
+    local_fallback: Optional[str] = None,
+    prescriptive_summary: Optional[str] = None,
+) -> bool:
     """
     Attempt to append to a CSV stored in S3 using s3fs. If not available or any error occurs,
     fallback to local append. Uses config defaults when parameters are not provided.
@@ -209,10 +282,19 @@ def append_inference_log_s3(inf_row: dict, pred_prob: float,
     local_fallback = local_fallback or config.paths.inference_log_local
     
     if s3fs is None:
-        return append_inference_log(inf_row, pred_prob, filepath=local_fallback)
+        return append_inference_log(
+            inf_row,
+            pred_prob,
+            filepath=local_fallback,
+            prescriptive_summary=prescriptive_summary,
+        )
+
+    vin_value = _ensure_vin(inf_row.get("vin"), inf_row.get("model"))
+    inf_row["vin"] = vin_value
 
     row = {
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "vin": vin_value,
         "model": inf_row.get("model"),
         "primary_failed_part": inf_row.get("primary_failed_part"),
         "mileage": float(inf_row.get("mileage", 0)),
@@ -225,6 +307,8 @@ def append_inference_log_s3(inf_row: dict, pred_prob: float,
         row["lat"] = float(inf_row.get("lat"))
     if "lon" in inf_row and inf_row.get("lon") is not None:
         row["lon"] = float(inf_row.get("lon"))
+    if prescriptive_summary is not None:
+        row["prescriptive_summary"] = str(prescriptive_summary).strip()
 
     try:
         fs = s3fs.S3FileSystem()
@@ -254,82 +338,194 @@ def append_inference_log_s3(inf_row: dict, pred_prob: float,
         return True
     except Exception:
         # fallback to local append if anything goes wrong
-        return append_inference_log(inf_row, pred_prob, filepath=local_fallback)
+        return append_inference_log(
+            inf_row,
+            pred_prob,
+            filepath=local_fallback,
+            prescriptive_summary=prescriptive_summary,
+        )
+
+MAJOR_NA_CITIES = [
+    {"name": "New York, NY, USA", "lat": 40.7128, "lon": -74.0060},
+    {"name": "Los Angeles, CA, USA", "lat": 34.0522, "lon": -118.2437},
+    {"name": "Chicago, IL, USA", "lat": 41.8781, "lon": -87.6298},
+    {"name": "Houston, TX, USA", "lat": 29.7604, "lon": -95.3698},
+    {"name": "Phoenix, AZ, USA", "lat": 33.4484, "lon": -112.0740},
+    {"name": "Philadelphia, PA, USA", "lat": 39.9526, "lon": -75.1652},
+    {"name": "San Antonio, TX, USA", "lat": 29.4241, "lon": -98.4936},
+    {"name": "San Diego, CA, USA", "lat": 32.7157, "lon": -117.1611},
+    {"name": "Dallas, TX, USA", "lat": 32.7767, "lon": -96.7970},
+    {"name": "San Jose, CA, USA", "lat": 37.3382, "lon": -121.8863},
+    {"name": "Austin, TX, USA", "lat": 30.2672, "lon": -97.7431},
+    {"name": "Jacksonville, FL, USA", "lat": 30.3322, "lon": -81.6557},
+    {"name": "Toronto, ON, Canada", "lat": 43.6532, "lon": -79.3832},
+    {"name": "Montreal, QC, Canada", "lat": 45.5017, "lon": -73.5673},
+    {"name": "Vancouver, BC, Canada", "lat": 49.2827, "lon": -123.1207},
+    {"name": "Calgary, AB, Canada", "lat": 51.0447, "lon": -114.0719},
+    {"name": "Mexico City, CDMX, Mexico", "lat": 19.4326, "lon": -99.1332},
+    {"name": "Guadalajara, MX", "lat": 20.6597, "lon": -103.3496},
+    {"name": "Monterrey, MX", "lat": 25.6866, "lon": -100.3161},
+    {"name": "Seattle, WA, USA", "lat": 47.6062, "lon": -122.3321},
+    {"name": "Denver, CO, USA", "lat": 39.7392, "lon": -104.9903},
+    {"name": "Miami, FL, USA", "lat": 25.7617, "lon": -80.1918},
+    {"name": "Boston, MA, USA", "lat": 42.3601, "lon": -71.0589},
+    {"name": "Atlanta, GA, USA", "lat": 33.7490, "lon": -84.3880}
+]
+
+NA_LAT_MIN = 15.0  # southern Mexico
+NA_LAT_MAX = 60.0  # southern Canada / Alaska southern boundary
+NA_LON_MIN = -130.0
+NA_LON_MAX = -60.0
+HISTORICAL_VIN_RATIO = 0.9
+
 
 def random_inference_row_from_df(df: pd.DataFrame) -> dict:
     """
-    Create a simple POC inference row using observed categorical values in df.
-    Produces randomized coordinates across North America (mix of major city seeds +
-    uniform continental sampling) so UI/map shows varied locations.
-    Generates continuous mileage and age values instead of buckets.
+    Create an inference row. 90% of the time we reuse real VINs (and metadata)
+    from the historical dataset so the Digital Twin dashboard remains relevant.
+    The remaining 10% synthesizes new VINs to simulate incoming vehicles.
     """
-    model = random.choice(df["model"].unique().tolist())
-    part = random.choice(df["primary_failed_part"].unique().tolist())
-    
-    # Generate continuous values using realistic distributions
-    # Log-normal for mileage (most vehicles have lower mileage)
-    mileage = float(np.clip(np.random.lognormal(mean=10.0, sigma=0.7), 0, 150000))
-    mileage = round(mileage, 1)  # Round to 1 decimal place
-    
-    # Gamma distribution for age (skewed toward newer vehicles)
-    age = float(np.clip(np.random.gamma(shape=2.0, scale=2.5), 0, 15))
-    age = round(age, 2)  # Round to 2 decimal places
+    historical_rows = pd.DataFrame()
+    if "vin" in df.columns:
+        historical_rows = df[df["vin"].notna()].copy()
 
-    # Major North American cities (lat, lon) sample pool for more realistic points
-    major_cities = [
-        {"name": "New York, NY, USA", "lat": 40.7128, "lon": -74.0060},
-        {"name": "Los Angeles, CA, USA", "lat": 34.0522, "lon": -118.2437},
-        {"name": "Chicago, IL, USA", "lat": 41.8781, "lon": -87.6298},
-        {"name": "Houston, TX, USA", "lat": 29.7604, "lon": -95.3698},
-        {"name": "Phoenix, AZ, USA", "lat": 33.4484, "lon": -112.0740},
-        {"name": "Philadelphia, PA, USA", "lat": 39.9526, "lon": -75.1652},
-        {"name": "San Antonio, TX, USA", "lat": 29.4241, "lon": -98.4936},
-        {"name": "San Diego, CA, USA", "lat": 32.7157, "lon": -117.1611},
-        {"name": "Dallas, TX, USA", "lat": 32.7767, "lon": -96.7970},
-        {"name": "San Jose, CA, USA", "lat": 37.3382, "lon": -121.8863},
-        {"name": "Austin, TX, USA", "lat": 30.2672, "lon": -97.7431},
-        {"name": "Jacksonville, FL, USA", "lat": 30.3322, "lon": -81.6557},
-        {"name": "Toronto, ON, Canada", "lat": 43.6532, "lon": -79.3832},
-        {"name": "Montreal, QC, Canada", "lat": 45.5017, "lon": -73.5673},
-        {"name": "Vancouver, BC, Canada", "lat": 49.2827, "lon": -123.1207},
-        {"name": "Calgary, AB, Canada", "lat": 51.0447, "lon": -114.0719},
-        {"name": "Mexico City, CDMX, Mexico", "lat": 19.4326, "lon": -99.1332},
-        {"name": "Guadalajara, MX", "lat": 20.6597, "lon": -103.3496},
-        {"name": "Monterrey, MX", "lat": 25.6866, "lon": -100.3161},
-        {"name": "Seattle, WA, USA", "lat": 47.6062, "lon": -122.3321},
-        {"name": "Denver, CO, USA", "lat": 39.7392, "lon": -104.9903},
-        {"name": "Miami, FL, USA", "lat": 25.7617, "lon": -80.1918},
-        {"name": "Boston, MA, USA", "lat": 42.3601, "lon": -71.0589},
-        {"name": "Atlanta, GA, USA", "lat": 33.7490, "lon": -84.3880}
-    ]
+    use_historical = (
+        not historical_rows.empty
+        and random.random() < HISTORICAL_VIN_RATIO
+    )
 
-    # Strategy:
-    # - with 70% prob pick a real city (so markers cluster at real places)
-    # - with 30% prob pick a random point within North America bounding box
-    # North America bounding box (approx continental) - lat range covers Mexico to Canada
-    NA_LAT_MIN = 15.0    # southern Mexico
-    NA_LAT_MAX = 60.0    # southern Canada / Alaska southern boundary
-    NA_LON_MIN = -130.0
-    NA_LON_MAX = -60.0
+    if use_historical:
+        sample_row = historical_rows.sample(1).iloc[0]
+        return _build_row_from_historical(sample_row, df)
 
-    pick_city = random.random() < 0.7
-    if pick_city:
-        city = random.choice(major_cities)
-        lat = float(city["lat"])
-        lon = float(city["lon"])
-    else:
-        lat = random.uniform(NA_LAT_MIN, NA_LAT_MAX)
-        lon = random.uniform(NA_LON_MIN, NA_LON_MAX)
+    return _build_synthetic_row(df)
 
-    # Return inference row including coordinates
+
+def _build_row_from_historical(row: pd.Series, df: pd.DataFrame) -> dict:
+    """Construct an inference record anchored to a historical VIN."""
+    model = row.get("model") or random.choice(df["model"].unique().tolist())
+    part = row.get("primary_failed_part") or random.choice(df["primary_failed_part"].unique().tolist())
+    vin = str(row.get("vin", "")).strip()
+    if not vin or vin.lower() == "nan":
+        vin = _generate_realistic_vin(str(model))
+
+    mileage = _derive_numeric_value(
+        direct_value=row.get("mileage"),
+        bucket_value=row.get("mileage_bucket"),
+        default_sampler=lambda: float(np.clip(np.random.lognormal(mean=10.0, sigma=0.7), 0, 150000)),
+        scale_hint="miles",
+    )
+    mileage = round(float(mileage), 1)
+
+    age = _derive_numeric_value(
+        direct_value=row.get("age"),
+        bucket_value=row.get("age_bucket"),
+        default_sampler=lambda: float(np.clip(np.random.gamma(shape=2.0, scale=2.5), 0, 15)),
+        scale_hint="years",
+    )
+    age = round(float(age), 2)
+
+    lat = _safe_float(row.get("current_lat")) or _safe_float(row.get("lat"))
+    lon = _safe_float(row.get("current_lon")) or _safe_float(row.get("lon"))
+    if lat is None or lon is None:
+        lat, lon = _pick_random_latlon()
+
     return {
         "model": model,
         "primary_failed_part": part,
-        "mileage": mileage,  # Continuous value (miles)
-        "age": age,          # Continuous value (years)
+        "mileage": mileage,
+        "age": age,
         "lat": lat,
-        "lon": lon
+        "lon": lon,
+        "vin": vin,
     }
+
+
+def _build_synthetic_row(df: pd.DataFrame) -> dict:
+    """Fallback: generate a fully synthetic inference row."""
+    model = random.choice(df["model"].unique().tolist())
+    part = random.choice(df["primary_failed_part"].unique().tolist())
+
+    mileage = float(np.clip(np.random.lognormal(mean=10.0, sigma=0.7), 0, 150000))
+    mileage = round(mileage, 1)
+
+    age = float(np.clip(np.random.gamma(shape=2.0, scale=2.5), 0, 15))
+    age = round(age, 2)
+
+    lat, lon = _pick_random_latlon()
+
+    return {
+        "model": model,
+        "primary_failed_part": part,
+        "mileage": mileage,
+        "age": age,
+        "lat": lat,
+        "lon": lon,
+        "vin": _generate_realistic_vin(model),
+    }
+
+
+def _derive_numeric_value(
+    direct_value: Optional[float],
+    bucket_value: Optional[str],
+    default_sampler,
+    scale_hint: str,
+) -> float:
+    """Convert direct or bucketed values into a continuous number."""
+    if pd.notna(direct_value):
+        try:
+            return float(direct_value)
+        except Exception:
+            pass
+
+    if isinstance(bucket_value, str) and bucket_value.strip():
+        value = _extract_value_from_bucket(bucket_value, scale_hint=scale_hint)
+        if value is not None:
+            return value
+
+    return float(default_sampler())
+
+
+def _extract_value_from_bucket(bucket: str, scale_hint: str) -> Optional[float]:
+    """Parse strings like '20-40k' or '3-5 yrs+' into a numeric value."""
+    bucket_lower = bucket.lower()
+    matches = re.findall(r"\d+\.?\d*", bucket_lower)
+    if not matches:
+        return None
+
+    numbers = [float(m) for m in matches]
+    multiplier = 1.0
+    if "k" in bucket_lower and scale_hint == "miles":
+        multiplier = 1000.0
+
+    numbers = [n * multiplier for n in numbers]
+
+    if len(numbers) >= 2:
+        low, high = sorted(numbers[:2])
+        return random.uniform(low, high)
+
+    base = numbers[0]
+    if "+" in bucket_lower:
+        return random.uniform(base, base * 1.5)
+    return base
+
+
+def _pick_random_latlon() -> Tuple[float, float]:
+    """Return a random North American latitude/longitude."""
+    pick_city = random.random() < 0.7
+    if pick_city:
+        city = random.choice(MAJOR_NA_CITIES)
+        return float(city["lat"]), float(city["lon"])
+    return random.uniform(NA_LAT_MIN, NA_LAT_MAX), random.uniform(NA_LON_MIN, NA_LON_MAX)
+
+
+def _safe_float(value: Optional[float]) -> Optional[float]:
+    try:
+        if value is None or (isinstance(value, float) and np.isnan(value)):
+            return None
+        return float(value)
+    except Exception:
+        return None
 
 def haversine_distance_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     R = 6371.0
@@ -356,10 +552,16 @@ def find_nearest_dealers(current_lat: float, current_lon: float, dealers: List[D
     for d in dealers:
         if d.get("lat") is None or d.get("lon") is None:
             continue
-        dist = haversine_distance_km(current_lat, current_lon, d["lat"], d["lon"])
-        eta_minutes = int((dist / 40.0) * 60.0)  # assume average speed 40 km/h
-        rows.append({**d, "distance_km": round(dist, 2), "eta_min": max(5, eta_minutes)})
-    rows_sorted = sorted(rows, key=lambda r: r["distance_km"])
+        dist_km = haversine_distance_km(current_lat, current_lon, d["lat"], d["lon"])
+        dist_mi = km_to_miles(dist_km) or 0.0
+        eta_minutes = int((dist_km / 40.0) * 60.0)  # assume average speed 40 km/h
+        rows.append({
+            **d,
+            "distance_km": round(dist_km, 2),
+            "distance_miles": round(dist_mi, 2),
+            "eta_min": max(5, eta_minutes),
+        })
+    rows_sorted = sorted(rows, key=lambda r: r.get("distance_miles", float("inf")))
     return rows_sorted[:top_n]
 
 def estimate_repair_cost_range(model: str, part: str) -> Tuple[int, int]:
@@ -487,7 +689,7 @@ def robust_fetch_dealers(current_lat: float,
       - Deduplicates by rounded coordinates
       - If none within radius, returns the nearest remote matches (sorted by computed distance)
     Returns: (list_of_dealer_dicts, from_aws_flag)
-    Each dealer dict will include 'name','lat','lon','raw' (if available), 'distance_km', 'eta_min', 'source_query'
+    Each dealer dict will include 'name','lat','lon','raw' (if available), 'distance_miles', 'eta_min', 'source_query'
     """
     from_aws = False
     if not place_index_name:
@@ -508,8 +710,8 @@ def robust_fetch_dealers(current_lat: float,
     ]
     queries = [q for q in queries if q]
 
-    seen_keys = set()
-    nearby_results: List[Dict] = []
+    nearby_map: Dict[str, Dict] = {}
+    outside_map: Dict[str, Dict] = {}
 
     # Try queries in order, stop when we have top_n dealers within radius
     for q in queries:
@@ -531,84 +733,43 @@ def robust_fetch_dealers(current_lat: float,
         if not aws_items:
             continue
 
-        # mark that we successfully called AWS at least once
         from_aws = True
 
-        # process items: compute distance, dedupe, and keep within radius
         for it in aws_items:
-            # key by rounded coords (6 decimals) or fallback to name
-            key = None
             try:
                 key = f"{round(float(it['lat']),6)}_{round(float(it['lon']),6)}"
             except Exception:
                 key = it.get("name", "").lower().strip()
-            if key in seen_keys:
-                continue
-            seen_keys.add(key)
-
             dist_km = haversine_distance_km(current_lat, current_lon, it["lat"], it["lon"])
+            dist_miles = km_to_miles(dist_km) or 0.0
             eta_minutes = int((dist_km / 40.0) * 60.0)
             it_enriched = {
                 **it,
                 "distance_km_remote": it.get("distance_km"),  # if AWS provided any distance metadata
                 "distance_km": round(dist_km, 2),
+                "distance_miles": round(dist_miles, 2),
                 "eta_min": max(5, eta_minutes),
                 "source_query": q
             }
             if dist_km <= radius_km:
-                nearby_results.append(it_enriched)
+                existing = nearby_map.get(key)
+                if not existing or dist_miles < existing.get("distance_miles", float("inf")):
+                    nearby_map[key] = it_enriched
+            else:
+                existing = outside_map.get(key)
+                if not existing or dist_miles < existing.get("distance_miles", float("inf")):
+                    outside_map[key] = it_enriched
 
-        if len(nearby_results) >= top_n:
-            # enough nearby dealers found
+        if len(nearby_map) >= top_n:
             break
 
-    # if we have nearby results, sort & return top_n
-    if nearby_results:
-        nearby_results = sorted(nearby_results, key=lambda r: r["distance_km"])
-        return nearby_results[:top_n], from_aws
+    if nearby_map:
+        nearby_sorted = sorted(nearby_map.values(), key=lambda r: r.get("distance_miles", float("inf")))
+        return nearby_sorted[:top_n], from_aws
 
-    # If none found within radius_km, as a last resort collect a larger superset and return nearest matches
-    all_candidates = []
-    for q in queries:
-        try:
-            aws_items = fetch_dealers_from_aws_location(
-                current_lat=current_lat,
-                current_lon=current_lon,
-                place_index_name=place_index_name,
-                text_query=q,
-                max_results=max_results_per_query,  # fetch more to have a better chance of finding nearest
-                region_name=aws_region,
-                filter_countries=filter_countries,
-                debug=debug,
-            )
-        except Exception as e:
-            logger.debug(f"Dealer fetch failed for query '{q}' (second pass): {e}")
-            aws_items = []
-
-        for it in aws_items:
-            key = None
-            try:
-                key = f"{round(float(it['lat']),6)}_{round(float(it['lon']),6)}"
-            except Exception:
-                key = it.get("name", "").lower().strip()
-            if key in seen_keys:
-                continue
-            seen_keys.add(key)
-            dist_km = haversine_distance_km(current_lat, current_lon, it["lat"], it["lon"])
-            eta_minutes = int((dist_km / 40.0) * 60.0)
-            it_enriched = {
-                **it,
-                "distance_km_remote": it.get("distance_km"),
-                "distance_km": round(dist_km, 2),
-                "eta_min": max(5, eta_minutes),
-                "source_query": q
-            }
-            all_candidates.append(it_enriched)
-
-    # sort candidates by computed distance and return top_n (may be far away)
-    if all_candidates:
-        all_candidates = sorted(all_candidates, key=lambda r: r["distance_km"])
-        return all_candidates[:top_n], from_aws
+    if outside_map:
+        outside_sorted = sorted(outside_map.values(), key=lambda r: r.get("distance_miles", float("inf")))
+        return outside_sorted[:top_n], from_aws
 
     # nothing from AWS at all -> return empty, from_aws flag indicates whether any AWS call succeeded
     return [], from_aws
@@ -627,7 +788,7 @@ def fetch_nearest_dealers(current_lat: float,
     - Uses robust_fetch_dealers to try multiple queries + client-side filtering when place_index_name is provided.
     - If AWS yields nothing, falls back to provided fallback_dealers or a small local set.
     - Returns (nearest_dealers_list, from_aws_flag)
-    Each returned dealer dict includes 'name','lat','lon','distance_km','eta_min' and may include 'raw'.
+    Each returned dealer dict includes 'name','lat','lon','distance_miles','eta_min' and may include 'raw'.
     """
     try:
         if place_index_name:
@@ -1009,7 +1170,7 @@ def generate_enhanced_prescriptive_summary(model_name: str, part_name: str, mile
                 
                 f"For immediate service, the closest option is "
                 f"<span style='color:#C99700; font-weight:bold;'>{dealer_info['name']}</span>, "
-                f"located just {dealer_info['distance']:.1f} km away.",
+                f"located just {dealer_info['distance']:.1f} mi away.",
                 
                 f"Your nearest service center is "
                 f"<span style='color:#C99700; font-weight:bold;'>{dealer_info['name']}</span>, "
@@ -1444,9 +1605,13 @@ def get_dealer_recommendation(nearest_dealer: Optional[Dict]) -> Optional[Dict]:
             'eta': 0
         }
     
+    distance_miles = nearest_dealer.get('distance_miles')
+    if distance_miles is None and nearest_dealer.get('distance_km') is not None:
+        distance_miles = km_to_miles(nearest_dealer.get('distance_km'))
+
     return {
         'name': nearest_dealer.get('name', 'Nearest Service Center'),
-        'distance': nearest_dealer.get('distance_km', 0),
+        'distance': distance_miles if distance_miles is not None else 0,
         'eta': nearest_dealer.get('eta_min', 0)
     }
 
@@ -1514,7 +1679,7 @@ def generate_basic_enhanced_summary(model_name: str, part_name: str, claim_pct: 
             dealer_patterns = [
                 f"For immediate service, visit "
                 f"<span style='color:#C99700; font-weight:bold;'>{dealer_info['name']}</span>, "
-                f"located {dealer_info['distance']:.1f} km away.",
+                f"located {dealer_info['distance']:.1f} mi away.",
                 
                 f"Your nearest service center is "
                 f"<span style='color:#C99700; font-weight:bold;'>{dealer_info['name']}</span>, "

@@ -22,7 +22,7 @@ except ImportError:
 
 def calculate_risk_level(claim_pct: float) -> str:
     """Calculate risk level from claim percentage."""
-    if claim_pct >= config.risk.high_threshold:
+    if claim_pct > config.risk.high_threshold:
         return "High"
     elif claim_pct >= config.risk.medium_threshold:
         return "Medium"
@@ -402,44 +402,51 @@ def build_severity_map_data(df_log: pd.DataFrame, date_range=None, text_filter: 
     
     # Rename columns for consistency
     df_filtered = df_filtered.rename(columns={lat_col: "lat", lon_col: "lon"})
-    
-    # Group by location
-    df_locations = group_by_location(df_filtered, grid_size=0.3)  # ~33km grid
-    
-    if df_locations.empty:
+    df_filtered = df_filtered.dropna(subset=["lat", "lon"])
+    if df_filtered.empty:
         return []
-    
+
+    # Ensure prediction percentage column
+    pred_col = None
+    for col in ["pred_prob_pct", "pred_prob", "predictive_pct", "pred_pct"]:
+        if col in df_filtered.columns:
+            pred_col = col
+            break
+    if pred_col is None:
+        return []
+
+    if pred_col == "pred_prob":
+        df_filtered["pred_prob_pct"] = df_filtered[pred_col] * 100.0
+    elif pred_col != "pred_prob_pct":
+        df_filtered["pred_prob_pct"] = df_filtered[pred_col]
+    df_filtered["pred_prob_pct"] = pd.to_numeric(df_filtered["pred_prob_pct"], errors="coerce")
+    df_filtered = df_filtered.dropna(subset=["pred_prob_pct"])
+
+    if df_filtered.empty:
+        return []
+
     # Filter to North America bounds (roughly)
     na_mask = (
-        (df_locations["lat"] >= 25) & (df_locations["lat"] <= 70) &
-        (df_locations["lon"] >= -130) & (df_locations["lon"] <= -50)
+        (df_filtered["lat"] >= 25) & (df_filtered["lat"] <= 70) &
+        (df_filtered["lon"] >= -130) & (df_filtered["lon"] <= -50)
     )
-    df_locations = df_locations[na_mask]
-    
-    if df_locations.empty:
+    df_filtered = df_filtered[na_mask]
+
+    if df_filtered.empty:
         return []
-    
-    # Build map points
+
+    radius_lookup = {"High": 2500, "Medium": 2000, "Low": 1500}
+
+    # Build map points (one per VIN/record)
     map_points = []
-    for _, row in df_locations.iterrows():
-        severity = row["severity"]
-        count = int(row["count"])
-        avg_pred = row["avg_pred_pct"]
-        max_pred = row["max_pred_pct"]
-        
-        # Calculate bubble size based on count of inference records
-        # Size represents the number of records at this location
-        base_radius = 1500  # meters (further reduced for smaller bubbles)
-        # Use logarithmic scale to handle wide range of counts
-        size_multiplier = 1 + (math.log10(max(count, 1)) * 0.3)  # Further reduced coefficient
-        radius_m = base_radius * size_multiplier
-        
-        # Get color based on severity
+    for _, row in df_filtered.iterrows():
+        pred_pct = float(row.get("pred_prob_pct", 0))
+        severity = calculate_risk_level(pred_pct)
         fill_color = get_severity_color(severity, alpha=180)
         line_color = get_severity_color(severity, alpha=255)
-        
-        # Extract data for tooltip
-        event_timestamp = row.get("event_timestamp", None)
+        radius_m = radius_lookup.get(severity, 1500)
+
+        event_timestamp = row.get("timestamp", None)
         if pd.notna(event_timestamp) and event_timestamp:
             if isinstance(event_timestamp, pd.Timestamp):
                 event_str = event_timestamp.strftime("%Y-%m-%d %H:%M")
@@ -465,7 +472,7 @@ def build_severity_map_data(df_log: pd.DataFrame, date_range=None, text_filter: 
             if model == "":
                 model = "N/A"
         
-        pfp = row.get("primary_part", "N/A")
+        pfp = row.get("primary_failed_part", row.get("primary_part", "N/A"))
         if pd.isna(pfp) or pfp == "" or pfp is None or str(pfp).lower() in ["nan", "none", "n/a"]:
             pfp = "N/A"
         else:
@@ -473,7 +480,7 @@ def build_severity_map_data(df_log: pd.DataFrame, date_range=None, text_filter: 
             if pfp == "":
                 pfp = "N/A"
         
-        mileage = row.get("avg_mileage", None)
+        mileage = row.get("mileage", row.get("avg_mileage", None))
         if mileage is None or pd.isna(mileage):
             mileage_str = "N/A"
         else:
@@ -488,7 +495,7 @@ def build_severity_map_data(df_log: pd.DataFrame, date_range=None, text_filter: 
             except (ValueError, TypeError):
                 mileage_str = "N/A"
         
-        age = row.get("avg_age", 0)
+        age = row.get("age", row.get("avg_age", 0))
         if pd.isna(age) or age is None or age == 0:
             age_str = "N/A"
         else:
@@ -498,13 +505,16 @@ def build_severity_map_data(df_log: pd.DataFrame, date_range=None, text_filter: 
             except:
                 age_str = "N/A"
         
-        pred_pct_str = f"{avg_pred:.1f}%"
+        pred_pct_str = f"{pred_pct:.1f}%"
+        vin = row.get("vin", "N/A")
         
         # Create tooltip with all requested fields
         tooltip_html = (
             f"<div style='padding:12px; max-width:320px; background:rgba(15,15,15,0.95); border-radius:6px;'>"
             f"<div style='font-weight:700; font-size:15px; margin-bottom:10px; color:{'#ef4444' if severity=='High' else '#fbbf24' if severity=='Medium' else '#22c55e'};'>"
             f"{severity} Risk</div>"
+            f"<div style='font-size:12px; color:#d1d5db; margin-bottom:5px; line-height:1.6;'>"
+            f"<strong>VIN:</strong> {vin}</div>"
             f"<div style='font-size:12px; color:#d1d5db; margin-bottom:5px; line-height:1.6;'>"
             f"<strong>Location:</strong> {row['lat']:.3f}°N, {row['lon']:.3f}°W</div>"
             f"<div style='font-size:12px; color:#d1d5db; margin-bottom:5px; line-height:1.6;'>"
@@ -527,9 +537,7 @@ def build_severity_map_data(df_log: pd.DataFrame, date_range=None, text_filter: 
             "lon": float(row["lon"]),
             "position": [float(row["lon"]), float(row["lat"])],
             "severity": severity,
-            "count": count,
-            "avg_pred_pct": float(avg_pred),
-            "max_pred_pct": float(max_pred),
+            "avg_pred_pct": float(pred_pct),
             "radius_m": radius_m,
             "fill_color": fill_color,
             "line_color": line_color,
@@ -790,18 +798,6 @@ def render_severity_map(df_log: pd.DataFrame, date_range=None, text_filter: str 
         
         # Render map with reduced height for 40% column
         st.pydeck_chart(deck, use_container_width=True, height=200)
-        
-        # Additional insights
-        if high_count > 0:
-            st.markdown(
-                f"<div style='margin-top:12px; padding:10px; background:rgba(239,68,68,0.1); border-left:3px solid #ef4444; border-radius:4px;'>"
-                f"<div style='font-size:13px; color:#fca5a5; font-weight:600; margin-bottom:4px;'>High Risk Alert</div>"
-                f"<div style='font-size:12px; color:#cbd5e1;'>"
-                f"{high_count} location(s) with high-risk predictions requiring immediate attention. "
-                f"Review these areas for proactive maintenance and service scheduling.</div>"
-                f"</div>",
-                unsafe_allow_html=True
-            )
         
     except Exception as e:
         logger.error(f"Severity map rendering failed: {e}", exc_info=True)

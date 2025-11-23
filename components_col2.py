@@ -22,7 +22,8 @@ from helper import (
     append_inference_log,
     append_inference_log_s3,
     fetch_nearest_dealers,
-    reverse_geocode
+    reverse_geocode,
+    km_to_miles,
 )
 
 
@@ -41,6 +42,27 @@ def get_constants():
         'PLACE_INDEX_NAME': config.aws.place_index_name,
         'AWS_REGION': config.aws.region,
     }
+
+
+KM_TO_MILES_FACTOR = 0.621371
+MILES_TO_KM_FACTOR = 1 / KM_TO_MILES_FACTOR
+
+
+def _dealer_distance_miles(dealer: Optional[Dict]) -> Optional[float]:
+    """Utility to safely read distance in miles from dealer dict."""
+    if not dealer:
+        return None
+    if dealer.get("distance_miles") is not None:
+        return dealer.get("distance_miles")
+    if dealer.get("distance_km") is not None:
+        return km_to_miles(dealer.get("distance_km"))
+    return None
+
+
+def _format_distance_text(distance: Optional[float]) -> str:
+    if distance is None:
+        return "N/A"
+    return f"{distance:.1f} mi"
 
 
 def render_predictive_controls():
@@ -152,7 +174,7 @@ def generate_prediction(df_history: pd.DataFrame, model_pipe) -> Tuple[Dict, flo
     return inf_row, pred_prob
 
 
-def log_inference(inf_row: Dict, pred_prob: float) -> bool:
+def log_inference(inf_row: Dict, pred_prob: float, prescriptive_summary: Optional[str] = None) -> bool:
     """
     Log inference to S3 or local file.
     
@@ -172,15 +194,26 @@ def log_inference(inf_row: Dict, pred_prob: float) -> bool:
                     inf_row, pred_prob,
                     s3_bucket=constants['S3_BUCKET'],
                     s3_key=constants['LOG_FILE_S3_KEY'],
-                    local_fallback=constants['LOG_FILE_LOCAL']
+                    local_fallback=constants['LOG_FILE_LOCAL'],
+                    prescriptive_summary=prescriptive_summary
                 )
                 if appended:
                     logger.debug(f"Inference logged to S3: {inf_row.get('model')}/{inf_row.get('primary_failed_part')}")
             except Exception as e:
                 logger.warning(f"S3 logging failed, using local: {e}")
-                appended = append_inference_log(inf_row, pred_prob, filepath=constants['LOG_FILE_LOCAL'])
+                appended = append_inference_log(
+                    inf_row,
+                    pred_prob,
+                    filepath=constants['LOG_FILE_LOCAL'],
+                    prescriptive_summary=prescriptive_summary,
+                )
         else:
-            appended = append_inference_log(inf_row, pred_prob, filepath=constants['LOG_FILE_LOCAL'])
+            appended = append_inference_log(
+                inf_row,
+                pred_prob,
+                filepath=constants['LOG_FILE_LOCAL'],
+                prescriptive_summary=prescriptive_summary,
+            )
             if appended:
                 logger.debug("Inference logged locally")
         return appended
@@ -306,7 +339,7 @@ def render_prediction_kpi(pred_prob: float):
             <div class="kpi-num" style="color:{constants['NISSAN_RED']}; font-size:34px; line-height:1;">{pct_text}</div>
             </div>
             <div style="font-size:11px; color:#94a3b8; margin-top:6px;">
-                Alert if ≥ {int(st.session_state.get('predictive_threshold_pct', 80))}%
+                Alert if ≥ {int(st.session_state.get('predictive_threshold_pct', config.model.default_threshold_pct))}%
             </div>
         </div>
         </div>
@@ -355,15 +388,18 @@ def render_prescriptive_section(inf_row: Dict, pred_prob: float, render_summary_
         nearest = []
     
     # Render summary
+    summary_html = None
+
     if constants['IS_POC']:
         # Create a mock dealer for POC mode
         mock_dealer = {
             'name': 'United Nissan Dealer Service Center',
-            'distance_km': 19,
+            'distance_km': round(19 * MILES_TO_KM_FACTOR, 2),
+            'distance_miles': 19,
             'eta_min': 5
         }
         
-        render_summary_ui_func(
+        summary_html = render_summary_ui_func(
             'Sentra',
             'Engine Cooling System',
             '10200 miles',
@@ -379,7 +415,7 @@ def render_prescriptive_section(inf_row: Dict, pred_prob: float, render_summary_
         # Pass the first dealer as a dictionary, not just the name
         nearest_dealer = nearest[0] if nearest else None
         
-        render_summary_ui_func(
+        summary_html = render_summary_ui_func(
             inf_row['model'],
             inf_row['primary_failed_part'],
             mileage_display,
@@ -388,7 +424,7 @@ def render_prescriptive_section(inf_row: Dict, pred_prob: float, render_summary_
             nearest_dealer
         )
     
-    return nearest
+    return nearest, summary_html
 
 
 def build_map_points(inf_row: Dict, nearest_dealers: List[Dict], pred_prob: float) -> Tuple[List[Dict], List[Dict]]:
@@ -404,10 +440,13 @@ def build_map_points(inf_row: Dict, nearest_dealers: List[Dict], pred_prob: floa
         Tuple of (all_map_points, dealers_to_plot)
     """
     constants = get_constants()
-    MAX_KM_20_MILES = config.data.max_dealer_distance_km
+    max_distance_miles = km_to_miles(config.data.max_dealer_distance_km) or 20.0
     
     # Filter dealers within configured distance
-    nearby_dealers = [d for d in nearest_dealers if d.get("distance_km", 99999) <= MAX_KM_20_MILES]
+    nearby_dealers = [
+        d for d in nearest_dealers
+        if (_dealer_distance_miles(d) or float("inf")) <= max_distance_miles
+    ]
     dealers_to_plot = nearby_dealers if nearby_dealers else nearest_dealers[:3]
     
     map_points = []
@@ -427,7 +466,8 @@ def build_map_points(inf_row: Dict, nearest_dealers: List[Dict], pred_prob: floa
             "short_name": "United Nissan",
             "lat": 36.1434,
             "lon": -115.108,
-            "distance_km": 19,
+            "distance_km": round(19 * MILES_TO_KM_FACTOR, 2),
+            "distance_miles": 19,
             "eta_min": 5,
             "type": "Dealer",
             "tooltip": tooltip_html
@@ -442,7 +482,8 @@ def build_map_points(inf_row: Dict, nearest_dealers: List[Dict], pred_prob: floa
             
             name_full = d.get("name", "Nissan Dealer")
             short_name = name_full.split(",")[0]
-            dist_km = d.get("distance_km", "N/A")
+            dist_miles = _dealer_distance_miles(d)
+            dist_display = f"{dist_miles:.1f} mi" if dist_miles is not None else "N/A"
             eta = d.get("eta_min", "N/A")
             
             tooltip_html = (
@@ -450,7 +491,7 @@ def build_map_points(inf_row: Dict, nearest_dealers: List[Dict], pred_prob: floa
                 f"<div style='font-weight:700; font-size:14px; margin-bottom:6px;'>{_html.escape(short_name)}</div>"
                 f"<div style='font-size:13px; color:#d1d5db; margin-bottom:6px;'>"
                 f"{_html.escape(name_full)}</div>"
-                f"<div style='font-size:12px; color:#94a3b8;'>Distance: {dist_km} km — ETA: {eta} min</div>"
+                f"<div style='font-size:12px; color:#94a3b8;'>Distance: {dist_display} — ETA: {eta} min</div>"
                 f"</div>"
             )
             
@@ -459,7 +500,8 @@ def build_map_points(inf_row: Dict, nearest_dealers: List[Dict], pred_prob: floa
                 "short_name": short_name,
                 "lat": lat,
                 "lon": lon,
-                "distance_km": dist_km,
+                "distance_km": d.get("distance_km"),
+                "distance_miles": dist_miles,
                 "eta_min": eta,
                 "type": "Dealer",
                 "tooltip": tooltip_html
@@ -592,8 +634,11 @@ def render_map_visualization(map_points: List[Dict], dealers_to_plot: List[Dict]
     )
     
     # Show warning if no nearby dealers
-    MAX_KM_20_MILES = config.data.max_dealer_distance_km
-    has_nearby = any(d.get("type") == "Dealer" for d in map_points if d.get("distance_km", 99999) <= MAX_KM_20_MILES)
+    max_distance_miles = km_to_miles(config.data.max_dealer_distance_km) or 20.0
+    has_nearby = any(
+        d.get("type") == "Dealer" and (_dealer_distance_miles(d) or float("inf")) <= max_distance_miles
+        for d in map_points
+    )
     
     if not has_nearby and dealers_to_plot:
         st.markdown(
@@ -699,7 +744,9 @@ def render_map_visualization(map_points: List[Dict], dealers_to_plot: List[Dict]
             st.markdown("<div style='color:#94a3b8;'>No dealers within 20 miles.</div>", unsafe_allow_html=True)
         for d in dealers_to_plot:
             st.markdown(
-                f"- **{d.get('name','Nissan Dealer')}** — {d.get('distance_km','N/A')} km ({d.get('eta_min','N/A')} min). Phone: {d.get('phone','N/A')}"
+                f"- **{d.get('name','Nissan Dealer')}** — "
+                f"{_format_distance_text(_dealer_distance_miles(d))} "
+                f"({d.get('eta_min','N/A')} min). Phone: {d.get('phone','N/A')}"
             )
     
     st.markdown('<div style="height:8px;"></div>', unsafe_allow_html=True)
