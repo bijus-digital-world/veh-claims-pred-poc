@@ -138,6 +138,66 @@ def get_row_value(row: Dict, *keys, default=None):
 		return val
 	return default
 
+def validate_dtc_anomaly_data(df_history: pd.DataFrame, df_inference: pd.DataFrame, vin: Optional[str] = None) -> Dict:
+	"""
+	Validate that DTC and Anomaly data is available and return status information.
+	
+	Returns a dictionary with validation results for debugging.
+	"""
+	validation = {
+		"dtc_columns_available": [],
+		"anomaly_columns_available": [],
+		"dtc_records_found": 0,
+		"anomaly_records_found": 0,
+		"vin_checked": vin,
+		"history_has_vin_column": "vin" in df_history.columns if not df_history.empty else False,
+		"inference_has_vin_column": "vin" in df_inference.columns if not df_inference.empty else False,
+	}
+	
+	# Check DTC columns
+	dtc_columns = ["dtc_code", "dtc_subsystem", "dtc_severity", "dtc_recommendation", "dtc_explanation"]
+	for col in dtc_columns:
+		if col in df_history.columns:
+			validation["dtc_columns_available"].append(col)
+	
+	# Check Anomaly columns
+	anomaly_columns = ["anomaly_type", "anomaly_timestamp", "anomaly_severity", "anomaly_description"]
+	for col in anomaly_columns:
+		if col in df_history.columns:
+			validation["anomaly_columns_available"].append(col)
+		if col in df_inference.columns and col not in validation["anomaly_columns_available"]:
+			validation["anomaly_columns_available"].append(col)
+	
+	# Count records with DTC codes for the VIN
+	if vin and pd.notna(vin) and not df_history.empty and "vin" in df_history.columns and "dtc_code" in df_history.columns:
+		vin_history = df_history[
+			df_history["vin"].notna() & 
+			(df_history["vin"].astype(str).str.strip() == str(vin).strip()) &
+			df_history["dtc_code"].notna()
+		]
+		validation["dtc_records_found"] = len(vin_history)
+	
+	# Count records with anomalies for the VIN
+	if vin and pd.notna(vin):
+		anomaly_count = 0
+		if not df_history.empty and "vin" in df_history.columns and "anomaly_type" in df_history.columns:
+			vin_hist_anomalies = df_history[
+				df_history["vin"].notna() & 
+				(df_history["vin"].astype(str).str.strip() == str(vin).strip()) &
+				df_history["anomaly_type"].notna()
+			]
+			anomaly_count += len(vin_hist_anomalies)
+		if not df_inference.empty and "vin" in df_inference.columns and "anomaly_type" in df_inference.columns:
+			vin_inf_anomalies = df_inference[
+				df_inference["vin"].notna() & 
+				(df_inference["vin"].astype(str).str.strip() == str(vin).strip()) &
+				df_inference["anomaly_type"].notna()
+			]
+			anomaly_count += len(vin_inf_anomalies)
+		validation["anomaly_records_found"] = anomaly_count
+	
+	return validation
+
 def format_mileage_display(row: Dict) -> str:
 	"""Format mileage by preferring inference mileage and falling back to historical bucket."""
 	mileage_val = get_row_value(row, "mileage")
@@ -330,6 +390,16 @@ def render_vehicle_overview_card(row: Dict) -> None:
 	)
 	
 	status_chip = _build_status_chip(status)
+	gradient_palette = {
+		"Healthy": "#22c55e",
+		"Warning": "#f59e0b",
+		"Critical": "#ef4444",
+	}
+	gradient_start = gradient_palette.get(status, "#3b82f6")
+	gradient_bar_style = (
+		f"background-image: linear-gradient(90deg, {gradient_start} 0%, rgba(0,0,0,0.7) 60%, rgba(0,0,0,0.95) 100%); "
+		f"box-shadow: 0 0 12px {gradient_start}33;"
+	)
 	
 	# Last seen
 	timestamp = get_row_value(row, "timestamp", "telematics_timestamp", "date")
@@ -394,7 +464,7 @@ def render_vehicle_overview_card(row: Dict) -> None:
 	
 	st.markdown(f"""
 	<div class="dt-card" style="{GLASS_CARD_STYLE} border-radius: 14px; padding: 0; min-height: 280px; height: 280px; display: flex; flex-direction: column; overflow: hidden;">
-		<div style="width: 100%; height: 3px; background: linear-gradient(90deg, #c3002f 0%, #000000 100%); flex-shrink: 0;"></div>
+		<div class="dt-gradient-strip" style="{gradient_bar_style}"></div>
 		<div style="padding: 20px 24px; flex: 1; display: flex; flex-direction: column;">
 			<div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
 				<div style="font-size: 20px; font-weight: 600; color: {COLORS['text_light']};">
@@ -796,13 +866,42 @@ def render_sensor_snapshot(row: Dict) -> None:
 
 	st.markdown(card_html, unsafe_allow_html=True)
 
-def render_dtc_panel(row: Dict) -> None:
+def render_dtc_panel(row: Dict, df_history: Optional[pd.DataFrame] = None, vin: Optional[str] = None) -> None:
 	"""Render DTC Fault Panel (bottom-right) with enhanced styling"""
+	# First try to get DTC data from the row
 	dtc_code = get_row_value(row, "dtc_code")
 	dtc_subsystem = get_row_value(row, "dtc_subsystem")
 	dtc_recommendation = get_row_value(row, "dtc_recommendation")
 	dtc_explanation = get_row_value(row, "dtc_explanation")
 	dtc_severity = get_row_value(row, "dtc_severity")
+	
+	# If no DTC code in row, try to find the most recent DTC from historical data
+	if (not dtc_code or pd.isna(dtc_code)) and df_history is not None and vin and pd.notna(vin):
+		# Filter historical data for this VIN with DTC codes
+		if "vin" in df_history.columns and "dtc_code" in df_history.columns:
+			vin_history = df_history[
+				df_history["vin"].notna() & 
+				(df_history["vin"].astype(str).str.strip() == str(vin).strip()) &
+				df_history["dtc_code"].notna()
+			].copy()
+			
+			if not vin_history.empty:
+				# Get most recent DTC record
+				if "telematics_timestamp" in vin_history.columns:
+					vin_history = vin_history.sort_values("telematics_timestamp", ascending=False)
+				elif "date" in vin_history.columns:
+					vin_history = vin_history.sort_values("date", ascending=False)
+				
+				latest_dtc_record = vin_history.iloc[0]
+				dtc_code = get_row_value(latest_dtc_record.to_dict(), "dtc_code", default=dtc_code)
+				if not dtc_subsystem or pd.isna(dtc_subsystem):
+					dtc_subsystem = get_row_value(latest_dtc_record.to_dict(), "dtc_subsystem", default=dtc_subsystem)
+				if not dtc_recommendation or pd.isna(dtc_recommendation):
+					dtc_recommendation = get_row_value(latest_dtc_record.to_dict(), "dtc_recommendation", default=dtc_recommendation)
+				if not dtc_explanation or pd.isna(dtc_explanation):
+					dtc_explanation = get_row_value(latest_dtc_record.to_dict(), "dtc_explanation", default=dtc_explanation)
+				if not dtc_severity or pd.isna(dtc_severity):
+					dtc_severity = get_row_value(latest_dtc_record.to_dict(), "dtc_severity", default=dtc_severity)
 	
 	# DTC icon SVG - Wrench/tool icon representing diagnostics and troubleshooting
 	dtc_icon = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14.7 6.3C15.1 6.7 15.1 7.3 14.7 7.7L9.7 12.7C9.3 13.1 8.7 13.1 8.3 12.7L5.3 9.7C4.9 9.3 4.9 8.7 5.3 8.3L10.3 3.3C10.7 2.9 11.3 2.9 11.7 3.3L14.7 6.3Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M19.5 19.5L16.5 16.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
@@ -950,44 +1049,29 @@ def render_dtc_panel(row: Dict) -> None:
 	
 	st.markdown(card_html, unsafe_allow_html=True)
 
-def render_anomalies_timeline(df_history: pd.DataFrame, vin: str) -> None:
-	"""Render Recent Anomalies Timeline"""
-	# Filter anomalies for this VIN
-	if "vin" not in df_history.columns:
-		# Anomaly icon SVG - Timeline/activity graph representing anomaly detection over time
-		anomaly_icon = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 3V21H21" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 16L10 13L14 17L21 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7" cy="16" r="1.5" fill="currentColor"/><circle cx="10" cy="13" r="1.5" fill="currentColor"/><circle cx="14" cy="17" r="1.5" fill="currentColor"/><circle cx="21" cy="10" r="1.5" fill="currentColor"/></svg>'
-		
+def render_anomalies_timeline(df_history: pd.DataFrame, df_inference: pd.DataFrame, vin: Optional[str] = None) -> None:
+	"""
+	Render Recent Anomalies Timeline showing anomalies from both historical and inference data.
+	
+	Collects anomalies from both data sources, deduplicates based on type, timestamp, and description,
+	and displays them in chronological order. Allows the same DTC to appear multiple times if it
+	occurred on different dates to show timeline progression.
+	
+	Args:
+		df_history: Historical telematics data containing anomalies
+		df_inference: Inference log data containing recent anomalies
+		vin: Vehicle identification number to filter anomalies
+	"""
+	# Constants
+	ANOMALY_ICON_SVG = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 3V21H21" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 16L10 13L14 17L21 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7" cy="16" r="1.5" fill="currentColor"/><circle cx="10" cy="13" r="1.5" fill="currentColor"/><circle cx="14" cy="17" r="1.5" fill="currentColor"/><circle cx="21" cy="10" r="1.5" fill="currentColor"/></svg>'
+	MAX_TIMELINE_ENTRIES = 4
+	
+	def _render_empty_state():
+		"""Render empty state when no VIN or no anomalies are found"""
 		st.markdown(f"""
 		<div class="dt-card" style="{GLASS_CARD_STYLE} border-radius: 14px; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 200px;">
 			<div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; margin-bottom: 12px; color: {COLORS['text_muted']};">
-				{anomaly_icon}
-			</div>
-			<div style="font-size: 14px; font-weight: 600; color: {COLORS['text_light']}; margin-bottom: 8px;">
-				Recent Anomalies Timeline
-			</div>
-			<div style="color: {COLORS['text_muted']}; font-size: 13px; text-align: center;">
-				No anomaly data available
-			</div>
-		</div>
-		""", unsafe_allow_html=True)
-		return
-	
-	vin_data = df_history[df_history["vin"] == vin].copy()
-	
-	# Get anomalies (non-null anomaly_type)
-	if "anomaly_type" not in vin_data.columns:
-		anomalies = pd.DataFrame()
-	else:
-		anomalies = vin_data[vin_data["anomaly_type"].notna()].copy()
-	
-	if anomalies.empty:
-		# Anomaly icon SVG - Timeline/activity graph representing anomaly detection over time
-		anomaly_icon = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 3V21H21" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 16L10 13L14 17L21 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7" cy="16" r="1.5" fill="currentColor"/><circle cx="10" cy="13" r="1.5" fill="currentColor"/><circle cx="14" cy="17" r="1.5" fill="currentColor"/><circle cx="21" cy="10" r="1.5" fill="currentColor"/></svg>'
-		
-		st.markdown(f"""
-		<div class="dt-card" style="{GLASS_CARD_STYLE} border-radius: 14px; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 200px;">
-			<div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; margin-bottom: 12px; color: {COLORS['text_muted']};">
-				{anomaly_icon}
+				{ANOMALY_ICON_SVG}
 			</div>
 			<div style="font-size: 14px; font-weight: 600; color: {COLORS['text_light']}; margin-bottom: 8px;">
 				Recent Anomalies Timeline
@@ -997,10 +1081,107 @@ def render_anomalies_timeline(df_history: pd.DataFrame, vin: str) -> None:
 			</div>
 		</div>
 		""", unsafe_allow_html=True)
+	
+	def _get_event_timestamp(row: pd.Series) -> pd.Timestamp:
+		"""
+		Extract the actual event timestamp from an anomaly record.
+		
+		Priority order:
+		1. timestamp (inference log - when prediction occurred)
+		2. telematics_timestamp (historical - when telematics data received)
+		3. date (historical - event date)
+		4. anomaly_timestamp (stored timestamp - last resort)
+		"""
+		for col in ["timestamp", "telematics_timestamp", "date", "anomaly_timestamp"]:
+			if col in row.index and pd.notna(row.get(col)):
+				return row.get(col)
+		return pd.NaT
+	
+	def _normalize_timestamps(df: pd.DataFrame) -> pd.DataFrame:
+		"""Convert all timestamp columns to datetime objects"""
+		timestamp_cols = ["anomaly_timestamp", "timestamp", "telematics_timestamp", "date"]
+		for col in timestamp_cols:
+			if col in df.columns:
+				df[col] = pd.to_datetime(df[col], errors="coerce")
+		return df
+	
+	if not vin or pd.isna(vin):
+		_render_empty_state()
 		return
 	
-	# Sort by timestamp (most recent first) and take top 4
-	anomalies = anomalies.sort_values("anomaly_timestamp", ascending=False).head(4)
+	# Collect anomalies from both historical and inference data
+	all_anomalies = []
+	
+	# Get anomalies from historical data
+	if not df_history.empty and "vin" in df_history.columns:
+		vin_data = df_history[
+			df_history["vin"].notna() & 
+			(df_history["vin"].astype(str).str.strip() == str(vin).strip())
+		].copy()
+		if not vin_data.empty and "anomaly_type" in vin_data.columns:
+			hist_anomalies = vin_data[vin_data["anomaly_type"].notna()].copy()
+			if not hist_anomalies.empty:
+				hist_anomalies = _normalize_timestamps(hist_anomalies)
+				# Create anomaly_timestamp from available timestamp column for consistency
+				if "anomaly_timestamp" not in hist_anomalies.columns:
+					for col in ["telematics_timestamp", "date"]:
+						if col in hist_anomalies.columns:
+							hist_anomalies["anomaly_timestamp"] = hist_anomalies[col]
+							break
+				all_anomalies.append(hist_anomalies)
+	
+	# Get anomalies from inference log
+	if not df_inference.empty and "vin" in df_inference.columns:
+		inf_vin_data = df_inference[
+			df_inference["vin"].notna() & 
+			(df_inference["vin"].astype(str).str.strip() == str(vin).strip())
+		].copy()
+		if not inf_vin_data.empty and "anomaly_type" in inf_vin_data.columns:
+			inf_anomalies = inf_vin_data[inf_vin_data["anomaly_type"].notna()].copy()
+			if not inf_anomalies.empty:
+				inf_anomalies = _normalize_timestamps(inf_anomalies)
+				all_anomalies.append(inf_anomalies)
+	
+	# Combine all anomalies into single DataFrame
+	anomalies = pd.concat(all_anomalies, ignore_index=True) if all_anomalies else pd.DataFrame()
+	
+	# Process and deduplicate anomalies
+	if anomalies.empty:
+		_render_empty_state()
+		return
+	
+	# Normalize all timestamp columns
+	anomalies = _normalize_timestamps(anomalies)
+	
+	# Create unified timestamp column using actual event timestamps
+	anomalies["_unified_timestamp"] = anomalies.apply(_get_event_timestamp, axis=1)
+	
+	# Build deduplication columns - remove exact duplicates (same type, timestamp, description)
+	# Allow same DTC to appear multiple times if occurred on different dates
+	dedup_cols = ["anomaly_type", "_unified_timestamp"]
+	if "anomaly_description" in anomalies.columns:
+		dedup_cols.append("anomaly_description")
+	
+	# Filter to only columns that exist
+	dedup_cols = [col for col in dedup_cols if col in anomalies.columns]
+	
+	# Deduplicate and sort by unified timestamp (most recent first)
+	if dedup_cols and "_unified_timestamp" in dedup_cols:
+		anomalies = anomalies.sort_values("_unified_timestamp", ascending=False, na_position='last')
+		anomalies = anomalies.drop_duplicates(subset=dedup_cols, keep="first")
+	
+	# Prepare display timestamp for final sorting and rendering
+	anomalies["_display_timestamp"] = anomalies["_unified_timestamp"] if "_unified_timestamp" in anomalies.columns else anomalies.apply(_get_event_timestamp, axis=1)
+	
+	# Sort by display timestamp (most recent first) and take top N entries
+	if "_display_timestamp" in anomalies.columns:
+		anomalies = anomalies.sort_values("_display_timestamp", ascending=False, na_position='last').head(MAX_TIMELINE_ENTRIES)
+	else:
+		anomalies = anomalies.head(MAX_TIMELINE_ENTRIES)
+	
+	# Clean up temporary columns
+	if "_unified_timestamp" in anomalies.columns and "_unified_timestamp" != "_display_timestamp":
+		anomalies = anomalies.drop(columns=["_unified_timestamp"])
 	
 	# SVG Icon mapping with color coding
 	icon_map = {
@@ -1097,9 +1278,17 @@ def render_anomalies_timeline(df_history: pd.DataFrame, vin: str) -> None:
 	
 	for idx, (_, anomaly) in enumerate(anomalies.iterrows()):
 		anomaly_type = anomaly.get("anomaly_type", "Unknown")
-		anomaly_time = anomaly.get("anomaly_timestamp")
 		anomaly_severity = anomaly.get("anomaly_severity", "INFO")
 		anomaly_description = anomaly.get("anomaly_description", "")
+		
+		# Get timestamp for display - prefer display timestamp, fallback to others
+		anomaly_time = (
+			anomaly.get("_display_timestamp") or
+			anomaly.get("anomaly_timestamp") or
+			anomaly.get("timestamp") or
+			anomaly.get("telematics_timestamp") or
+			anomaly.get("date")
+		)
 		
 		icon_data = icon_map.get(anomaly_type, {
 			"svg": '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/><path d="M12 8V12M12 16H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
@@ -1110,7 +1299,10 @@ def render_anomalies_timeline(df_history: pd.DataFrame, vin: str) -> None:
 		icon_color = severity_map.get(anomaly_severity, icon_data["color"])
 		
 		if pd.notna(anomaly_time):
-			time_str = format_time_ago(pd.Timestamp(anomaly_time))
+			try:
+				time_str = format_time_ago(pd.Timestamp(anomaly_time))
+			except:
+				time_str = "Unknown"
 		else:
 			time_str = "Unknown"
 		
@@ -1544,6 +1736,14 @@ def render_digital_twin_dashboard(df_history: pd.DataFrame, df_inference: pd.Dat
 			opacity: 0.7;
 		}
 	}
+	@keyframes dtGradientSlide {
+		0% {
+			background-position: 0% 50%;
+		}
+		100% {
+			background-position: 100% 50%;
+		}
+	}
 	.digital-twin-container {
 		max-width: 1100px;
 		margin: 0 auto;
@@ -1652,6 +1852,14 @@ def render_digital_twin_dashboard(df_history: pd.DataFrame, df_inference: pd.Dat
 	}
 	.dt-card:hover::after {
 		opacity: 0.5;
+	}
+	.dt-gradient-strip {
+		width: 100%;
+		height: 3px;
+		background-size: 300% 100%;
+		animation: dtGradientSlide 4s linear infinite;
+		flex-shrink: 0;
+		border-radius: 999px;
 	}
 	.dt-card-header {
 		display: flex;
@@ -1922,6 +2130,17 @@ def render_digital_twin_dashboard(df_history: pd.DataFrame, df_inference: pd.Dat
 			if not row.get("model") or str(row.get("model")).strip().lower() != str(historical_model).strip().lower():
 				row["model"] = historical_model
 	
+	# Validate DTC and Anomaly data availability (for debugging)
+	if config and hasattr(config, 'debug') and config.debug:
+		validation = validate_dtc_anomaly_data(df_history, df_inference, selected_vin)
+		logger.debug(f"Digital Twin Data Validation for VIN {selected_vin}:")
+		logger.debug(f"  DTC columns available: {validation['dtc_columns_available']}")
+		logger.debug(f"  Anomaly columns available: {validation['anomaly_columns_available']}")
+		logger.debug(f"  DTC records found: {validation['dtc_records_found']}")
+		logger.debug(f"  Anomaly records found: {validation['anomaly_records_found']}")
+		logger.debug(f"  Row DTC code: {row.get('dtc_code')}")
+		logger.debug(f"  Row has DTC columns: dtc_code={('dtc_code' in row)}, dtc_subsystem={('dtc_subsystem' in row)}, dtc_severity={('dtc_severity' in row)}")
+	
 	# Top row: Vehicle Overview, Key Sensor Snapshot, and Health Score
 	st.markdown('<div class="dt-section">', unsafe_allow_html=True)
 	tcol_left, col1, col2, col3, col_right = st.columns([.25, 1, 1, 1, .25], gap="medium")
@@ -1947,10 +2166,10 @@ def render_digital_twin_dashboard(df_history: pd.DataFrame, df_inference: pd.Dat
 	tcol_left, col_dtc, col_test, col_right = st.columns([.17, 1, 1, .17], gap="medium")
 	
 	with col_dtc:
-		render_dtc_panel(row)
+		render_dtc_panel(row, df_history, selected_vin)
 	
 	with col_test:
-		render_anomalies_timeline(df_history, selected_vin)
+		render_anomalies_timeline(df_history, df_inference, selected_vin)
 	
 	st.markdown('</div>', unsafe_allow_html=True)
 

@@ -1234,7 +1234,7 @@ def render_model_distribution_chart(df_log: pd.DataFrame, date_range=None, text_
         text=(
             f"<span style='font-size: 11px; color: #94a3b8; font-weight: 500; letter-spacing: 0.5px;'>TOTAL</span><br>" +
             f"<span style='font-size: 28px; color: #ffffff; font-weight: 700; line-height: 1.2;'>{total_display:,}</span><br>" +
-            f"<span style='font-size: 10px; color: #64748b; font-weight: 400;'>Records</span>"
+            f"<span style='font-size: 10px; color: #64748b; font-weight: 400;'>Vehicles</span>"
         ),
         x=0.5,
         y=0.5,
@@ -1417,7 +1417,7 @@ def render_pfp_distribution_chart(df_log: pd.DataFrame, date_range=None, text_fi
         text=(
             f"<span style='font-size: 11px; color: #94a3b8; font-weight: 500; letter-spacing: 0.5px;'>TOTAL</span><br>" +
             f"<span style='font-size: 28px; color: #ffffff; font-weight: 700; line-height: 1.2;'>{total_display:,}</span><br>" +
-            f"<span style='font-size: 10px; color: #64748b; font-weight: 400;'>Records</span>"
+            f"<span style='font-size: 10px; color: #64748b; font-weight: 400;'>Vehicles</span>"
         ),
         x=0.5,
         y=0.5,

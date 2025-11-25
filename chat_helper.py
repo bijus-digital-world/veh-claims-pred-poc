@@ -134,7 +134,7 @@ def summarize_overall_metric(df: pd.DataFrame, metric_col: str, top_n: int = 6) 
         
         # Compose canonical output (includes both sum + incidents + averages + top models)
         html_lines = [
-            f"<p><strong>{summary}</strong></p>",
+            f"<p>{summary}</p>",
             f"<p><strong>Detailed breakdown for {_html.escape(label)}:</strong></p>",
             "<ul style='margin-top:6px;'>",
             f"<li><strong>Total ({label}):</strong> {total_metric}</li>",
@@ -776,24 +776,14 @@ def _requested_missing_columns(user_text: str, df_cols) -> dict:
 # -------------------------
 def generate_reply(user_text: str,
                    df_history: pd.DataFrame,
-                   faiss_res: dict,
-                   tfidf_vect,
-                   tfidf_X,
-                   tfidf_rows,
                    get_bedrock_summary_callable,
-                   top_k: Optional[int] = None,
                    conversation_context=None) -> str:
     """
     Main entry used by app.py to produce assistant HTML reply.
     
-    NEW: Uses modular handler pattern for better maintainability.
-    Ensures overall-first, breakdown-second presentation.
-    Uses config default for top_k if not provided.
+    Uses modular handler pattern for better maintainability.
     """
     from chat.handlers import QueryRouter, QueryContext
-    
-    # Apply config default
-    top_k = top_k or config.data.rag_top_k
     
     ut = (user_text or "").strip()
     logger.info(f"Processing chat query: '{ut[:100]}...'")
@@ -812,12 +802,7 @@ def generate_reply(user_text: str,
     context = QueryContext(
         query=ut,
         df_history=df_history,
-        faiss_res=faiss_res,
-        tfidf_vect=tfidf_vect,
-        tfidf_X=tfidf_X,
-        tfidf_rows=tfidf_rows,
         get_bedrock_summary_callable=get_bedrock_summary_callable,
-        top_k=top_k,
         conversation_context=conversation_context
     )
     

@@ -1,6 +1,8 @@
 # ==================== Core Web Framework ====================
 streamlit==1.45.0
 streamlit-autorefresh==1.0.1
+streamlit-modal==0.1.2
+streamlit-aggrid==0.3.4.post3
 
 # ==================== Data Processing ====================
 pandas==2.3.3
@@ -15,9 +17,7 @@ altair==5.5.0                    # Optional: for additional charts
 matplotlib==3.10.7               # Optional: for static plots
 Pillow==11.3.0                   # Image processing
 
-# ==================== ML & Vector Search (Enhanced Chat) ====================  
-sentence-transformers==5.1.1     # For semantic search embeddings
-faiss-cpu==1.12.0                # For fast vector similarity search
+# ==================== ML & Model Training ====================
 joblib==1.5.2                    # For model serialization
 
 # ==================== AWS Integration ====================
@@ -36,5 +36,7 @@ streamlit-audiorecorder==0.0.6   # Audio recording for Streamlit
 pydub==0.25.1                    # Audio processing (requires FFmpeg for WAV conversion)
 # Note: wave and audioop are part of Python standard library (removed in Python 3.13)
 
-streamlit-modal==0.1.2
-streamlit-aggrid==0.3.4.post3
+# ==================== Optional: Vector Search (Not used in chat handlers) ====================
+# These are kept for backward compatibility but not actively used in the chat flow
+# sentence-transformers==5.1.1     # For semantic search embeddings (optional)
+# faiss-cpu==1.12.0                # For fast vector similarity search (optional)

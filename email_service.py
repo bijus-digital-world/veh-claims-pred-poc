@@ -311,7 +311,7 @@ def show_email_confirmation(vehicle_data: Dict[str, Any]) -> bool:
     
     col1, col2 = st.columns(2)
     with col1:
-        send_email = st.button("✅ Send Email", key=f"{confirm_key}_send", type="primary")
+        send_email = st.button("Send Email", key=f"{confirm_key}_send", type="primary")
     with col2:
         cancel_email = st.button("❌ Cancel", key=f"{confirm_key}_cancel")
     

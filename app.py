@@ -1,4 +1,5 @@
 import os
+from typing import Optional, Dict
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -278,14 +279,14 @@ def _badge_html(risk_token, pct):
     )
 
 
-def render_summary_ui(model_name, part_name, mileage_bucket, age_bucket, claim_pct, nearest_dealer=None, llm_model_id=None, region="us-east-1"):
+def render_summary_ui(model_name, part_name, mileage_bucket, age_bucket, claim_pct, nearest_dealer=None, llm_model_id=None, region="us-east-1", vehicle_context: Optional[Dict] = None):
     default_threshold = config.model.default_threshold_pct
     try:
         if claim_pct >= int(st.session_state.get('predictive_threshold_pct', default_threshold)):
             # Use enhanced prescriptive summary for high-risk predictions (above threshold)
             summary_html = generate_enhanced_prescriptive_summary(
                 model_name, part_name, mileage_bucket, age_bucket, claim_pct, 
-                df_history, nearest_dealer
+                df_history, nearest_dealer, vehicle_context=vehicle_context
             )
         else:
             # Show hardcoded value (for predictions below threshold)
@@ -335,14 +336,16 @@ def render_summary_ui(model_name, part_name, mileage_bucket, age_bucket, claim_p
     pct_match = re.search(r'\((\d{1,3})%\)', re.sub(r'<[^>]+>', '', first_para_html))
     pct = f"{pct_match.group(1)}%" if pct_match else f"{round(claim_pct)}%"
 
-    # Use enhanced summary for all modes (it handles threshold logic internally)
+    # Show risk badge above the textual summary to better use vertical space
     combined_html = (
-        '<div style="display:flex; align-items:center; gap:12px;">'
-        f'{_badge_html(risk_token, pct)}'
-        f'<div style="flex:1; min-width:0; font-size:1.02rem; line-height:1.35; color:#e6eef8; '
+        '<div style="display:flex; flex-direction:column; gap:12px;">'
+        f'  <div style="display:flex; align-items:center; justify-content:flex-start;">'
+        f'    {_badge_html(risk_token, pct)}'
+        f'  </div>'
+        f'  <div style="flex:1; min-width:0; font-size:1.02rem; line-height:1.35; color:#e6eef8; '
         f'overflow-wrap:break-word; word-break:break-word;">'
         f'{summary_html}'
-        f'</div>'
+        f'  </div>'
         '</div>'
     )
 
@@ -445,7 +448,7 @@ st.markdown(
 
       <div style="display:flex;align-items:center;gap:18px; font-size:12px; color:#374151;">
         <a href="?page=dashboard" style="text-decoration:none; color:inherit;">Dashboard</a>
-        <a href="?page=inference" style="text-decoration:none; color:inherit;">Real-Time Vehicle Feed</a>
+        <a href="?page=inference" style="text-decoration:none; color:inherit;">Event Based Analytics</a>
         <a href="?page=digital_twin" style="text-decoration:none; color:inherit;">Digital Twin</a>
         <img src="data:image/svg+xml;base64,{logo_b64}" style="height:26px"/>
       </div>
@@ -977,27 +980,41 @@ def render_chat_interface():
                 if role == "user":
                     text = _html.escape(m.get("text", ""))
                     messages_html += (
-                        f'<div style="text-align:right; margin-bottom:8px; color:#e6eef8;">'
-                        f'<strong>You</strong> <span style="font-size:11px;color:#94a3b8;">{ts}</span>'
-                        f'<div style="margin-top:4px;">{text}</div></div>'
+                        f'<div style="text-align:right; margin-bottom:10px; color:#e6eef8; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-size: 12px; line-height: 1.5;">'
+                        f'<div style="display:inline-flex; align-items:center; gap:6px; margin-bottom:4px;">'
+                        f'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;">'
+                        f'<path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z" fill="#94a3b8" opacity="0.9"></path>'
+                        f'<path d="M12 14c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" fill="#94a3b8" opacity="0.9"></path>'
+                        f'</svg>'
+                        f'<span style="font-size:10px;color:#94a3b8; font-weight:400;">{ts}</span></div>'
+                        f'<div style="margin-top:4px; font-weight:400; letter-spacing:0.01em;">{text}</div></div>'
                     )
                 else:
                     assistant_html = (m.get("text") or "").replace("\n", "<br/>")
                     messages_html += (
-                        f'<div style="text-align:left; margin-bottom:8px; color:#cfe9ff;">'
-                        f'<strong>Assistant</strong> <span style="font-size:11px;color:#94a3b8;">{ts}</span>'
-                        f'<div style="margin-top:4px;">{assistant_html}</div></div>'
+                        f'<div style="text-align:left; margin-bottom:10px; color:#cfe9ff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-size: 12px; line-height: 1.5;">'
+                        f'<div style="display:inline-flex; align-items:center; gap:6px; margin-bottom:4px;">'
+                        f'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;">'
+                        f'<rect x="3" y="4" width="18" height="16" rx="2" fill="#94a3b8" opacity="0.9"></rect>'
+                        f'<circle cx="9" cy="10" r="1.5" fill="#0b0f13"></circle>'
+                        f'<circle cx="15" cy="10" r="1.5" fill="#0b0f13"></circle>'
+                        f'<path d="M9 14.5c0 1.1 1.1 2.5 3 2.5s3-1.4 3-2.5" stroke="#0b0f13" stroke-width="1.2" stroke-linecap="round" fill="none"></path>'
+                        f'</svg>'
+                        f'<span style="font-size:10px;color:#94a3b8; font-weight:400;">{ts}</span></div>'
+                        f'<div style="margin-top:4px; font-weight:400; letter-spacing:0.01em;">{assistant_html}</div></div>'
                     )
 
         full_html = f"""
         <div id="chat-pane" style="
             height:{pane_height}px;
             overflow-y:auto;
-            padding:8px;
+            padding:10px 12px;
             background:#0b1220;
             border-radius:6px;
             border: 1px solid #334155;
-            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-size:12px;
+            line-height:1.5;
         ">
             {messages_html}
         </div>
@@ -1542,20 +1559,37 @@ python -m pip install streamlit-audiorecorder==0.0.6 pydub==0.25.1
                                 # Generate assistant reply (same as Send button)
                                 start_time = time.time()
                                 try:
+                                    # Show custom status indicator matching chart-header style with spinner
+                                    status_placeholder = st.empty()
+                                    status_placeholder.markdown(
+                                        '''<div class="chart-header" style="display: flex; align-items: center; gap: 8px;">
+                                            <div class="spinner" style="width: 14px; height: 14px; border: 2px solid rgba(148, 163, 184, 0.3); border-top-color: #94a3b8; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+                                            Processing your query...
+                                        </div>
+                                        <style>
+                                        @keyframes spin {
+                                            to { transform: rotate(360deg); }
+                                        }
+                                        </style>''',
+                                        unsafe_allow_html=True
+                                    )
+                                    
                                     assistant_html = chat_generate_reply(
                                         q,
                                         df_history,
-                                        faiss_res,
-                                        VECT_CHAT,
-                                        X_CHAT,
-                                        HISTORY_ROWS_CHAT,
                                         get_bedrock_summary,
-                                        top_k=6,
                                         conversation_context=st.session_state.conversation_memory
                                     )
+                                    
+                                    # Clear status indicator
+                                    status_placeholder.empty()
+                                    
                                     duration_ms = (time.time() - start_time) * 1000
                                     logger.info(f"Generated reply for voice query in {duration_ms:.2f}ms")
                                 except Exception as e:
+                                    # Clear status indicator on error
+                                    if 'status_placeholder' in locals():
+                                        status_placeholder.empty()
                                     logger.error(f"Error generating reply for voice query '{q[:50]}...': {e}", exc_info=True)
                                     assistant_html = f"<p>Error generating reply: {_html.escape(str(e))}</p>"
                                     duration_ms = (time.time() - start_time) * 1000
@@ -1647,22 +1681,38 @@ python -m pip install streamlit-audiorecorder==0.0.6 pydub==0.25.1
                     # Generating chat reply
                     start_time = time.time()
                     
+                    # Show custom status indicator matching chart-header style with spinner
+                    status_placeholder = st.empty()
+                    status_placeholder.markdown(
+                        '''<div class="chart-header" style="display: flex; align-items: center; gap: 8px;">
+                            <div class="spinner" style="width: 14px; height: 14px; border: 2px solid rgba(148, 163, 184, 0.3); border-top-color: #94a3b8; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+                            Processing your query...
+                        </div>
+                        <style>
+                        @keyframes spin {
+                            to { transform: rotate(360deg); }
+                        }
+                        </style>''',
+                        unsafe_allow_html=True
+                    )
+                    
                     assistant_html = chat_generate_reply(
                         q,
                         df_history,
-                        faiss_res,
-                        VECT_CHAT,
-                        X_CHAT,
-                        HISTORY_ROWS_CHAT,
                         get_bedrock_summary,
-                        top_k=6,
                         conversation_context=st.session_state.conversation_memory
                     )
+                    
+                    # Clear status indicator
+                    status_placeholder.empty()
                     
                     duration_ms = (time.time() - start_time) * 1000
                     # Chat reply generated successfully
                     
                 except Exception as e:
+                    # Clear status indicator on error
+                    if 'status_placeholder' in locals():
+                        status_placeholder.empty()
                     logger.error(f"Chat reply generation failed for query '{q[:50]}...': {e}", exc_info=True)
                     assistant_html = f"<p>Error generating reply: {_html.escape(str(e))}</p>"
 
@@ -1866,7 +1916,7 @@ if page == "inference":
     with table_col:
         header_cols = st.columns([1.6, 1.1, 1.4, 0.5], gap="small")
         with header_cols[0]:
-            st.markdown('<div class="card-header" style="margin-bottom:0; padding:8px 12px;">Real-Time Vehicle Feed</div>', unsafe_allow_html=True)
+            st.markdown('<div class="card-header" style="margin-bottom:0; padding:8px 12px;">Event Based Analytics</div>', unsafe_allow_html=True)
     
     with empty_col:
         # Render header matching Streamlit input label style (like "Date range")
@@ -2200,7 +2250,7 @@ if page == "inference":
                     if confirm:
                         try:
                             os.remove(LOG_FILE_LOCAL)
-                            st.success("Real-Time Vehicle Feed log cleared.")
+                            st.success("Event Based Analytics log cleared.")
                             st.rerun()
                         except Exception as e:
                             st.error(f"Failed to delete log: {e}")

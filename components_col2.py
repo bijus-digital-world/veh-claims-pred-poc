@@ -421,7 +421,8 @@ def render_prescriptive_section(inf_row: Dict, pred_prob: float, render_summary_
             mileage_display,
             age_display,
             pred_prob * 100,
-            nearest_dealer
+            nearest_dealer,
+            vehicle_context=inf_row
         )
     
     return nearest, summary_html

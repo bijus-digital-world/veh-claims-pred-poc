@@ -45,6 +45,88 @@ AGE_BUCKETS: List[str] = config.data.age_buckets
 NISSAN_HEATMAP_SCALE = config.colors.heatmap_scale
 KM_TO_MILES = 0.621371
 
+DTC_FIELD_NAMES = [
+    "dtc_code",
+    "dtc_subsystem",
+    "dtc_severity",
+    "dtc_recommendation",
+    "dtc_explanation",
+    "dtc_timestamp",
+]
+
+ANOMALY_FIELD_NAMES = [
+    "anomaly_type",
+    "anomaly_timestamp",
+    "anomaly_severity",
+    "anomaly_description",
+    "anomaly_icon",
+]
+
+VIN_PLANT_MAP = {
+    # Common Nissan letter plant codes
+    "A": "Oppama, JP",
+    "B": "Kyushu, JP",
+    "C": "Nissan Shatai (Kyushu, JP)",
+    "D": "Yokohama, JP",
+    "E": "Tochigi, JP",
+    "F": "Murayama, JP",
+    "J": "Oppama, JP",
+    "K": "Kyushu, JP",
+    "L": "Tochigi, JP",
+    "M": "Mexico City, MX",
+    "N": "Nashville, TN (USA)",
+    "P": "Decherd, TN (USA)",
+    "R": "Sunderland, UK",
+    "S": "Kyushu, JP",
+    "T": "Tochigi, JP",
+    "V": "Valencia, ES",
+    "W": "Iwaki, JP",
+    "Y": "Oppama, JP",
+    # Numeric plant identifiers that appear in historical VINs
+    "0": "Oppama, JP",
+    "1": "Oppama, JP",
+    "2": "Zama, JP",
+    "3": "Murayama, JP",
+    "4": "Smyrna, TN (USA)",
+    "5": "Decherd, TN (USA)",
+    "6": "Kyushu, JP",
+    "7": "Aguascalientes, MX",
+    "8": "Tochigi, JP",
+    "9": "Canton, MS (USA)",
+}
+
+SYNTHETIC_DTC_LIBRARY: List[Dict[str, str]] = [
+    {
+        "dtc_code": "P0A80",
+        "dtc_subsystem": "Battery",
+        "dtc_severity": "CRITICAL",
+        "dtc_recommendation": "Replace hybrid battery pack",
+        "dtc_explanation": "The battery pack is unable to hold sufficient charge and requires replacement.",
+        "anomaly_severity": "WARNING",
+        "anomaly_icon": "wrench",
+    },
+    {
+        "dtc_code": "P0A7F",
+        "dtc_subsystem": "Battery",
+        "dtc_severity": "CRITICAL",
+        "dtc_recommendation": "Replace hybrid battery pack",
+        "dtc_explanation": "The hybrid battery pack has deteriorated beyond acceptable limits.",
+        "anomaly_severity": "WARNING",
+        "anomaly_icon": "wrench",
+    },
+    {
+        "dtc_code": "B1234",
+        "dtc_subsystem": "Body",
+        "dtc_severity": "CRITICAL",
+        "dtc_recommendation": "Inspect battery system immediately",
+        "dtc_explanation": "The battery system has detected a fault requiring diagnostic attention.",
+        "anomaly_severity": "WARNING",
+        "anomaly_icon": "alert",
+    },
+]
+
+SYNTHETIC_DTC_PROBABILITY = 0.35
+
 
 def km_to_miles(value: Optional[float]) -> Optional[float]:
     """Convert kilometers to miles with safe handling."""
@@ -188,6 +270,156 @@ def _ensure_vin(raw_vin: Optional[str], model: Optional[str] = None) -> str:
             return candidate
     return _generate_realistic_vin(model)
 
+
+def _clean_optional_value(value):
+    if value is None:
+        return None
+    try:
+        if isinstance(value, float) and math.isnan(value):
+            return None
+    except Exception:
+        pass
+    if pd.isna(value):
+        return None
+    if isinstance(value, (datetime, pd.Timestamp)):
+        return value.strftime("%Y-%m-%d %H:%M:%S")
+    return value
+
+
+def _extract_optional_fields(source: Dict, fields: List[str]) -> Dict[str, str]:
+    payload: Dict[str, str] = {}
+    for field in fields:
+        try:
+            val = source.get(field) if hasattr(source, "get") else None
+        except Exception:
+            val = None
+        val = _clean_optional_value(val)
+        if val is not None:
+            payload[field] = val
+    return payload
+
+
+def _generate_dtc_based_on_health(
+    pred_prob_pct: Optional[float] = None,
+    mileage: Optional[float] = None,
+    age: Optional[float] = None,
+    primary_failed_part: Optional[str] = None,
+    model: Optional[str] = None
+) -> Dict[str, str]:
+    """
+    Generate DTC codes based on component health indicators.
+    
+    Args:
+        pred_prob_pct: Prediction probability percentage (0-100) - higher = worse health
+        mileage: Vehicle mileage in miles
+        age: Vehicle age in years
+        primary_failed_part: Primary failed part (influences subsystem selection)
+        model: Vehicle model
+    
+    Returns:
+        Dictionary with DTC and anomaly fields, or empty dict if no DTC should be generated
+    """
+    # Calculate health risk score (0.0 to 1.0, higher = worse health)
+    health_risk = 0.0
+    
+    # Base risk from prediction probability (primary indicator)
+    if pred_prob_pct is not None:
+        health_risk += 0.5 * (pred_prob_pct / 100.0)
+    
+    # Mileage contribution (normalized to 0-1, max 150k miles)
+    if mileage is not None:
+        mileage_risk = min(1.0, mileage / 150000.0)
+        health_risk += 0.25 * mileage_risk
+    
+    # Age contribution (normalized to 0-1, max 15 years)
+    if age is not None:
+        age_risk = min(1.0, age / 15.0)
+        health_risk += 0.15 * age_risk
+    
+    # Random component (10% base chance + health risk)
+    base_probability = 0.10 + (0.40 * health_risk)  # 10% to 50% chance
+    if random.random() > base_probability:
+        return {}
+    
+    # Select DTC template based on health and part
+    # Filter templates by subsystem if part suggests a specific subsystem
+    available_templates = SYNTHETIC_DTC_LIBRARY.copy()
+    
+    # If we have a primary_failed_part, try to match subsystem
+    if primary_failed_part:
+        part_lower = str(primary_failed_part).lower()
+        # Map parts to subsystems
+        if any(term in part_lower for term in ["battery", "hybrid", "electric", "ev"]):
+            available_templates = [t for t in available_templates if "battery" in str(t.get("dtc_subsystem", "")).lower()]
+        elif any(term in part_lower for term in ["engine", "motor", "transmission"]):
+            available_templates = [t for t in available_templates if "engine" in str(t.get("dtc_subsystem", "")).lower() or "transmission" in str(t.get("dtc_subsystem", "")).lower()]
+        elif any(term in part_lower for term in ["brake", "braking"]):
+            available_templates = [t for t in available_templates if "brake" in str(t.get("dtc_subsystem", "")).lower()]
+        
+        # If filtering removed all templates, use all templates
+        if not available_templates:
+            available_templates = SYNTHETIC_DTC_LIBRARY.copy()
+    
+    # Select template - bias toward higher severity if health is worse
+    if health_risk > 0.7:
+        # High risk: prefer CRITICAL or HIGH severity
+        high_severity_templates = [t for t in available_templates if t.get("dtc_severity", "").upper() in ["CRITICAL", "HIGH"]]
+        if high_severity_templates:
+            template = random.choice(high_severity_templates)
+        else:
+            template = random.choice(available_templates)
+    elif health_risk > 0.4:
+        # Medium risk: prefer MEDIUM or HIGH severity
+        medium_severity_templates = [t for t in available_templates if t.get("dtc_severity", "").upper() in ["MEDIUM", "HIGH"]]
+        if medium_severity_templates:
+            template = random.choice(medium_severity_templates)
+        else:
+            template = random.choice(available_templates)
+    else:
+        # Low risk: prefer LOW or MEDIUM severity
+        low_severity_templates = [t for t in available_templates if t.get("dtc_severity", "").upper() in ["LOW", "MEDIUM"]]
+        if low_severity_templates:
+            template = random.choice(low_severity_templates)
+        else:
+            template = random.choice(available_templates)
+    
+    timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    payload = {
+        "dtc_code": template["dtc_code"],
+        "dtc_subsystem": template["dtc_subsystem"],
+        "dtc_severity": template["dtc_severity"],
+        "dtc_recommendation": template["dtc_recommendation"],
+        "dtc_explanation": template["dtc_explanation"],
+        "dtc_timestamp": timestamp,
+        "anomaly_type": "DTC logged",
+        "anomaly_timestamp": timestamp,
+        "anomaly_severity": template.get("anomaly_severity", template["dtc_severity"]),
+        "anomaly_description": f"Diagnostic trouble code {template['dtc_code']} detected",
+        "anomaly_icon": template.get("anomaly_icon", "wrench"),
+    }
+    return payload
+
+def _maybe_generate_dtc_payload() -> Dict[str, str]:
+    """Legacy function - kept for backward compatibility. Use _generate_dtc_based_on_health instead."""
+    if random.random() > SYNTHETIC_DTC_PROBABILITY:
+        return {}
+    template = random.choice(SYNTHETIC_DTC_LIBRARY)
+    timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    payload = {
+        "dtc_code": template["dtc_code"],
+        "dtc_subsystem": template["dtc_subsystem"],
+        "dtc_severity": template["dtc_severity"],
+        "dtc_recommendation": template["dtc_recommendation"],
+        "dtc_explanation": template["dtc_explanation"],
+        "dtc_timestamp": timestamp,
+        "anomaly_type": "DTC logged",
+        "anomaly_timestamp": timestamp,
+        "anomaly_severity": template.get("anomaly_severity", template["dtc_severity"]),
+        "anomaly_description": f"Diagnostic trouble code {template['dtc_code']} detected",
+        "anomaly_icon": template.get("anomaly_icon", "wrench"),
+    }
+    return payload
+
 def append_inference_log(
     inf_row: dict,
     pred_prob: float,
@@ -214,6 +446,18 @@ def append_inference_log(
         row["lon"] = float(inf_row.get("lon"))
     if prescriptive_summary is not None:
         row["prescriptive_summary"] = str(prescriptive_summary).strip()
+    
+    # Regenerate DTCs based on actual component health (prediction probability, mileage, age, part)
+    # DTCs are real-time diagnostic codes that appear based on current vehicle health, not historical data
+    pred_prob_pct = float(round(pred_prob * 100.0, 4))
+    dtc_payload = _generate_dtc_based_on_health(
+        pred_prob_pct=pred_prob_pct,
+        mileage=row.get("mileage"),
+        age=row.get("age"),
+        primary_failed_part=row.get("primary_failed_part"),
+        model=row.get("model")
+    )
+    row.update(dtc_payload)
     
     # Check for duplicates and append using pandas (handles column alignment automatically)
     if os.path.isfile(filepath):
@@ -309,6 +553,18 @@ def append_inference_log_s3(
         row["lon"] = float(inf_row.get("lon"))
     if prescriptive_summary is not None:
         row["prescriptive_summary"] = str(prescriptive_summary).strip()
+    
+    # Regenerate DTCs based on actual component health (prediction probability, mileage, age, part)
+    # DTCs are real-time diagnostic codes that appear based on current vehicle health, not historical data
+    pred_prob_pct = float(round(pred_prob * 100.0, 4))
+    dtc_payload = _generate_dtc_based_on_health(
+        pred_prob_pct=pred_prob_pct,
+        mileage=row.get("mileage"),
+        age=row.get("age"),
+        primary_failed_part=row.get("primary_failed_part"),
+        model=row.get("model")
+    )
+    row.update(dtc_payload)
 
     try:
         fs = s3fs.S3FileSystem()
@@ -430,7 +686,7 @@ def _build_row_from_historical(row: pd.Series, df: pd.DataFrame) -> dict:
     if lat is None or lon is None:
         lat, lon = _pick_random_latlon()
 
-    return {
+    base = {
         "model": model,
         "primary_failed_part": part,
         "mileage": mileage,
@@ -438,7 +694,19 @@ def _build_row_from_historical(row: pd.Series, df: pd.DataFrame) -> dict:
         "lat": lat,
         "lon": lon,
         "vin": vin,
+        "manufacturing_date": row.get("manufacturing_date"),
     }
+    # Generate new DTCs based on component health, not from historical data
+    # DTCs are real-time diagnostic codes that appear based on current vehicle health
+    dtc_payload = _generate_dtc_based_on_health(
+        pred_prob_pct=None,  # Will be calculated later during prediction
+        mileage=mileage,
+        age=age,
+        primary_failed_part=part,
+        model=model
+    )
+    base.update(dtc_payload)
+    return base
 
 
 def _build_synthetic_row(df: pd.DataFrame) -> dict:
@@ -454,7 +722,7 @@ def _build_synthetic_row(df: pd.DataFrame) -> dict:
 
     lat, lon = _pick_random_latlon()
 
-    return {
+    row = {
         "model": model,
         "primary_failed_part": part,
         "mileage": mileage,
@@ -462,6 +730,103 @@ def _build_synthetic_row(df: pd.DataFrame) -> dict:
         "lat": lat,
         "lon": lon,
         "vin": _generate_realistic_vin(model),
+    }
+    manuf_sample = None
+    if "manufacturing_date" in df.columns:
+        non_null_dates = df["manufacturing_date"].dropna()
+        if not non_null_dates.empty:
+            manuf_sample = str(random.choice(non_null_dates.tolist()))
+    if not manuf_sample:
+        manuf_sample = (pd.Timestamp.now() - pd.DateOffset(months=random.randint(0, 12))).strftime("%Y-%m-%d")
+    row["manufacturing_date"] = manuf_sample
+    # Generate new DTCs based on component health, not randomly
+    dtc_payload = _generate_dtc_based_on_health(
+        pred_prob_pct=None,  # Will be calculated later during prediction
+        mileage=mileage,
+        age=age,
+        primary_failed_part=part,
+        model=model
+    )
+    row.update(dtc_payload)
+    return row
+
+
+def _decode_vin_plant(vin: Optional[str]) -> Optional[Dict[str, str]]:
+    """Return VIN plant code and label if available."""
+    if not vin or not isinstance(vin, str) or len(vin) < 11:
+        return None
+    plant_code = vin.upper()[10]
+    plant_label = VIN_PLANT_MAP.get(plant_code)
+    if not plant_label:
+        plant_label = f"Plant {plant_code}"
+    return {"code": plant_code, "label": plant_label}
+
+
+def _build_cohort_insight(
+    vehicle_context: Optional[Dict],
+    df_history: pd.DataFrame,
+    model_name: str,
+    part_name: str,
+) -> Optional[Dict[str, str]]:
+    """Summarize how many peer vehicles share the same plant/month issue."""
+    if vehicle_context is None:
+        return None
+    vin = str(vehicle_context.get("vin", "") or "").strip()
+    manufacturing_date = vehicle_context.get("manufacturing_date")
+
+    history_row = None
+    if not manufacturing_date and "vin" in df_history.columns and vin:
+        try:
+            matches = df_history[df_history["vin"].astype(str) == vin]
+            if not matches.empty:
+                history_row = matches.iloc[0]
+        except Exception:
+            history_row = None
+    if history_row is not None and not manufacturing_date:
+        manufacturing_date = history_row.get("manufacturing_date")
+        if not vin:
+            vin = str(history_row.get("vin", "")).strip()
+
+    if not manufacturing_date or not vin:
+        return None
+
+    manufacture_ts = pd.to_datetime(manufacturing_date, errors="coerce")
+    if pd.isna(manufacture_ts):
+        return None
+
+    plant_data = _decode_vin_plant(vin)
+    if not plant_data:
+        return None
+
+    if any(col not in df_history.columns for col in ["model", "primary_failed_part", "manufacturing_date", "vin"]):
+        return None
+
+    try:
+        manuf_series = pd.to_datetime(df_history["manufacturing_date"], errors="coerce")
+        plant_series = df_history["vin"].astype(str).str.upper().str[10]
+    except Exception:
+        return None
+
+    target_period = manufacture_ts.to_period("M")
+    cohort_mask = (
+        (df_history["model"] == model_name)
+        & (df_history["primary_failed_part"] == part_name)
+        & (plant_series == plant_data["code"])
+        & (manuf_series.dt.to_period("M") == target_period)
+    )
+
+    try:
+        cohort_count = int(cohort_mask.sum())
+    except Exception:
+        cohort_count = 0
+
+    if cohort_count <= 1:
+        return None
+
+    return {
+        "count": cohort_count,
+        "plant_label": plant_data["label"],
+        "month_label": manufacture_ts.strftime("%B %Y"),
     }
 
 
@@ -1048,7 +1413,8 @@ def get_bedrock_summary(model, part, mileage, age, claim_pct,
 
 def generate_enhanced_prescriptive_summary(model_name: str, part_name: str, mileage_bucket: str, 
                                          age_bucket: str, claim_pct: float, df_history: pd.DataFrame, 
-                                         nearest_dealer: Optional[Dict] = None) -> str:
+                                         nearest_dealer: Optional[Dict] = None,
+                                         vehicle_context: Optional[Dict] = None) -> str:
     """
     Generate a dynamic, data-driven prescriptive summary using real data from the enhanced dataset.
     
@@ -1060,6 +1426,7 @@ def generate_enhanced_prescriptive_summary(model_name: str, part_name: str, mile
         claim_pct: Claim percentage
         df_history: Historical data DataFrame
         nearest_dealer: Nearest dealer information
+        vehicle_context: Optional vehicle info dict (VIN, manufacturing_date, etc.)
     
     Returns:
         HTML-formatted prescriptive summary
@@ -1093,6 +1460,8 @@ def generate_enhanced_prescriptive_summary(model_name: str, part_name: str, mile
         
         # Get dealer information
         dealer_info = get_dealer_recommendation(nearest_dealer)
+
+        cohort_insight = _build_cohort_insight(vehicle_context, df_history, model_name, part_name)
         
         # Generate the summary with varied language patterns
         summary_parts = []
@@ -1283,55 +1652,63 @@ def generate_enhanced_prescriptive_summary(model_name: str, part_name: str, mile
         # HIGH % = High likelihood of claim = More urgent, technical recommendations
         if claim_pct >= 75:
             high_likelihood_patterns = [
-                f"<span style='color:#ef4444; font-weight:bold;'>High claim likelihood detected:</span> "
+                f"<span style='color:#ef4444; font-weight:bold; display:inline-block; margin-top:12px;'>High claim likelihood detected:</span> "
                 f"The {claim_pct:.1f}% claim probability indicates a high likelihood of component failure "
                 f"requiring immediate technical intervention and preventive maintenance protocols.",
                 
-                f"<span style='color:#ef4444; font-weight:bold;'>Urgent technical action required:</span> "
+                f"<span style='color:#ef4444; font-weight:bold; display:inline-block; margin-top:12px;'>Urgent technical action required:</span> "
                 f"With a {claim_pct:.1f}% claim probability, immediate diagnostic procedures and "
                 f"component replacement protocols should be initiated to prevent system failure.",
                 
-                f"<span style='color:#ef4444; font-weight:bold;'>Critical maintenance alert:</span> "
+                f"<span style='color:#ef4444; font-weight:bold; display:inline-block; margin-top:12px;'>Critical maintenance alert:</span> "
                 f"The {claim_pct:.1f}% claim probability signals imminent component degradation requiring "
                 f"immediate technical assessment and corrective action implementation.",
                 
-                f"<span style='color:#ef4444; font-weight:bold;'>High-priority technical intervention:</span> "
+                f"<span style='color:#ef4444; font-weight:bold; display:inline-block; margin-top:12px;'>High-priority technical intervention:</span> "
                 f"At {claim_pct:.1f}% claim probability, immediate technical evaluation and "
                 f"preventive maintenance procedures are essential to avoid component failure."
             ]
             summary_parts.append(random.choice(high_likelihood_patterns))
             
         elif claim_pct >= 40:
-            moderate_likelihood_patterns = [
-                f"<span style='color:#f59e0b; font-weight:bold;'>Moderate claim likelihood:</span> "
-                f"The {claim_pct:.1f}% claim probability suggests increased monitoring and "
-                f"proactive maintenance scheduling to prevent potential component issues.",
-                
-                f"<span style='color:#f59e0b; font-weight:bold;'>Elevated monitoring recommended:</span> "
-                f"With a {claim_pct:.1f}% claim probability, implementing enhanced diagnostic protocols "
-                f"and scheduled maintenance intervals is recommended to manage component health.",
-                
-                f"<span style='color:#f59e0b; font-weight:bold;'>Preventive maintenance advised:</span> "
-                f"The {claim_pct:.1f}% claim probability indicates a moderate likelihood requiring "
-                f"proactive maintenance scheduling and component condition monitoring.",
-                
-                f"<span style='color:#f59e0b; font-weight:bold;'>Technical monitoring needed:</span> "
-                f"At {claim_pct:.1f}% claim probability, implementing preventive maintenance strategies "
-                f"and enhanced monitoring protocols is recommended to prevent component degradation."
-            ]
-            summary_parts.append(random.choice(moderate_likelihood_patterns))
+            cohort_text = None
+            if cohort_insight:
+                cohort_text = (
+                    f"<span style='color:#f59e0b; font-weight:bold;'>Production cohort impact:</span> "
+                    f"The same {part_name.lower()} issue has surfaced in "
+                    f"<span style='color:#C99700; font-weight:bold;'>{cohort_insight['count']} vehicles</span> "
+                    f"built at {cohort_insight['plant_label']} during {cohort_insight['month_label']}. "
+                    f"Coordinate with the plant quality team to contain the batch issue."
+                )
+            if cohort_text:
+                summary_parts.append(cohort_text)
+            else:
+                moderate_likelihood_patterns = [
+                    f"<span style='color:#f59e0b; font-weight:bold; display:inline-block; margin-top:12px;'>Moderate claim likelihood:</span> "
+                    f"The {claim_pct:.1f}% claim probability suggests increased monitoring and "
+                    f"proactive maintenance scheduling to prevent potential component issues.",
+                    
+                    f"<span style='color:#f59e0b; font-weight:bold; display:inline-block; margin-top:12px;'>Preventive maintenance advised:</span> "
+                    f"The {claim_pct:.1f}% claim probability indicates a moderate likelihood requiring "
+                    f"proactive maintenance scheduling and component condition monitoring.",
+                    
+                    f"<span style='color:#f59e0b; font-weight:bold; display:inline-block; margin-top:12px;'>Technical monitoring needed:</span> "
+                    f"At {claim_pct:.1f}% claim probability, implementing preventive maintenance strategies "
+                    f"and enhanced monitoring protocols is recommended to prevent component degradation."
+                ]
+                summary_parts.append(random.choice(moderate_likelihood_patterns))
             
         else:
             low_likelihood_patterns = [
-                f"<span style='color:#10b981; font-weight:bold;'>Low claim likelihood:</span> "
+                f"<span style='color:#10b981; font-weight:bold; display:inline-block; margin-top:12px;'>Low claim likelihood:</span> "
                 f"With a {claim_pct:.1f}% claim probability, the component appears stable and "
                 f"requires only routine monitoring and standard maintenance intervals.",
                 
-                f"<span style='color:#10b981; font-weight:bold;'>Stable component status:</span> "
+                f"<span style='color:#10b981; font-weight:bold; display:inline-block; margin-top:12px;'>Stable component status:</span> "
                 f"The {claim_pct:.1f}% claim probability indicates low likelihood of failure, "
                 f"suggesting the component is operating within normal parameters.",
                 
-                f"<span style='color:#10b981; font-weight:bold;'>Minimal intervention needed:</span> "
+                f"<span style='color:#10b981; font-weight:bold; display:inline-block; margin-top:12px;'>Minimal intervention needed:</span> "
                 f"At {claim_pct:.1f}% claim probability, the component shows stable performance "
                 f"requiring only standard maintenance protocols and routine monitoring."
             ]
@@ -1349,12 +1726,20 @@ def generate_enhanced_prescriptive_summary(model_name: str, part_name: str, mile
                     "Urgent coordination with technical teams and component suppliers is critical to prevent system failures."
                 ]
             elif claim_pct >= 40:
-                closing_patterns = [
-                    "Enhanced monitoring protocols and technical trend analysis should be implemented immediately.",
-                    "Consider establishing a technical task force to address the underlying component issues.",
-                    "Proactive communication with technical stakeholders and maintenance teams is recommended.",
-                    "Implement enhanced diagnostic procedures and preventive maintenance schedules to prevent escalation."
-                ]
+                if cohort_insight:
+                    closing_patterns = [
+                        f"Coordinate with the {cohort_insight['plant_label']} quality team to contain the affected production lot.",
+                        f"Share these findings with the {cohort_insight['plant_label']} manufacturing lead to accelerate corrective actions.",
+                        f"Schedule a joint review with the {cohort_insight['plant_label']} plant to prevent additional vehicles from leaving the line with this defect.",
+                        f"Ensure containment plans cover all {cohort_insight['month_label']} builds from {cohort_insight['plant_label']}."
+                    ]
+                else:
+                    closing_patterns = [
+                        "Enhanced monitoring protocols and technical trend analysis should be implemented immediately.",
+                        "Consider establishing a technical task force to address the underlying component issues.",
+                        "Proactive communication with technical stakeholders and maintenance teams is recommended.",
+                        "Implement enhanced diagnostic procedures and preventive maintenance schedules to prevent escalation."
+                    ]
             else:
                 closing_patterns = [
                     "Continue standard monitoring protocols and routine maintenance intervals as scheduled.",
