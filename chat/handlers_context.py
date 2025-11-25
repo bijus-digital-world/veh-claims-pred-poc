@@ -5,9 +5,6 @@ These handlers can use conversation context to provide more intelligent response
 """
 
 import re
-import html as _html
-import pandas as pd
-from typing import Optional
 
 from chat.handlers import QueryHandler, QueryContext
 from utils.logger import chat_logger as logger
@@ -99,12 +96,7 @@ class ContextAwareHandler(QueryHandler):
         enhanced_context = QueryContext(
             query=enhanced_query,
             df_history=context.df_history,
-            faiss_res=context.faiss_res,
-            tfidf_vect=context.tfidf_vect,
-            tfidf_X=context.tfidf_X,
-            tfidf_rows=context.tfidf_rows,
             get_bedrock_summary_callable=context.get_bedrock_summary,
-            top_k=context.top_k,
             conversation_context=context.conversation_context
         )
         
@@ -209,8 +201,8 @@ class ContextAwareHandler(QueryHandler):
         
         # Provide a response that acknowledges the conversation context
         context_summary = self._summarize_conversation_context(recent_exchanges)
-        
-        return "<p>Let me provide additional insights based on the context of our discussion.</p>"
+        return (f"<p>Let me provide additional insights based on our recent discussion "
+                f"about {context_summary}.</p>")
     
     def _extract_topic(self, text: str) -> str:
         """Extract a simple topic from text."""

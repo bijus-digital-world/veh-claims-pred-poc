@@ -1,7 +1,7 @@
 """
 chat/handlers_default.py
 
-Default handler for general queries using RAG retrieval.
+Default handler for general queries.
 This is the catch-all handler when no specific handler matches.
 """
 
@@ -11,7 +11,6 @@ import pandas as pd
 
 from chat.handlers import QueryHandler, QueryContext
 from chat_helper import (
-    retrieve_with_faiss_or_tfidf,
     _detect_metric_from_text,
     _metric_or_fallback_column
 )
@@ -22,8 +21,7 @@ class DefaultHandler(QueryHandler):
     """
     Default handler for general queries.
     
-    Uses RAG retrieval to find relevant historical data and provides
-    a dataset/sample overview.
+    Provides a dataset overview using direct data queries.
     
     This should always be the last handler in the router.
     """
@@ -39,60 +37,8 @@ class DefaultHandler(QueryHandler):
         if self._is_unrelated_query(context.query):
             return self._handle_unrelated_query(context)
         
-        # Perform RAG retrieval
-        results = retrieve_with_faiss_or_tfidf(
-            context.query,
-            context.faiss_res,
-            context.tfidf_vect,
-            context.tfidf_X,
-            context.tfidf_rows,
-            context.top_k
-        )
-        
-        sample_df = None
-        if results:
-            try:
-                sample_df = pd.DataFrame(results)
-                # Parse dates if present
-                sample_df["date_parsed"] = pd.to_datetime(sample_df.get("date"), errors="coerce")
-                
-                # Ensure numeric components
-                for comp in ("claims_count", "repairs_count", "recalls_count"):
-                    if comp in sample_df.columns:
-                        sample_df[comp] = pd.to_numeric(sample_df[comp], errors="coerce").fillna(0).astype(int)
-                    else:
-                        sample_df[comp] = 0
-                
-                # Ensure failures_count exists
-                if "failures_count" not in sample_df.columns:
-                    sample_df["failures_count"] = (
-                        sample_df["claims_count"].astype(int) +
-                        sample_df["repairs_count"].astype(int) +
-                        sample_df["recalls_count"].astype(int)
-                    )
-                else:
-                    sample_df["failures_count"] = pd.to_numeric(
-                        sample_df["failures_count"], 
-                        errors="coerce"
-                    ).fillna(
-                        sample_df["claims_count"] + 
-                        sample_df["repairs_count"] + 
-                        sample_df["recalls_count"]
-                    ).astype(int)
-                
-                # Also coerce the resolved metric_col (if present) to numeric
-                requested_metric = _detect_metric_from_text(context.query)
-                metric_col, _ = _metric_or_fallback_column(sample_df, requested_metric)
-                
-                if metric_col and metric_col in sample_df.columns:
-                    sample_df[metric_col] = pd.to_numeric(sample_df.get(metric_col), errors="coerce").fillna(0)
-            
-            except Exception as e:
-                logger.warning(f"Sample DataFrame processing failed: {e}")
-                sample_df = None
-        
-        # Generate overview from sample or full dataset
-        return self._generate_overview(context, sample_df)
+        # Generate overview from full dataset
+        return self._generate_overview(context, None)
     
     def _is_unrelated_query(self, query: str) -> bool:
         """Check if the query is completely unrelated to vehicle analytics."""
@@ -131,7 +77,7 @@ class DefaultHandler(QueryHandler):
             total_records = len(context.df_history)
             models = context.df_history['model'].nunique() if 'model' in context.df_history.columns else 0
             failures = context.df_history['failures_count'].sum() if 'failures_count' in context.df_history.columns else 0
-        except:
+        except (KeyError, AttributeError, TypeError):
             total_records = 0
             models = 0
             failures = 0
@@ -164,94 +110,56 @@ class DefaultHandler(QueryHandler):
         return "".join(html_parts)
     
     def _generate_overview(self, context: QueryContext, sample_df: Optional[pd.DataFrame]) -> str:
-        """Generate dataset or sample overview"""
+        """Generate dataset overview"""
         
         # Detect metric
         requested_metric = _detect_metric_from_text(context.query)
         metric_col, df_with_metric = _metric_or_fallback_column(context.df_history, requested_metric)
         
         try:
-            if sample_df is None or sample_df.empty:
-                # Full dataset overview
-                df = df_with_metric if df_with_metric is not None else context.df_history
-                
-                if metric_col is None:
-                    return "<p>Couldn't determine the metric to summarize. Try asking about failures, claims, repairs, or recalls.</p>"
-                
-                total_rows = len(df)
-                total_metric = float(pd.to_numeric(df[metric_col], errors="coerce").fillna(0).sum())
-                rate_sample = (total_metric / total_rows * 100.0) if total_rows > 0 else 0.0
-                
-                # Top model
-                top_model = None
-                if "model" in df.columns and not df["model"].isna().all():
-                    modes = df["model"].mode()
-                    if len(modes) > 0:
-                        top_model = modes.iloc[0]
-                
-                # Top part
-                top_part_val = None
-                from chat_helper import _safe_column
-                top_part_col = _safe_column(df, ["primary_failed_part", "failed_part", "part"])
-                if top_part_col:
-                    try:
-                        grp = df.groupby(top_part_col)[metric_col].sum()
-                        if not grp.empty:
-                            top_part_val = grp.idxmax()
-                    except Exception:
-                        top_part_val = None
-                
-                label = "failures" if metric_col == "failures_count" else metric_col.replace("_", " ")
-                parts = []
-                if top_model:
-                    parts.append(f"Top model overall: {_html.escape(str(top_model))}.")
-                if top_part_val:
-                    parts.append(f"Top failed part overall: {_html.escape(str(top_part_val))}.")
-                parts_txt = " ".join(parts)
-                
-                return (f"<p>Dataset overview: total records = {total_rows}, total {label} = {int(total_metric)} "
-                       f"(approx. {rate_sample:.1f}% per-record). {parts_txt}</p>")
+            # Full dataset overview
+            df = df_with_metric if df_with_metric is not None else context.df_history
             
-            else:
-                # Sample overview
-                sd = sample_df.copy()
-                total_sample = len(sd)
-                
-                if metric_col and metric_col in sd.columns:
-                    total_metric = float(pd.to_numeric(sd.get(metric_col, 0), errors="coerce").fillna(0).sum())
-                else:
-                    total_metric = 0.0
-                
-                rate_sample = (total_metric / total_sample * 100.0) if total_sample > 0 else 0.0
-                
-                # Top model in sample
-                top_model = None
-                if "model" in sd.columns and not sd["model"].isna().all():
-                    modes = sd["model"].mode()
-                    if len(modes) > 0:
-                        top_model = modes.iloc[0]
-                
-                # Top part in sample
-                top_part = None
-                if "primary_failed_part" in sd.columns and not sd["primary_failed_part"].isna().all():
-                    modes_p = sd["primary_failed_part"].mode()
-                    if len(modes_p) > 0:
-                        top_part = modes_p.iloc[0]
-                
-                label = "failures" if metric_col == "failures_count" else (metric_col.replace("_", " ") if metric_col else "metric")
-                parts = []
-                if top_model:
-                    parts.append(f"Top model in matches: {_html.escape(str(top_model))}.")
-                if top_part:
-                    parts.append(f"Top failed part in matches: {_html.escape(str(top_part))}.")
-                parts_txt = " ".join(parts)
-                
-                return (f"<p>From the matching sample: sample rows = {total_sample}, total {label} = {int(total_metric)} "
-                       f"(sample metric ~ {rate_sample:.1f}%). {parts_txt}</p>")
+            if metric_col is None:
+                return "<p>Couldn't determine the metric to summarize. Try asking about failures, claims, repairs, or recalls.</p>"
+            
+            total_rows = len(df)
+            total_metric = float(pd.to_numeric(df[metric_col], errors="coerce").fillna(0).sum())
+            rate_sample = (total_metric / total_rows * 100.0) if total_rows > 0 else 0.0
+            
+            # Top model
+            top_model = None
+            if "model" in df.columns and not df["model"].isna().all():
+                modes = df["model"].mode()
+                if len(modes) > 0:
+                    top_model = modes.iloc[0]
+            
+            # Top part
+            top_part_val = None
+            from chat_helper import _safe_column
+            top_part_col = _safe_column(df, ["primary_failed_part", "failed_part", "part"])
+            if top_part_col:
+                try:
+                    grp = df.groupby(top_part_col)[metric_col].sum()
+                    if not grp.empty:
+                        top_part_val = grp.idxmax()
+                except Exception:
+                    top_part_val = None
+            
+            label = "failures" if metric_col == "failures_count" else metric_col.replace("_", " ")
+            parts = []
+            if top_model:
+                parts.append(f"Top model overall: {_html.escape(str(top_model))}.")
+            if top_part_val:
+                parts.append(f"Top failed part overall: {_html.escape(str(top_part_val))}.")
+            parts_txt = " ".join(parts)
+            
+            return (f"<p>Dataset overview: total records = {total_rows}, total {label} = {int(total_metric)} "
+                   f"(approx. {rate_sample:.1f}% per-record). {parts_txt}</p>")
         
         except Exception as e:
             logger.error(f"Overview generation failed: {e}", exc_info=True)
-            return f"<p>Found matches but could not summarize them (error: {_html.escape(str(e))}).</p>"
+            return f"<p>Could not summarize dataset (error: {_html.escape(str(e))}).</p>"
     
     def _handle_which_models_rising(self, df, metric_col):
         """Handle which models show rising trends"""

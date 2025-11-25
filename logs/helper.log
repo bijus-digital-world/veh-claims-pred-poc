@@ -5296,3 +5296,5 @@
 2025-10-22 21:05:50 - [34mhelper[0m - [36mINFO[0m - fetch_dealers_from_aws_location:425 - Fetched 3 dealers from AWS Location (query='Nissan Dealer')
 2025-10-22 21:05:53 - [34mhelper[0m - [36mINFO[0m - fetch_dealers_from_aws_location:425 - Fetched 1 dealers from AWS Location (query='Nissan Service Center')
 2025-10-22 21:05:55 - [34mhelper[0m - [36mINFO[0m - fetch_dealers_from_aws_location:425 - Fetched 3 dealers from AWS Location (query='Nissan Dealer')
+2025-11-25 23:30:00 - [34mhelper[0m - [33mWARNING[0m - append_inference_log:376 - Pandas append failed, using CSV writer: [Errno 13] Permission denied: 'inference_log.csv'
+2025-11-25 23:45:02 - [34mhelper[0m - [33mWARNING[0m - append_inference_log:376 - Pandas append failed, using CSV writer: [Errno 13] Permission denied: 'inference_log.csv'

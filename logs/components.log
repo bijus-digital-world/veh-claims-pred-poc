@@ -761,3 +761,5 @@
 2025-10-22 21:05:23 - [34mcomponents[0m - [36mINFO[0m - render_prescriptive_section:350 - Found 3 dealers (from_aws=True)
 2025-10-22 21:05:44 - [34mcomponents[0m - [36mINFO[0m - generate_prediction:119 - [OK] ML prediction: 42.3% (mileage=19392.8, age=1.52)
 2025-10-22 21:05:55 - [34mcomponents[0m - [36mINFO[0m - render_prescriptive_section:350 - Found 3 dealers (from_aws=True)
+2025-11-25 23:30:00 - [34mcomponents[0m - [31mERROR[0m - log_inference:221 - Inference logging failed: [Errno 13] Permission denied: 'inference_log.csv'
+2025-11-25 23:45:02 - [34mcomponents[0m - [31mERROR[0m - log_inference:221 - Inference logging failed: [Errno 13] Permission denied: 'inference_log.csv'

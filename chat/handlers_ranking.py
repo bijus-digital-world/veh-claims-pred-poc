@@ -5,11 +5,31 @@ Handlers for ranking and top/bottom queries.
 import re
 import html as _html
 import pandas as pd
-from typing import Optional, List, Tuple
+from typing import Optional
 
 from chat.handlers import QueryHandler, QueryContext
 from chat_helper import _detect_metric_from_text, _metric_or_fallback_column, _safe_column
 from utils.logger import chat_logger as logger
+
+
+def _extract_number_from_query(query: str) -> Optional[int]:
+    """Extract number from query (e.g., 'top 3' -> 3)."""
+    patterns = [
+        r"top\s+(\d+)",
+        r"first\s+(\d+)",
+        r"worst\s+(\d+)",
+        r"best\s+(\d+)",
+        r"bottom\s+(\d+)",
+        r"last\s+(\d+)"
+    ]
+
+    lowered_query = query.lower()
+    for pattern in patterns:
+        match = re.search(pattern, lowered_query)
+        if match:
+            return int(match.group(1))
+
+    return None
 
 
 class ModelRankingHandler(QueryHandler):
@@ -19,6 +39,12 @@ class ModelRankingHandler(QueryHandler):
     
     def can_handle(self, context: QueryContext) -> bool:
         query_lower = context.query_lower
+        
+        # Skip if asking for individual records/vehicles (e.g., "top 5 vehicles", "top 10 Sentra vehicles")
+        # This should be handled by Text-to-SQL, not ranking handler
+        # Allow words between number and "vehicles" (e.g., "top 10 Sentra vehicles")
+        if re.search(r'\btop\s+\d+.*?\b(vehicles?|records?|rows?|entries?|items?)\b', query_lower):
+            return False
         
         # Check for ranking/which/top/bottom keywords
         ranking_keywords = [
@@ -77,7 +103,7 @@ class ModelRankingHandler(QueryHandler):
             is_top_query = any(word in query_lower for word in ["best", "most", "highest", "top"])
             
             # Determine number of results
-            n_results = self._extract_number_from_query(context.query)
+            n_results = _extract_number_from_query(context.query)
             if n_results is None:
                 n_results = 1 if "which" in query_lower else 3
             
@@ -205,26 +231,6 @@ class ModelRankingHandler(QueryHandler):
             logger.error(f"Model ranking calculation failed: {e}", exc_info=True)
             return f"<p>Couldn't determine model rankings: {_html.escape(str(e))}</p>"
     
-    def _extract_number_from_query(self, query: str) -> Optional[int]:
-        """Extract number from query (e.g., 'top 3' -> 3)."""
-        # Look for patterns like "top 3", "first 5", "worst 2"
-        patterns = [
-            r"top\s+(\d+)",
-            r"first\s+(\d+)",
-            r"worst\s+(\d+)",
-            r"best\s+(\d+)",
-            r"bottom\s+(\d+)",
-            r"last\s+(\d+)"
-        ]
-        
-        for pattern in patterns:
-            match = re.search(pattern, query.lower())
-            if match:
-                return int(match.group(1))
-        
-        return None
-
-
 class PartRankingHandler(QueryHandler):
     """
     Handle part ranking queries (e.g., "Which part fails most?", "Top failed parts").
@@ -232,6 +238,12 @@ class PartRankingHandler(QueryHandler):
     
     def can_handle(self, context: QueryContext) -> bool:
         query_lower = context.query_lower
+        
+        # Skip if asking for individual records/vehicles (e.g., "top 5 vehicles", "top 10 Sentra vehicles")
+        # This should be handled by Text-to-SQL, not ranking handler
+        # Allow words between number and "vehicles" (e.g., "top 10 Sentra vehicles")
+        if re.search(r'\btop\s+\d+.*?\b(vehicles?|records?|rows?|entries?|items?)\b', query_lower):
+            return False
         
         # Check for ranking keywords
         ranking_keywords = [
@@ -290,7 +302,7 @@ class PartRankingHandler(QueryHandler):
             is_top_query = any(word in query_lower for word in ["best", "most", "highest", "top"])
             
             # Determine number of results
-            n_results = self._extract_number_from_query(context.query)
+            n_results = _extract_number_from_query(context.query)
             if n_results is None:
                 n_results = 1 if "which" in query_lower else 3
             
@@ -375,20 +387,3 @@ class PartRankingHandler(QueryHandler):
             logger.error(f"Part ranking calculation failed: {e}", exc_info=True)
             return f"<p>Couldn't determine part rankings: {_html.escape(str(e))}</p>"
     
-    def _extract_number_from_query(self, query: str) -> Optional[int]:
-        """Extract number from query (e.g., 'top 3' -> 3)."""
-        patterns = [
-            r"top\s+(\d+)",
-            r"first\s+(\d+)",
-            r"worst\s+(\d+)",
-            r"best\s+(\d+)",
-            r"bottom\s+(\d+)",
-            r"last\s+(\d+)"
-        ]
-        
-        for pattern in patterns:
-            match = re.search(pattern, query.lower())
-            if match:
-                return int(match.group(1))
-        
-        return None

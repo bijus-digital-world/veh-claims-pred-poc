@@ -11,7 +11,6 @@ Handles queries about:
 import re
 import html as _html
 import pandas as pd
-from typing import Optional
 from chat.handlers import QueryHandler, QueryContext
 from utils.logger import chat_logger as logger
 from helper import km_to_miles

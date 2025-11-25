@@ -17,6 +17,7 @@ import numpy as np
 
 from config import config
 from utils.logger import chat_logger as logger
+from chat.intent_classifier import classify_intent
 
 
 class QueryContext:
@@ -27,29 +28,21 @@ class QueryContext:
         self,
         query: str,
         df_history: pd.DataFrame,
-        faiss_res: dict,
-        tfidf_vect,
-        tfidf_X,
-        tfidf_rows,
         get_bedrock_summary_callable,
-        top_k: int,
-        conversation_context=None
+        conversation_context=None,
+        intent: Optional[str] = None
     ):
         self.query = query
         self.query_lower = query.lower()
         self.df_history = df_history
-        self.faiss_res = faiss_res
-        self.tfidf_vect = tfidf_vect
-        self.tfidf_X = tfidf_X
-        self.tfidf_rows = tfidf_rows
         self.get_bedrock_summary = get_bedrock_summary_callable
-        self.top_k = top_k
         self.conversation_context = conversation_context
         
-        # Computed properties
+        # computed later
         self.requested_metric = None
         self.metric_col = None
         self.sample_df = None
+        self.intent = intent
 
 
 class QueryHandler(ABC):
@@ -108,29 +101,24 @@ class GreetingHandler(QueryHandler):
     """Handle greetings like 'hi', 'hello', 'hey'"""
     
     def can_handle(self, context: QueryContext) -> bool:
-        # Expanded greeting detection: allow short greetings and common small-talk
         q = context.query_lower.strip()
         if any(g in q for g in [" hi ", " hello ", " hey ", "hiya", "yo "]):
             return True
-        # start-of-text greetings
         if re.match(r"^(hi|hello|hey|good\s+(morning|afternoon|evening))\b", q):
             return True
-        # small-talk like "how are you" should also trigger greeting flow
         if re.search(r"\bhow are you\b|\bhow's it going\b|\bwhat's up\b", q):
             return True
-        # fallback: very short messages (<=3 words) that contain a greeting token
         return (len(context.query.split()) <= 3 and any(g in q for g in ["hi", "hello", "hey"]))
     
     def handle(self, context: QueryContext) -> str:
         logger.debug("GreetingHandler triggered")
         
-        # Get some basic stats about the dataset to make the greeting more informative
+        # grab some stats for the greeting
         try:
             total_records = len(context.df_history)
             models = context.df_history['model'].nunique() if 'model' in context.df_history.columns else 0
             failures = context.df_history['failures_count'].sum() if 'failures_count' in context.df_history.columns else 0
             
-            # Create a more engaging and informative greeting
             html_parts = [
                 "<p><strong>Hello! I'm your Nissan Telematics Analytics Assistant.</strong></p>",
                 f"<p>I can help you analyze your vehicle data with <strong>{total_records:,} records</strong> covering <strong>{models} models</strong> and <strong>{failures:,} total failures</strong>.</p>",
@@ -149,7 +137,7 @@ class GreetingHandler(QueryHandler):
             
         except Exception as e:
             logger.warning(f"Failed to get dataset stats for greeting: {e}")
-            # Fallback to simpler greeting
+            # fallback greeting
             return ("<p><strong>Hello! I'm your Nissan Telematics Analytics Assistant.</strong></p>"
                     "<p>I can help you analyze vehicle failure data, compare models, track trends, and provide prescriptive insights.</p>"
                     "<p><em>Try asking: \"What's the failure rate for Sentra?\" or \"Show me failure trends\"</em></p>")
@@ -232,13 +220,13 @@ class PrescriptiveHandler(QueryHandler):
             model, part = None, None
         
         if not (model and part):
-            # Provide general prescriptive guidance for high-level queries
+            # handle general failure queries
             if any(phrase in context.query_lower for phrase in ["high failure", "failure rate", "failures", "problems", "issues"]):
                 return self._handle_general_prescriptive_guidance(context)
             else:
-                # Get available models and parts for better guidance
-                available_models = context.df_history.get("model", pd.Series(dtype=str)).unique()[:5]  # First 5 models
-                available_parts = context.df_history.get("primary_failed_part", pd.Series(dtype=str)).unique()[:5]  # First 5 parts
+                # show available models/parts
+                available_models = context.df_history.get("model", pd.Series(dtype=str)).unique()[:5]
+                available_parts = context.df_history.get("primary_failed_part", pd.Series(dtype=str)).unique()[:5]
                 
                 models_text = ", ".join([str(m) for m in available_models if pd.notna(m)])
                 parts_text = ", ".join([str(p) for p in available_parts if pd.notna(p)])
@@ -260,7 +248,7 @@ class PrescriptiveHandler(QueryHandler):
         age_bucket = slice_df.iloc[0].get("age_bucket", "")
         total_inc = slice_df.shape[0]
         
-        # Ensure failures_count present
+        # make sure failures_count exists
         if "failures_count" not in slice_df.columns:
             slice_df = ensure_failures_column(slice_df, out_col="failures_count")
         
@@ -283,13 +271,13 @@ class PrescriptiveHandler(QueryHandler):
     def _handle_general_prescriptive_guidance(self, context: QueryContext) -> str:
         """Handle general prescriptive queries about high failure rates."""
         try:
-            # Calculate overall failure statistics
+            # get overall stats
             df = context.df_history
             total_records = len(df)
             total_failures = df.get('failures_count', pd.Series(dtype=int)).sum() if 'failures_count' in df.columns else 0
             overall_rate = (total_failures / total_records * 100) if total_records > 0 else 0
             
-            # Get model-specific failure rates
+            # model failure rates
             model_rates = []
             if 'model' in df.columns and 'failures_count' in df.columns:
                 model_stats = df.groupby('model').agg({
@@ -299,19 +287,18 @@ class PrescriptiveHandler(QueryHandler):
                 model_stats['rate'] = (model_stats['failures_count'] / model_stats['count'] * 100)
                 model_rates = model_stats.sort_values('rate', ascending=False)
             
-            # Get top failing parts
+            # top failing parts
             top_parts = []
             if 'primary_failed_part' in df.columns and 'failures_count' in df.columns:
                 part_stats = df.groupby('primary_failed_part')['failures_count'].sum().sort_values(ascending=False)
                 top_parts = part_stats.head(3)
             
-            # Build prescriptive response
             html_parts = [
                 "<p><strong>Prescriptive Guidance for High Failure Rates</strong></p>",
                 f"<p>Based on your data analysis showing an overall failure rate of <strong>{overall_rate:.1f}%</strong> across {total_records:,} records, here are my recommendations:</p>"
             ]
             
-            # Model-specific recommendations
+            # model-specific recs
             if model_rates is not None and not model_rates.empty:
                 worst_model = model_rates.index[0]
                 worst_rate = model_rates.iloc[0]['rate']
@@ -327,7 +314,7 @@ class PrescriptiveHandler(QueryHandler):
                     "</ul>"
                 ])
             
-            # Part-specific recommendations
+            # part-specific recs
             if top_parts is not None and not top_parts.empty:
                 worst_part = top_parts.index[0]
                 worst_part_failures = top_parts.iloc[0]
@@ -342,7 +329,7 @@ class PrescriptiveHandler(QueryHandler):
                     "</ul>"
                 ])
             
-            # General recommendations
+            # general recs
             html_parts.extend([
                 "<p><strong>General Improvement Strategies:</strong></p>",
                 "<ul style='margin-top:6px;'>",
@@ -363,7 +350,7 @@ class PrescriptiveHandler(QueryHandler):
             return f"<p>Could not generate prescriptive guidance: {_html.escape(str(e))}</p>"
 
 
-# Import additional handlers (we'll create these next)
+# import other handlers
 from chat.handlers_metrics import (
     TotalMetricHandler,
     CountAndAverageHandler,
@@ -419,6 +406,9 @@ from chat.handlers_ranking import (
     PartRankingHandler
 )
 
+from chat.handlers_text_to_sql import TextToSQLHandler
+from chat.handlers_intent import GenericIntentHandler
+
 
 class QueryRouter:
     """
@@ -430,47 +420,48 @@ class QueryRouter:
     
     def __init__(self):
         self.handlers = [
-            # Meta queries (should be first)
+            # meta queries first
             EmptyQueryHandler(),
             GreetingHandler(),
             SchemaHandler(),
             DateRangeHandler(),
             
-            # Conversation context handlers
+            # conversation context
             ConversationSummaryHandler(),
             
-            # Model comparison handlers (highest priority for comparison queries)
+            # text-to-sql for general data queries
+            TextToSQLHandler(),
+            
+            # model comparisons
             ModelComparisonHandler(),
             
-            # Ranking handlers (high priority for ranking queries)
+            # rankings
             ModelRankingHandler(),
             PartRankingHandler(),
             
-            # Model-specific handlers (high priority for specific model queries)
+            # model-specific stuff
             ModelSpecificRateHandler(),
             ModelSpecificCountHandler(),
             
-            # NEW: Supplier, VIN, and Location queries
+            # supplier, VIN, location queries
             SupplierListHandler(),
             DefectiveSupplierHandler(),
             VINQueryHandler(),
             FailureReasonHandler(),
             LocationQueryHandler(),
             
-            # NEW: DTC (Diagnostic Trouble Code) queries
-            # Model-specific DTC handler first (more specific)
+            # DTC handlers - model-specific first, then general
             ModelSpecificDTCHandler(),
-            # Then general DTC handlers
             DTCCommonCodesHandler(),
             DTCByModelHandler(),
             DTCByManufacturingYearHandler(),
             DTCTrendHandler(),
             
-            # NEW: Mileage and Age distribution queries
+            # mileage and age distributions
             MileageDistributionHandler(),
             AgeDistributionHandler(),
             
-            # Specific analysis queries
+            # analysis queries
             PrescriptiveHandler(),
             TimeToResolutionHandler(),
             TotalMetricHandler(),
@@ -481,10 +472,10 @@ class QueryRouter:
             TopFailedPartsHandler(),
             IncidentDetailsHandler(),
             
-            # Context-aware handler (before default)
+            # context-aware before default
             ContextAwareHandler(),
             
-            # Catch-all (must be last)
+            # catch-all last
             DefaultHandler(),
         ]
         
@@ -500,6 +491,16 @@ class QueryRouter:
         Returns:
             HTML response string
         """
+        intent_result = classify_intent(context.query)
+        context.intent = intent_result.label
+        logger.debug(f"Intent classified as {intent_result.label} ({intent_result.reason})")
+
+        if context.intent == "empty":
+            return EmptyQueryHandler().handle(context)
+
+        if context.intent in {"small_talk", "off_domain", "safety"}:
+            return GenericIntentHandler().handle(context)
+
         logger.debug(f"Routing query: '{context.query[:50]}...'")
         
         for handler in self.handlers:
@@ -515,7 +516,7 @@ class QueryRouter:
                     logger.error(f"{handler_name} failed: {e}", exc_info=True)
                     return f"<p>Error processing query with {handler_name}: {_html.escape(str(e))}</p>"
         
-        # This should never happen (DefaultHandler should catch everything)
+        # shouldn't happen but just in case
         logger.error("No handler matched query - this should not happen!")
         return "<p>I couldn't process your query. Please try rephrasing.</p>"
 

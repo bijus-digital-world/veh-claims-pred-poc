@@ -5,7 +5,6 @@ Handlers for model-specific queries that should prioritize the specific model.
 import re
 import html as _html
 import pandas as pd
-from typing import Optional
 
 from chat.handlers import QueryHandler, QueryContext
 from chat_helper import _detect_metric_from_text, _metric_or_fallback_column, _safe_column

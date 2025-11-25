@@ -7,7 +7,6 @@ Handlers for metric-related queries (totals, counts, averages, time to resolutio
 import re
 import html as _html
 import pandas as pd
-from typing import Optional
 
 from chat.handlers import QueryHandler, QueryContext
 from chat_helper import (

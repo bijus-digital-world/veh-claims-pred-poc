@@ -9,10 +9,34 @@ import re
 import html as _html
 import pandas as pd
 import numpy as np
-from typing import Optional
 
 from chat.handlers import QueryHandler, QueryContext
 from utils.logger import chat_logger as logger
+
+
+TIME_KEYWORDS = [
+    "month", "year", "week", "day", "quarter", "q1", "q2", "q3", "q4",
+    "today", "yesterday", "last", "previous", "past", "since", "during",
+    "between", "before", "after", "from", "to", "production", "manufacturing",
+]
+
+MONTH_NAMES = [
+    "january", "february", "march", "april", "may", "june",
+    "july", "august", "september", "october", "november", "december",
+    "jan", "feb", "mar", "apr", "jun", "jul", "aug", "sep", "sept", "oct", "nov", "dec",
+]
+
+
+def _mentions_time_filter(query: str) -> bool:
+    if any(month in query for month in MONTH_NAMES):
+        return True
+    if any(keyword in query for keyword in TIME_KEYWORDS):
+        return True
+    if re.search(r"\b20\d{2}\b", query):
+        return True
+    if re.search(r"\b\d{1,2}/\d{1,2}/\d{2,4}\b", query):
+        return True
+    return False
 
 
 class DTCCommonCodesHandler(QueryHandler):
@@ -29,6 +53,8 @@ class DTCCommonCodesHandler(QueryHandler):
         
         has_dtc = any(kw in query_lower for kw in ["dtc", "diagnostic trouble", "trouble code", "error code", "fault code", "obd code"])
         has_common = any(kw in query_lower for kw in ["most", "common", "frequent", "top"])
+        if _mentions_time_filter(query_lower):
+            return False
         
         return has_dtc and has_common and "dtc_code" in context.df_history.columns
     
@@ -114,7 +140,8 @@ class DTCByManufacturingYearHandler(QueryHandler):
         query_lower = context.query_lower
         has_dtc = any(kw in query_lower for kw in ["dtc", "diagnostic trouble", "trouble code", "error code", "fault code"])
         has_year = any(kw in query_lower for kw in ["manufacturing year", "manufacture year", "production year", "by year"])
-        
+        if _mentions_time_filter(query_lower):
+            return False
         return has_dtc and has_year and "dtc_code" in context.df_history.columns and "manufacturing_date" in context.df_history.columns
     
     def handle(self, context: QueryContext) -> str:

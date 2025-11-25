@@ -7,7 +7,6 @@ Handles queries like:
 - "Show me failure distribution by mileage"
 """
 
-import re
 import html as _html
 import pandas as pd
 from chat.handlers import QueryHandler, QueryContext
