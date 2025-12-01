@@ -112,8 +112,8 @@ def apply_style():
             letter-spacing:0.1px;
         }
 
-        .card { background:#0b0f13; border-radius:8px; padding:8px 10px; margin-bottom:8px; border:1px solid rgba(255,255,255,0.03); box-shadow:0 2px 6px rgba(0,0,0,0.6); }
-        .card-header { font-weight:600; font-size:14px; color:#e6eef8; margin-bottom:8px; background:rgba(255,255,255,0.03); padding:8px 12px; border-radius:6px; }
+        .card { background:#0b0f13; border-radius:12px; padding:8px 10px; margin-bottom:8px; border:1px solid rgba(255,255,255,0.03); box-shadow:0 2px 6px rgba(0,0,0,0.6); }
+        .card-header { font-weight:600; font-size:14px; color:#e6eef8; margin-bottom:8px; background:rgba(255,255,255,0.03); padding:8px 12px; border-radius:10px; }
 
         /* KPI tweaks */
         .kpi-wrap { position:relative; display:inline-block; }

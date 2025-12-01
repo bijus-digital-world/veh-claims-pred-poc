@@ -103,7 +103,8 @@ from helper import (
     get_bedrock_summary,
     fetch_nearest_dealers,
     reverse_geocode,
-    generate_enhanced_prescriptive_summary
+    generate_enhanced_prescriptive_summary,
+    load_svg_as_base64
 )
 
 from chat_helper import (
@@ -153,13 +154,8 @@ st.set_page_config(
     layout=config.ui.layout,
     initial_sidebar_state=config.ui.initial_sidebar_state
 )
-# apply_style is in styles.py; we assume it's already imported/used as before
 from styles import apply_style
 apply_style()
-
-# ------------------------
-# Helper UI functions (added)
-# ------------------------
 def safe_sorted_unique(series):
     """Return sorted unique string values from a pandas Series."""
     vals = [v for v in pd.unique(series) if pd.notna(v)]
@@ -869,8 +865,27 @@ def render_chat_interface():
     """
     st.markdown('<div style="height:12px;"></div>', unsafe_allow_html=True)
     
-    # Render chat interface
-    st.markdown('<div class="card"><div class="card-header">Vehicle Insights Companion</div>', unsafe_allow_html=True)
+    # Initialize chart toggle in session state
+    if 'show_charts' not in st.session_state:
+        st.session_state.show_charts = False
+    
+    # Render chat interface with header and chart toggle
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    
+    # Create header row with title and checkbox side by side
+    header_col1, header_col2 = st.columns([1, 0.25])
+    with header_col1:
+        st.markdown('<div class="card-header" style="margin-bottom: 0;">Vehicle Insights Companion</div>', unsafe_allow_html=True)
+    with header_col2:
+        st.markdown('<div style="padding-top: 8px; padding-left: 10px;">', unsafe_allow_html=True)
+        st.session_state.show_charts = st.checkbox(
+            "Show Chart",
+            value=st.session_state.show_charts,
+            key="chart_toggle",
+            help="Toggle chart visualization in chat responses",
+            label_visibility="visible"
+        )
+        st.markdown('</div>', unsafe_allow_html=True)
 
     # show faiss status 
     try:
@@ -887,23 +902,7 @@ def render_chat_interface():
             st.warning(f"FAISS status check failed: {e}")
         st.markdown("<div style='color:#fca5a5; font-size:12px'>FAISS status unknown</div>", unsafe_allow_html=True)
     
-    # Show conversation context info
-    try:
-        if (hasattr(st.session_state, 'conversation_memory') and 
-            st.session_state.conversation_memory and 
-            hasattr(st.session_state.conversation_memory, 'memory') and 
-            st.session_state.conversation_memory.memory):
-            conv_summary = st.session_state.conversation_memory.get_conversation_summary()
-            if conv_summary['total_exchanges'] > 0:
-                st.markdown(
-                    f"<div style='color:#94a3b8; font-size:11px; margin-bottom:8px;'>"
-                    f"Conversation: {conv_summary['total_exchanges']} exchanges, "
-                    f"{conv_summary['session_duration']:.0f}s duration</div>",
-                    unsafe_allow_html=True,
-                )
-    except Exception as e:
-        logger.debug(f"Failed to display conversation context: {e}")
-        # Silently fail - this is just a display feature
+    # (Conversation context info UI removed per UX request)
 
     # ensure session-state chat history exists
     if "chat_history" not in st.session_state:
@@ -971,6 +970,27 @@ def render_chat_interface():
         """Return the HTML that will be rendered inside components.html (includes JS scroll)."""
         pane_height = 300
         messages_html = ""
+        
+        # Load Nissan logo with red color and transparent background as base64 for assistant messages
+        nissan_logo_img = None
+        try:
+            nissan_logo_path = Path("images/nissan_logo_red_transparent.svg")
+            if nissan_logo_path.exists():
+                nissan_logo_base64 = load_svg_as_base64(str(nissan_logo_path))
+                nissan_logo_img = f'<img src="data:image/svg+xml;base64,{nissan_logo_base64}" width="20" height="20" style="flex-shrink:0; object-fit:contain;" alt="Nissan">'
+        except Exception as e:
+            logger.warning(f"Failed to load Nissan logo: {e}")
+        
+        # Load user icon as base64 for user messages
+        user_icon_img = None
+        try:
+            user_icon_path = Path("images/user_icon.svg")
+            if user_icon_path.exists():
+                user_icon_base64 = load_svg_as_base64(str(user_icon_path))
+                user_icon_img = f'<img src="data:image/svg+xml;base64,{user_icon_base64}" width="20" height="20" style="flex-shrink:0; object-fit:contain;" alt="User">'
+        except Exception as e:
+            logger.warning(f"Failed to load user icon: {e}")
+        
         if not st.session_state.chat_history:
             messages_html = '<div style="color:#6b7280; padding:6px;">No messages yet. Try: "claim rate for model Sentra" or "recent incidents".</div>'
         else:
@@ -979,52 +999,105 @@ def render_chat_interface():
                 ts = _format_timestamp(m.get("ts", ""))
                 if role == "user":
                     text = _html.escape(m.get("text", ""))
+                    # Use user icon if loaded, otherwise fallback to default icon
+                    user_icon_html = user_icon_img if user_icon_img else (
+                        '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;">'
+                        '<path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z" fill="#94a3b8" opacity="0.9"></path>'
+                        '<path d="M12 14c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" fill="#94a3b8" opacity="0.9"></path>'
+                        '</svg>'
+                    )
                     messages_html += (
                         f'<div style="text-align:right; margin-bottom:10px; color:#e6eef8; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-size: 12px; line-height: 1.5;">'
                         f'<div style="display:inline-flex; align-items:center; gap:6px; margin-bottom:4px;">'
-                        f'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;">'
-                        f'<path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z" fill="#94a3b8" opacity="0.9"></path>'
-                        f'<path d="M12 14c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" fill="#94a3b8" opacity="0.9"></path>'
-                        f'</svg>'
+                        f'{user_icon_html}'
                         f'<span style="font-size:10px;color:#94a3b8; font-weight:400;">{ts}</span></div>'
                         f'<div style="margin-top:4px; font-weight:400; letter-spacing:0.01em;">{text}</div></div>'
                     )
                 else:
                     assistant_html = (m.get("text") or "").replace("\n", "<br/>")
+                    # Use Nissan red logo if loaded, otherwise fallback to default icon
+                    logo_html = nissan_logo_img if nissan_logo_img else (
+                        '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;">'
+                        '<rect x="3" y="4" width="18" height="16" rx="2" fill="#94a3b8" opacity="0.9"></rect>'
+                        '<circle cx="9" cy="10" r="1.5" fill="#0b0f13"></circle>'
+                        '<circle cx="15" cy="10" r="1.5" fill="#0b0f13"></circle>'
+                        '<path d="M9 14.5c0 1.1 1.1 2.5 3 2.5s3-1.4 3-2.5" stroke="#0b0f13" stroke-width="1.2" stroke-linecap="round" fill="none"></path>'
+                        '</svg>'
+                    )
+                    # Flatten structure - put timestamp and content in same flow with no spacing
                     messages_html += (
-                        f'<div style="text-align:left; margin-bottom:10px; color:#cfe9ff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-size: 12px; line-height: 1.5;">'
-                        f'<div style="display:inline-flex; align-items:center; gap:6px; margin-bottom:4px;">'
-                        f'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;">'
-                        f'<rect x="3" y="4" width="18" height="16" rx="2" fill="#94a3b8" opacity="0.9"></rect>'
-                        f'<circle cx="9" cy="10" r="1.5" fill="#0b0f13"></circle>'
-                        f'<circle cx="15" cy="10" r="1.5" fill="#0b0f13"></circle>'
-                        f'<path d="M9 14.5c0 1.1 1.1 2.5 3 2.5s3-1.4 3-2.5" stroke="#0b0f13" stroke-width="1.2" stroke-linecap="round" fill="none"></path>'
-                        f'</svg>'
-                        f'<span style="font-size:10px;color:#94a3b8; font-weight:400;">{ts}</span></div>'
-                        f'<div style="margin-top:4px; font-weight:400; letter-spacing:0.01em;">{assistant_html}</div></div>'
+                        f'<div style="text-align:left;margin-bottom:10px;color:#cfe9ff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;font-size:12px;line-height:1.2;display:block!important;"><div style="display:inline-flex;align-items:center;gap:6px;margin-bottom:0!important;padding-bottom:0!important;">{logo_html}<span style="font-size:10px;color:#94a3b8;font-weight:400;">{ts}</span></div><div style="margin-top:0!important;padding-top:0!important;font-weight:400;letter-spacing:0.01em;line-height:1.4;display:block!important;">{assistant_html}</div></div>'
                     )
 
         full_html = f"""
-        <div id="chat-pane" style="
-            height:{pane_height}px;
-            overflow-y:auto;
-            padding:10px 12px;
-            background:#0b1220;
-            border-radius:6px;
-            border: 1px solid #334155;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            font-size:12px;
-            line-height:1.5;
-        ">
+        <style>
+        /* Aggressive spacing removal for last message */
+        #chat-pane > div:last-child {{
+            line-height: 1.2 !important;
+        }}
+        #chat-pane > div:last-child > div:last-child {{
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+            margin-bottom: 0 !important;
+        }}
+        #chat-pane > div:last-child > div:last-child > div {{
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+        }}
+        #chat-pane > div:last-child > div:last-child > div:last-child {{
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+        }}
+        #chat-pane table {{
+            margin-top: 0 !important;
+            margin-bottom: 0 !important;
+            padding-top: 0 !important;
+        }}
+        #chat-pane .query-results-table {{
+            margin-top: 0 !important;
+            margin-bottom: 0 !important;
+        }}
+        /* Target the content div specifically */
+        #chat-pane > div:last-child > div > div:last-child {{
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+        }}
+        </style>
+        <div id="chat-pane" style="height:{pane_height}px;overflow-y:auto;padding:10px 12px;background:#0b1220;border-radius:12px;border:1px solid #334155;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;font-size:12px;line-height:1.5;">
             {messages_html}
         </div>
 
         <script>
         (function() {{
+            // Only handle smooth scrolling; avoid manipulating margins/padding of
+            // messages so rich content like charts is not overlapped or compressed.
+            function scrollToBottom() {{
+                const el = document.getElementById('chat-pane');
+                if (!el) return;
+                el.scrollTo({{ top: el.scrollHeight, left: 0, behavior: 'smooth' }});
+            }}
+            
+            // Run immediately
+            scrollToBottom();
+            
+            // Run after a short delay to catch any delayed rendering
+            setTimeout(scrollToBottom, 10);
+            setTimeout(scrollToBottom, 50);
+            setTimeout(scrollToBottom, 100);
+            
+            // Use MutationObserver to catch new messages (but ignore internal
+            // mutations such as Plotly hover labels to avoid scroll "jumping").
             const el = document.getElementById('chat-pane');
             if (el) {{
+                const observer = new MutationObserver(function(mutations) {{
+                    scrollToBottom();
+                }});
+                
+                // Only observe direct child list changes (new/removed messages)
+                observer.observe(el, {{ childList: true, subtree: false }});
+                
                 // smooth scroll to bottom
-                el.scrollTo({{ top: el.scrollHeight, left: 0, behavior: 'smooth' }});
+                scrollToBottom();
             }}
         }})();
         </script>
@@ -1101,7 +1174,6 @@ python -m pip install streamlit-audiorecorder==0.0.6 pydub==0.25.1
         with send_col:
             submitted = st.form_submit_button("→", use_container_width=True, help="Send message")
 
-        # Clear chat button (trash icon)
         with clear_col:
             clear_chat = st.form_submit_button("🗑", use_container_width=True, help="Clear chat")
 
@@ -1258,12 +1330,14 @@ python -m pip install streamlit-audiorecorder==0.0.6 pydub==0.25.1
             line-height: 1 !important;
         }
         
-        /* Form container - minimal styling */
+        /* Form container - rounded bottom section */
         div[data-testid="stForm"] {
-            background: transparent !important;
-            border: none !important;
-            padding: 0 !important;
-            border-radius: 0 !important;
+            background: #0b0f13 !important;
+            border: 1px solid rgba(255,255,255,0.03) !important;
+            border-top: none !important;
+            padding: 12px 10px 10px 10px !important;
+            border-radius: 0 0 12px 12px !important;
+            margin-top: -1px !important;
         }
         
         /* Ensure buttons are aligned in the same row */
@@ -1377,8 +1451,8 @@ python -m pip install streamlit-audiorecorder==0.0.6 pydub==0.25.1
         with button_col:
             try:
                 audio_bytes = streamlit_audiorecorder(
-                    start_prompt="🎤",
-                    stop_prompt="⏹",
+                    start_prompt="",
+                    stop_prompt="Stop",
                     pause_prompt="",
                     show_visualizer=False,
                     key="voice_recorder_static"
@@ -1475,8 +1549,8 @@ python -m pip install streamlit-audiorecorder==0.0.6 pydub==0.25.1
             st.session_state["pending_audio_id"] = None
         else:
             try:
-                logger.info(f"🎤 Starting transcription for audio ({len(audio_bytes)} frames, {audio_bytes.duration_seconds:.2f}s)")
-                with st.spinner("🎤 Transcribing audio..."):
+                logger.info(f"Starting transcription for audio ({len(audio_bytes)} frames, {audio_bytes.duration_seconds:.2f}s)")
+                with st.spinner("Transcribing audio..."):
                     # Convert AudioSegment to bytes (optimized format for faster processing)
                     import io
                     audio_buffer = io.BytesIO()
@@ -1657,17 +1731,50 @@ python -m pip install streamlit-audiorecorder==0.0.6 pydub==0.25.1
             st.warning("Please type a question first.")
         else:
             # dedupe guard (prevent duplicate appends on accidental double-submit)
+            # BUT allow re-submission if chart preference has changed
             last_user_text = None
+            last_assistant_response = None
             if st.session_state.chat_history:
                 for m in reversed(st.session_state.chat_history):
                     if m.get("role") == "user":
                         last_user_text = m.get("text")
+                    elif m.get("role") == "assistant" and last_assistant_response is None:
+                        last_assistant_response = m.get("text", "")
+                    if last_user_text is not None and last_assistant_response is not None:
                         break
 
-            if last_user_text is not None and last_user_text.strip() == q:
-                st.info("This message was already submitted. Showing existing response.")
-                # do nothing — final render below will show existing messages
-            else:
+            # Check if this is a duplicate query
+            is_duplicate_query = last_user_text is not None and last_user_text.strip() == q
+            should_process = True
+            
+            if is_duplicate_query:
+                # Check if charts are currently enabled
+                charts_enabled_now = st.session_state.get("show_charts", False)
+                
+                # Check if previous response had charts (look for plotly markers in HTML)
+                previous_had_charts = False
+                if last_assistant_response:
+                    # Check for common chart indicators in the HTML
+                    chart_indicators = [
+                        "plotly", "js-plotly", "plotly.js", 
+                        "chart_html", "plotly-graph-div",
+                        "data-testid=\"stPlotlyChart\""  # Streamlit plotly chart marker
+                    ]
+                    previous_had_charts = any(indicator.lower() in last_assistant_response.lower() 
+                                            for indicator in chart_indicators)
+                
+                # Allow re-submission if chart preference has changed
+                if charts_enabled_now != previous_had_charts:
+                    # Chart preference changed - allow re-submission
+                    logger.info(f"Allowing re-submission of query '{q[:50]}...' because chart preference changed "
+                              f"(was: {previous_had_charts}, now: {charts_enabled_now})")
+                    should_process = True  # Process the query
+                else:
+                    # Same query and same chart preference - show existing response
+                    st.info("This message was already submitted. Showing existing response.")
+                    should_process = False  # Don't process, show existing response
+            
+            if should_process:
                 import uuid
 
                 submission_id = str(uuid.uuid4())

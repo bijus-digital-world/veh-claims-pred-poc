@@ -777,13 +777,16 @@ def _requested_missing_columns(user_text: str, df_cols) -> dict:
 def generate_reply(user_text: str,
                    df_history: pd.DataFrame,
                    get_bedrock_summary_callable,
-                   conversation_context=None) -> str:
+                   conversation_context=None,
+                   df_inference: Optional[pd.DataFrame] = None) -> str:
     """
     Main entry used by app.py to produce assistant HTML reply.
     
     Uses modular handler pattern for better maintainability.
     """
     from chat.handlers import QueryRouter, QueryContext
+    import os
+    from config import config
     
     ut = (user_text or "").strip()
     logger.info(f"Processing chat query: '{ut[:100]}...'")
@@ -798,12 +801,26 @@ def generate_reply(user_text: str,
             return (f"<p>It looks like you're asking about {pretty_missing}, but your data does not contain that column. "
                     f"Available columns include: <strong>{available}</strong>. Try asking about one of those instead.</p>")
     
+    # Load inference log if not provided and file exists (for current location queries)
+    if df_inference is None:
+        inference_log_path = config.paths.inference_log_local
+        if os.path.isfile(inference_log_path):
+            try:
+                df_inference = pd.read_csv(inference_log_path, parse_dates=["timestamp"])
+                logger.debug(f"Loaded inference log with {len(df_inference)} records")
+            except Exception as e:
+                logger.warning(f"Failed to load inference log: {e}")
+                df_inference = pd.DataFrame()  # Empty DataFrame if load fails
+        else:
+            df_inference = pd.DataFrame()  # Empty DataFrame if file doesn't exist
+    
     # Create context and use handler pattern
     context = QueryContext(
         query=ut,
         df_history=df_history,
         get_bedrock_summary_callable=get_bedrock_summary_callable,
-        conversation_context=conversation_context
+        conversation_context=conversation_context,
+        df_inference=df_inference
     )
     
     # Route to appropriate handler
