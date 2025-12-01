@@ -1,19 +1,10 @@
-"""
-chat/handlers.py
-
-Query handler pattern for chat functionality.
-Each handler is responsible for one type of query.
-
-This modular approach replaces the 499-line generate_reply() god function
-with focused, testable, and maintainable handlers.
-"""
+"""Query handler pattern for chat functionality."""
 
 from abc import ABC, abstractmethod
-from typing import Dict, Optional
+from typing import Optional
 import re
 import html as _html
 import pandas as pd
-import numpy as np
 
 from config import config
 from utils.logger import chat_logger as logger
@@ -21,24 +12,23 @@ from chat.intent_classifier import classify_intent
 
 
 class QueryContext:
-    """
-    Context object passed to all handlers containing necessary data and state.
-    """
+    """Context object passed to all handlers."""
     def __init__(
         self,
         query: str,
         df_history: pd.DataFrame,
         get_bedrock_summary_callable,
         conversation_context=None,
-        intent: Optional[str] = None
+        intent: Optional[str] = None,
+        df_inference: Optional[pd.DataFrame] = None
     ):
         self.query = query
         self.query_lower = query.lower()
         self.df_history = df_history
         self.get_bedrock_summary = get_bedrock_summary_callable
         self.conversation_context = conversation_context
+        self.df_inference = df_inference
         
-        # computed later
         self.requested_metric = None
         self.metric_col = None
         self.sample_df = None
@@ -46,43 +36,19 @@ class QueryContext:
 
 
 class QueryHandler(ABC):
-    """
-    Abstract base class for query handlers.
-    
-    Each handler should:
-    - Detect if it can handle a query (can_handle)
-    - Process the query and return HTML (handle)
-    - Be completely independent and testable
-    """
+    """Base class for query handlers."""
     
     @abstractmethod
     def can_handle(self, context: QueryContext) -> bool:
-        """
-        Determine if this handler can process the query.
-        
-        Args:
-            context: Query context with query text and data
-        
-        Returns:
-            True if this handler should process the query
-        """
+        """Check if this handler can process the query."""
         pass
     
     @abstractmethod
     def handle(self, context: QueryContext) -> str:
-        """
-        Process the query and return HTML response.
-        
-        Args:
-            context: Query context with query text and data
-        
-        Returns:
-            HTML string response
-        """
+        """Process the query and return HTML response."""
         pass
     
     def get_name(self) -> str:
-        """Get handler name for logging"""
         return self.__class__.__name__
 
 
@@ -143,70 +109,29 @@ class GreetingHandler(QueryHandler):
                     "<p><em>Try asking: \"What's the failure rate for Sentra?\" or \"Show me failure trends\"</em></p>")
 
 
-class SchemaHandler(QueryHandler):
-    """Handle schema/column listing requests"""
-    
-    def can_handle(self, context: QueryContext) -> bool:
-        return any(p in context.query_lower for p in 
-                   ["column names", "columns", "fields", "schema", "features", "headers"])
-    
-    def handle(self, context: QueryContext) -> str:
-        logger.debug("SchemaHandler triggered")
-        cols = list(context.df_history.columns)
-        formatted = ", ".join(cols)
-        return (f"<p>Your dataset contains the following columns:</p>"
-                f"<p style='color:#cfe9ff'>{formatted}</p>")
-
-
-class DateRangeHandler(QueryHandler):
-    """Handle date range / timespan queries"""
-    
-    def can_handle(self, context: QueryContext) -> bool:
-        pattern = r"\b(how many months|months (?:of )?data|how many years|years (?:of )?data|date range|earliest date|latest date|first date|last date|data from)\b"
-        return bool(re.search(pattern, context.query_lower))
-    
-    def handle(self, context: QueryContext) -> str:
-        logger.debug("DateRangeHandler triggered")
-        
-        if "date" not in context.df_history.columns:
-            return "<p>Your dataset does not contain a <strong>'date'</strong> column, so I can't compute the time span.</p>"
-        
-        try:
-            df_dates = context.df_history.copy()
-            df_dates["date_parsed"] = pd.to_datetime(df_dates["date"], errors="coerce")
-            df_dates = df_dates.dropna(subset=["date_parsed"])
-            
-            if df_dates.empty:
-                return "<p>Could not find any parsable dates in the 'date' column.</p>"
-            
-            min_d = df_dates["date_parsed"].min()
-            max_d = df_dates["date_parsed"].max()
-            months_span = (max_d.year - min_d.year) * 12 + (max_d.month - min_d.month) + 1
-            distinct_months = int(df_dates["date_parsed"].dt.to_period("M").nunique())
-            rows_with_dates = int(df_dates.shape[0])
-            min_s = min_d.strftime("%b %Y")
-            max_s = max_d.strftime("%b %Y")
-            
-            return (f"<p>Dataset date range: <strong>{min_s}</strong> → <strong>{max_s}</strong>.</p>"
-                    f"<p>This spans <strong>{months_span}</strong> calendar months, "
-                    f"with data present in <strong>{distinct_months}</strong> distinct months. "
-                    f"There are <strong>{rows_with_dates}</strong> records with parsable dates.</p>")
-        except Exception as e:
-            logger.error(f"DateRangeHandler failed: {e}", exc_info=True)
-            return f"<p>Couldn't compute date range (error: {_html.escape(str(e))}).</p>"
-
-
 class PrescriptiveHandler(QueryHandler):
     """Handle prescriptive/recommendation requests using Bedrock"""
     
     def can_handle(self, context: QueryContext) -> bool:
+        """
+        Only handle true prescriptive/recommendation queries.
+        
+        Comparison queries ("compare", "vs", "versus") should go to TextToSQLHandler
+        for data analysis, not prescriptive recommendations.
+        """
+        query_lower = context.query_lower
+        
+        # Don't handle comparison queries - these are data queries, not prescriptive
+        if any(word in query_lower for word in ["compare", "comparison", "vs", "versus", "versus"]):
+            return False
+        
         prescriptive_keywords = [
             "prescribe", "recommend", "prescriptive", "advice", "action",
             "what should i do", "what should we do", "how to fix", "how to improve",
             "what to do about", "suggestions", "recommendations", "guidance",
             "help with", "solution", "remedy", "intervention", "improving"
         ]
-        return any(w in context.query_lower for w in prescriptive_keywords)
+        return any(w in query_lower for w in prescriptive_keywords)
     
     def handle(self, context: QueryContext) -> str:
         from chat_helper import parse_model_part_from_text, ensure_failures_column
@@ -242,7 +167,24 @@ class PrescriptiveHandler(QueryHandler):
         ]
         
         if slice_df.empty:
-            return f"<p>No data found for model '{model}' and part '{part}'.</p>"
+            # Generate helpful error message with suggestions
+            available_models = context.df_history.get("model", pd.Series(dtype=str)).dropna().unique()[:5]
+            available_parts = context.df_history.get("primary_failed_part", pd.Series(dtype=str)).dropna().unique()[:5]
+            
+            models_text = ", ".join([str(m) for m in available_models if pd.notna(m)])
+            parts_text = ", ".join([str(p) for p in available_parts if pd.notna(p)])
+            
+            return (
+                f"<p>No data found for model '<strong>{_html.escape(str(model))}</strong>' and part '<strong>{_html.escape(str(part))}</strong>'.</p>"
+                f"<p style='font-size: 0.9em; color: #94a3b8; margin-top: 8px;'>"
+                f"This combination might not exist in the dataset, or the model/part names might be spelled differently.</p>"
+                f"<p style='font-size: 0.9em; color: #cfe9ff; margin-top: 8px;'>"
+                f"<strong>Available models:</strong> {models_text}</p>"
+                f"<p style='font-size: 0.9em; color: #cfe9ff;'>"
+                f"<strong>Available parts:</strong> {parts_text}</p>"
+                f"<p style='font-size: 0.85em; color: #64748b; margin-top: 8px;'>"
+                f"<strong>Tip:</strong> Try one of these combinations, or ask 'What columns are available?' to explore the data structure.</p>"
+            )
         
         mileage_bucket = slice_df.iloc[0].get("mileage_bucket", "")
         age_bucket = slice_df.iloc[0].get("age_bucket", "")
@@ -266,7 +208,47 @@ class PrescriptiveHandler(QueryHandler):
             return f"<p>{_html.escape(plain)}</p>"
         except Exception as e:
             logger.error(f"Bedrock prescriptive summary failed: {e}", exc_info=True)
-            return f"<p>Could not generate prescriptive summary via Bedrock: {_html.escape(str(e))}</p>"
+            # Generate user-friendly error message
+            error_msg = str(e).lower()
+            
+            error_parts = [
+                "<p>I couldn't generate prescriptive recommendations for your request.</p>"
+            ]
+            
+            # Check error type and provide specific guidance
+            if "bedrock" in error_msg or "aws" in error_msg or "credentials" in error_msg:
+                error_parts.append(
+                    "<p style='font-size: 0.9em; color: #fca5a5; margin-top: 8px;'>"
+                    "<strong>Issue:</strong> The AI recommendation service is not available right now.</p>"
+                    "<p style='font-size: 0.85em; color: #94a3b8; margin-top: 8px;'>"
+                    "This might be a temporary issue. Please try again in a moment, or try a different query.</p>"
+                )
+            elif "timeout" in error_msg or "timed out" in error_msg:
+                error_parts.append(
+                    "<p style='font-size: 0.9em; color: #fca5a5; margin-top: 8px;'>"
+                    "<strong>Issue:</strong> The request took too long to process.</p>"
+                    "<p style='font-size: 0.85em; color: #94a3b8; margin-top: 8px;'>"
+                    "Please try again with a more specific query, or try again in a moment.</p>"
+                )
+            else:
+                error_parts.append(
+                    "<p style='font-size: 0.9em; color: #94a3b8; margin-top: 8px;'>"
+                    "This might be a temporary issue. Please try again, or rephrase your question.</p>"
+                )
+            
+            # Add helpful suggestions
+            error_parts.append(
+                "<p style='font-size: 0.85em; color: #64748b; margin-top: 8px;'>"
+                "<strong>You can try:</strong></p>"
+                "<ul style='font-size: 0.85em; color: #64748b; margin-left: 20px;'>"
+                "<li>Asking again in a moment</li>"
+                "<li>Rephrasing your question more specifically</li>"
+                "<li>Trying a different model/part combination</li>"
+                "<li>Asking a data query instead: 'What's the failure rate for Leaf Battery?'</li>"
+                "</ul>"
+            )
+            
+            return "".join(error_parts)
     
     def _handle_general_prescriptive_guidance(self, context: QueryContext) -> str:
         """Handle general prescriptive queries about high failure rates."""
@@ -347,150 +329,75 @@ class PrescriptiveHandler(QueryHandler):
             
         except Exception as e:
             logger.error(f"General prescriptive guidance failed: {e}", exc_info=True)
-            return f"<p>Could not generate prescriptive guidance: {_html.escape(str(e))}</p>"
+            # Generate user-friendly error message
+            error_parts = [
+                "<p>I couldn't generate prescriptive guidance for your query about failure rates.</p>",
+                "<p style='font-size: 0.9em; color: #94a3b8; margin-top: 8px;'>"
+                "This might be because the dataset doesn't have the required data structure.</p>"
+            ]
+            
+            # Check if basic columns exist
+            if context.df_history is not None:
+                has_model = 'model' in context.df_history.columns
+                has_failures = 'failures_count' in context.df_history.columns or 'failures' in context.df_history.columns.lower()
+                
+                if not has_model:
+                    error_parts.append(
+                        "<p style='font-size: 0.85em; color: #fca5a5; margin-top: 8px;'>"
+                        "<strong>Issue:</strong> The dataset doesn't contain a 'model' column.</p>"
+                    )
+                if not has_failures:
+                    error_parts.append(
+                        "<p style='font-size: 0.85em; color: #fca5a5; margin-top: 8px;'>"
+                        "<strong>Issue:</strong> The dataset doesn't contain failure count data.</p>"
+                    )
+                
+                # Add suggestion
+                error_parts.append(
+                    "<p style='font-size: 0.85em; color: #64748b; margin-top: 8px;'>"
+                    "<strong>Suggestion:</strong> Try asking for a specific model-part combination instead, "
+                    "like 'Prescribe for model Leaf part Battery'.</p>"
+                )
+            
+            return "".join(error_parts)
 
 
-# import other handlers
-from chat.handlers_metrics import (
-    TotalMetricHandler,
-    CountAndAverageHandler,
-    TimeToResolutionHandler
-)
-
-from chat.handlers_analysis import (
-    MonthlyAggregateHandler,
-    RateHandler,
-    TrendHandler,
-    TopFailedPartsHandler,
-    IncidentDetailsHandler
-)
-from chat.handlers_dtc import (
-    DTCCommonCodesHandler,
-    DTCByModelHandler,
-    DTCByManufacturingYearHandler,
-    ModelSpecificDTCHandler,
-    DTCTrendHandler
-)
-
-from chat.handlers_default import DefaultHandler
-
-from chat.handlers_supplier import (
-    SupplierListHandler,
-    DefectiveSupplierHandler,
-    VINQueryHandler,
-    FailureReasonHandler,
-    LocationQueryHandler
-)
-
-from chat.handlers_distribution import (
-    MileageDistributionHandler,
-    AgeDistributionHandler
-)
-
-from chat.handlers_context import (
-    ContextAwareHandler,
-    ConversationSummaryHandler
-)
-
-from chat.handlers_model_specific import (
-    ModelSpecificRateHandler,
-    ModelSpecificCountHandler
-)
-
-from chat.handlers_comparison import (
-    ModelComparisonHandler
-)
-
-from chat.handlers_ranking import (
-    ModelRankingHandler,
-    PartRankingHandler
-)
-
+# Simplified imports - only essential handlers
 from chat.handlers_text_to_sql import TextToSQLHandler
 from chat.handlers_intent import GenericIntentHandler
+from chat.handlers_supplier import VehicleLocationHandler, LocationAnalysisHandler
 
 
 class QueryRouter:
     """
-    Routes queries to appropriate handlers.
+    Simplified router using TextToSQL for all data queries.
     
-    Handlers are tried in order until one can handle the query.
-    The DefaultHandler should always be last as a catch-all.
+    Only essential meta handlers are kept for basic queries (empty, greetings).
+    Schema queries, date range queries, and all other data queries are handled by TextToSQLHandler 
+    which uses LLM to generate SQL (or direct handling for schema queries).
     """
     
     def __init__(self):
         self.handlers = [
-            # meta queries first
+            # Essential meta queries only
             EmptyQueryHandler(),
             GreetingHandler(),
-            SchemaHandler(),
-            DateRangeHandler(),
             
-            # conversation context
-            ConversationSummaryHandler(),
-            
-            # text-to-sql for general data queries
-            TextToSQLHandler(),
-            
-            # model comparisons
-            ModelComparisonHandler(),
-            
-            # rankings
-            ModelRankingHandler(),
-            PartRankingHandler(),
-            
-            # model-specific stuff
-            ModelSpecificRateHandler(),
-            ModelSpecificCountHandler(),
-            
-            # supplier, VIN, location queries
-            SupplierListHandler(),
-            DefectiveSupplierHandler(),
-            VINQueryHandler(),
-            FailureReasonHandler(),
-            LocationQueryHandler(),
-            
-            # DTC handlers - model-specific first, then general
-            ModelSpecificDTCHandler(),
-            DTCCommonCodesHandler(),
-            DTCByModelHandler(),
-            DTCByManufacturingYearHandler(),
-            DTCTrendHandler(),
-            
-            # mileage and age distributions
-            MileageDistributionHandler(),
-            AgeDistributionHandler(),
-            
-            # analysis queries
+            # Prescriptive queries (needs special handling, not SQL)
             PrescriptiveHandler(),
-            TimeToResolutionHandler(),
-            TotalMetricHandler(),
-            CountAndAverageHandler(),
-            MonthlyAggregateHandler(),
-            RateHandler(),
-            TrendHandler(),
-            TopFailedPartsHandler(),
-            IncidentDetailsHandler(),
             
-            # context-aware before default
-            ContextAwareHandler(),
+            # Specialized handlers for vehicle tracking and location analysis (must come before TextToSQLHandler)
+            VehicleLocationHandler(),  # Tracks WHERE A SPECIFIC VEHICLE IS (vehicle-centric)
+            LocationAnalysisHandler(),  # Analyzes WHERE failures/issues occur (geographic-centric)
             
-            # catch-all last
-            DefaultHandler(),
+            # TextToSQL handles all data queries including schema and date range queries - catch-all for everything else
+            TextToSQLHandler(),
         ]
         
-        logger.info(f"QueryRouter initialized with {len(self.handlers)} handlers")
+        logger.info(f"QueryRouter initialized with {len(self.handlers)} handlers (Simplified mode - SchemaHandler and DateRangeHandler removed)")
     
     def route(self, context: QueryContext) -> str:
-        """
-        Route query to appropriate handler.
-        
-        Args:
-            context: Query context
-        
-        Returns:
-            HTML response string
-        """
+        """Route query to appropriate handler."""
         intent_result = classify_intent(context.query)
         context.intent = intent_result.label
         logger.debug(f"Intent classified as {intent_result.label} ({intent_result.reason})")
@@ -510,13 +417,53 @@ class QueryRouter:
                 
                 try:
                     response = handler.handle(context)
+                    if response is None:
+                        logger.debug(f"{handler_name} returned None, continuing to next handler")
+                        continue
                     logger.debug(f"{handler_name} completed successfully")
                     return response
                 except Exception as e:
                     logger.error(f"{handler_name} failed: {e}", exc_info=True)
-                    return f"<p>Error processing query with {handler_name}: {_html.escape(str(e))}</p>"
+                    # Generate user-friendly error message
+                    from chat.handlers_errors import generate_user_friendly_error
+                    return generate_user_friendly_error(
+                        error=e,
+                        query=context.query,
+                        context=context,
+                        error_type=None,
+                        handler_name=handler_name
+                    )
         
         # shouldn't happen but just in case
         logger.error("No handler matched query - this should not happen!")
-        return "<p>I couldn't process your query. Please try rephrasing.</p>"
+        # Generate helpful error message
+        error_parts = [
+            "<p>I couldn't process your query. This is unexpected, but here's how I can help:</p>"
+        ]
+        
+        # Add suggestions based on query type
+        query_lower = context.query_lower
+        if any(kw in query_lower for kw in ['prescribe', 'recommend', 'advice']):
+            error_parts.append(
+                "<p style='font-size: 0.9em; color: #94a3b8; margin-top: 8px;'>"
+                "<strong>For prescriptive queries:</strong> Try 'Prescribe for model [ModelName] part [PartName]'</p>"
+            )
+        elif any(kw in query_lower for kw in ['rate', 'percentage', 'failure rate']):
+            error_parts.append(
+                "<p style='font-size: 0.9em; color: #94a3b8; margin-top: 8px;'>"
+                "<strong>For rate queries:</strong> Try 'What's the failure rate for [Model]?'</p>"
+            )
+        else:
+            error_parts.append(
+                "<p style='font-size: 0.9em; color: #94a3b8; margin-top: 8px;'>"
+                "<strong>Example queries:</strong></p>"
+                "<ul style='font-size: 0.9em; color: #94a3b8; margin-left: 20px;'>"
+                "<li>'What's the failure rate for Sentra?'</li>"
+                "<li>'Show me all vehicles with mileage > 50000'</li>"
+                "<li>'Top 5 failing parts'</li>"
+                "<li>'What columns are available?'</li>"
+                "</ul>"
+            )
+        
+        return "".join(error_parts)
 

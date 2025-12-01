@@ -1,183 +1,87 @@
 """
-Supplier, VIN, and Location-related query handlers for enhanced dataset.
+Vehicle Location Tracking and Location Analysis query handlers.
 
 Handles queries about:
-- Supplier lists and quality analysis
-- VIN tracking and lookup
-- Vehicle location queries
-- Service center proximity
+- Vehicle location tracking (WHERE IS a specific vehicle) - VehicleLocationHandler
+- Location-based data analysis (WHERE DO failures occur) - LocationAnalysisHandler
 """
 
 import re
 import html as _html
 import pandas as pd
+from typing import Optional
 from chat.handlers import QueryHandler, QueryContext
+from chat.context_utils import (
+    extract_context_filters_from_memory,
+    extract_referenced_entity_from_memory
+)
 from utils.logger import chat_logger as logger
-from helper import km_to_miles
+from helper import km_to_miles, fetch_nearest_dealers
+from config import config
 
 
-class SupplierListHandler(QueryHandler):
-    """Handle 'list suppliers for X part' queries"""
+class VehicleLocationHandler(QueryHandler):
+    """
+    Handle vehicle location tracking and service center queries for specific VINs.
+    
+    This handler tracks WHERE A SPECIFIC VEHICLE IS located:
+    - Current location queries (integrates with inference log for most recent location data)
+    - Service center queries (dynamically fetches nearest dealers via AWS Location Service)
+    - Context-aware queries (extracts VIN from conversation memory for follow-up questions)
+    
+    This is VEHICLE-CENTRIC (asks about a specific vehicle's location).
+    
+    General VIN data queries (show VINs, count VINs, VINs by model, etc.) 
+    are handled by TextToSQLHandler.
+    """
     
     def can_handle(self, context: QueryContext) -> bool:
+        """
+        Only handle VIN queries that require special logic:
+        - Specific VIN location queries (needs inference log integration)
+        - Specific VIN service center queries (needs dynamic dealer fetching)
+        - "VINs affected by failures" (needs context extraction from conversation)
+        
+        General VIN data queries (show VINs, count VINs, VINs by model, etc.) 
+        should be handled by TextToSQLHandler.
+        """
         query_lower = context.query.lower()
-        return any(phrase in query_lower for phrase in [
-            "list suppliers", "which suppliers", "suppliers for",
-            "who supplies", "supplier list", "show suppliers",
-            "suppliers provide", "suppliers supply", "suppliers who",
-            "list of suppliers", "supplier who supply"
-        ]) or ("supplier" in query_lower and "supply" in query_lower)
-    
-    def handle(self, context: QueryContext) -> str:
-        df = context.df_history
-        query_lower = context.query.lower()
         
-        logger.info(f"SupplierListHandler processing: '{context.query[:50]}...'")
+        has_vin = (re.search(r'\bvin\b', query_lower) or 
+                   re.search(r'\bvins\b', query_lower) or 
+                   re.search(r'1N4[A-Z0-9]{8,}', context.query))
         
-        # Check if supplier columns exist
-        if "supplier_name" not in df.columns:
-            return "<p>Supplier information is not available in the current dataset. Please regenerate with the enhanced dataset.</p>"
+        if not has_vin:
+            return False
         
-        # Detect requested part family
-        part_families = ["Battery", "Brakes", "Transmission", "Engine", "Electrical", 
-                        "Lighting", "HVAC", "Safety", "Steering", "Tires"]
-        part_family = None
-        for family in part_families:
-            if family.lower() in query_lower:
-                part_family = family
-                break
-        
-        # Filter by part family if specified
-        if part_family and "part_family" in df.columns:
-            filtered = df[df["part_family"] == part_family]
-            context_msg = f"for {part_family} parts"
-        else:
-            filtered = df
-            context_msg = "across all parts"
-        
-        if filtered.empty:
-            return f"<p>No suppliers found {context_msg}.</p>"
-        
-        # Group by supplier
-        supplier_summary = filtered.groupby("supplier_name").agg({
-            "supplier_id": "first",
-            "supplier_quality_score": "first",
-            "defect_rate": "first",
-            "claims_count": "sum",
-            "primary_failed_part": lambda x: x.nunique()
-        }).reset_index()
-        
-        supplier_summary.columns = ["Supplier", "ID", "Quality", "Defect Rate", "Total Claims", "Part Types"]
-        supplier_summary = supplier_summary.sort_values("Quality", ascending=False)
-        
-        # Plain English summary
-        best_supplier = supplier_summary.iloc[0] if not supplier_summary.empty else None
-        if best_supplier is not None:
-            summary = f"We work with {len(supplier_summary)} suppliers {context_msg}, with {best_supplier['Supplier']} being the highest quality (score: {int(best_supplier['Quality'])}/100)."
-        else:
-            summary = f"Supplier information {context_msg} is available."
-        
-        html = f"<p><strong>{summary}</strong></p>"
-        html += f"<p><strong>Complete supplier list {context_msg}:</strong></p><ul style='margin-top:6px;'>"
-        for _, row in supplier_summary.head(10).iterrows():
-            defect_pct = row['Defect Rate'] * 100 if pd.notna(row['Defect Rate']) else 0
-            quality_color = "#16a34a" if row['Quality'] >= 90 else ("#f59e0b" if row['Quality'] >= 80 else "#ef4444")
-            html += (f"<li><strong>{_html.escape(str(row['Supplier']))}</strong> "
-                    f"<span style='color:#94a3b8;'>(ID: {row['ID']})</span> — "
-                    f"Quality: <span style='color:{quality_color}'>{int(row['Quality'])}/100</span>, "
-                    f"Defect Rate: {defect_pct:.1f}%, "
-                    f"Claims: {int(row['Total Claims'])}, "
-                    f"Part Types: {int(row['Part Types'])}</li>")
-        html += "</ul>"
-        
-        logger.info(f"Found {len(supplier_summary)} suppliers {context_msg}")
-        return html
-
-
-class DefectiveSupplierHandler(QueryHandler):
-    """Handle 'which supplier is defective' or 'worst supplier' queries"""
-    
-    def can_handle(self, context: QueryContext) -> bool:
-        query_lower = context.query.lower()
-        return any(phrase in query_lower for phrase in [
-            "defective supplier", "worst supplier", "highest defect",
-            "supplier causing", "supplier quality", "supplier with most",
-            "poor quality supplier", "bad supplier", "problematic supplier",
-            "supplier performance", "supplier issues", "defective part",
-            "supplier suppling", "supplier is suppling", "which supplier"
-        ]) or ("supplier" in query_lower and any(w in query_lower for w in ["defective", "defect", "worst", "bad", "problem"]))
-    
-    def handle(self, context: QueryContext) -> str:
-        df = context.df_history
-        
-        logger.info(f"DefectiveSupplierHandler processing: '{context.query[:50]}...'")
-        
-        # Check if supplier columns exist
-        if "supplier_name" not in df.columns:
-            return "<p>Supplier information is not available in the current dataset.</p>"
-        
-        # Calculate supplier performance
-        supplier_stats = df.groupby(["supplier_name", "part_family"]).agg({
-            "supplier_quality_score": "first",
-            "defect_rate": "first",
-            "claims_count": "sum",
-            "repairs_count": "sum",
-            "recalls_count": "sum"
-        }).reset_index()
-        
-        supplier_stats["total_failures"] = (
-            supplier_stats["claims_count"] + 
-            supplier_stats["repairs_count"] + 
-            supplier_stats["recalls_count"]
+        # Only handle if it's a specific VIN query with special requirements:
+        # 1. Specific VIN location query (with actual VIN pattern or "this VIN")
+        has_specific_vin = (
+            re.search(r'1N4[A-Z0-9]{8,}', context.query) or  # Actual VIN in query
+            re.search(r'\b(this|that|the)\s+vin\b', query_lower) or  # "this VIN" reference
+            re.search(r'\bvin\s+(mentioned|above|before|earlier)\b', query_lower)  # VIN reference
         )
         
-        # Sort by worst performers (highest defect rate and most failures)
-        worst = supplier_stats.sort_values(["defect_rate", "total_failures"], ascending=[False, False]).head(8)
+        # 2. Location-related query for specific VIN
+        is_location_query = any(keyword in query_lower for keyword in [
+            "location", "where", "coordinates", "current location", 
+            "current position", "where is", "service center", "dealer", "nearest"
+        ])
         
-        # Plain English summary
-        if not worst.empty:
-            worst_supplier = worst.iloc[0]
-            defect_pct = worst_supplier['defect_rate'] * 100 if pd.notna(worst_supplier['defect_rate']) else 0
-            summary = f"The most problematic supplier is {worst_supplier['supplier_name']} with a {defect_pct:.1f}% defect rate in {worst_supplier['part_family']} parts."
-        else:
-            summary = "Supplier performance analysis shows varying quality levels across different part families."
+        # 3. "VINs affected by failures" - needs context extraction
+        is_affected_query = any(phrase in query_lower for phrase in [
+            "affected", "vins affected", "vehicles affected", 
+            "affected by", "affected by these", "affected by failures"
+        ])
         
-        html = f"<p><strong>{summary}</strong></p>"
-        html += "<p><strong>Detailed supplier performance analysis:</strong></p><ul style='margin-top:6px;'>"
-        for _, row in worst.iterrows():
-            defect_pct = row['defect_rate'] * 100 if pd.notna(row['defect_rate']) else 0
-            html += (f"<li><span style='color:#ef4444; font-weight:600'>{_html.escape(str(row['supplier_name']))}</span> "
-                    f"<span style='color:#94a3b8;'>({row['part_family']})</span> — "
-                    f"Defect Rate: <strong>{defect_pct:.1f}%</strong>, "
-                    f"Quality Score: {int(row['supplier_quality_score'])}/100, "
-                    f"Total Failures: {int(row['total_failures'])}</li>")
-        html += "</ul>"
-        
-        # Add recommendation
-        if not worst.empty:
-            worst_supplier = worst.iloc[0]
-            html += (f"<p style='color:#fca5a5; margin-top:8px;'>"
-                    f"<strong>Recommendation:</strong> Consider reviewing contract with "
-                    f"{_html.escape(str(worst_supplier['supplier_name']))} for {worst_supplier['part_family']} parts "
-                    f"(Defect Rate: {worst_supplier['defect_rate']*100:.1f}%).</p>")
-        
-        logger.info(f"Identified {len(worst)} problematic suppliers")
-        return html
-
-
-class VINQueryHandler(QueryHandler):
-    """Handle VIN-related queries (location, affected vehicles, etc.)"""
-    
-    def can_handle(self, context: QueryContext) -> bool:
-        query_lower = context.query.lower()
-        # Check for "vin" as a whole word or VIN pattern
-        return re.search(r'\bvin\b', query_lower) or re.search(r'1N4[A-Z0-9]{8,}', context.query)
+        # Only handle if it matches one of these specific patterns
+        return (has_specific_vin and is_location_query) or is_affected_query
     
     def handle(self, context: QueryContext) -> str:
         df = context.df_history
         query_lower = context.query.lower()
         
-        logger.info(f"VINQueryHandler processing: '{context.query[:50]}...'")
+        logger.info(f"VehicleLocationHandler processing: '{context.query[:50]}...'")
         
         # Check if VIN column exists
         if "vin" not in df.columns:
@@ -185,11 +89,34 @@ class VINQueryHandler(QueryHandler):
         
         # Extract specific VIN if mentioned (17-character format)
         vin_match = re.search(r'1N4[A-Z0-9]{8,17}', context.query)
+        vin = None
         
+        # If no VIN in current query, check conversation context for "this VIN" references
+        if not vin_match:
+            # Check if query references "this VIN", "that VIN", "the VIN", etc.
+            vin_reference_patterns = [r'\b(this|that|the)\s+vin\b', r'\bvin\s+(mentioned|above|before|earlier)\b']
+            is_vin_reference = any(re.search(pattern, query_lower) for pattern in vin_reference_patterns)
+            
+            if is_vin_reference and context.conversation_context:
+                logger.info("Detected VIN reference in query, extracting from conversation memory...")
+                recent_exchanges = context.conversation_context.get_recent_context(window_size=5)
+                vin = extract_referenced_entity_from_memory(context, recent_exchanges, entity_type="VIN")
+                if vin:
+                    logger.info(f"Found VIN {vin} from conversation memory")
+                else:
+                    logger.warning("VIN reference detected but no VIN found in conversation context")
+        
+        # If we found a VIN (either in query or context), use it
         if vin_match:
-            # Specific VIN query
             vin = vin_match.group(0)
-            vin_data = df[df["vin"].str.contains(vin, case=False, na=False)]
+        
+        if vin:
+            # Specific VIN query (from current query or conversation context)
+            # Try exact match first, then fall back to contains
+            vin_data = df[df["vin"].astype(str).str.strip().str.upper() == vin.upper()]
+            if vin_data.empty:
+                # Fall back to contains for partial matches
+                vin_data = df[df["vin"].astype(str).str.contains(vin, case=False, na=False)]
             
             if vin_data.empty:
                 return f"<p>VIN <span style='font-family:monospace'>{vin}</span> not found in the dataset.</p>"
@@ -197,30 +124,190 @@ class VINQueryHandler(QueryHandler):
             row = vin_data.iloc[0]
             
             # Determine what type of VIN query
-            if any(word in query_lower for word in ["location", "where", "coordinates", "city"]):
-                # Location query
+            location_keywords = ["location", "where", "coordinates", "city", "current location", "current position", "where is"]
+            is_current_location = any(keyword in query_lower for keyword in ["current location", "current position"])
+            
+            if any(keyword in query_lower for keyword in location_keywords):
+                # Location query - prioritize inference log for "current location"
+                current_lat = None
+                current_lon = None
+                location_source = "historical"
+                
+                # For "current location" queries, check inference log first (most recent data)
+                if is_current_location and context.df_inference is not None and not context.df_inference.empty:
+                    if "vin" in context.df_inference.columns and "lat" in context.df_inference.columns and "lon" in context.df_inference.columns:
+                        # Find most recent inference log entry for this VIN
+                        vin_inference = context.df_inference[
+                            context.df_inference["vin"].astype(str).str.strip().str.upper() == vin.upper()
+                        ]
+                        if not vin_inference.empty:
+                            # Get most recent entry (sorted by timestamp)
+                            if "timestamp" in vin_inference.columns:
+                                latest_inference = vin_inference.sort_values("timestamp", ascending=False).iloc[0]
+                            else:
+                                latest_inference = vin_inference.iloc[-1]  # Last row if no timestamp
+                            
+                            if pd.notna(latest_inference.get('lat')) and pd.notna(latest_inference.get('lon')):
+                                current_lat = latest_inference['lat']
+                                current_lon = latest_inference['lon']
+                                location_source = "inference_log"
+                                logger.info(f"Using current location from inference log for VIN {vin}")
+                
+                # Fall back to historical data if inference log doesn't have location
+                if current_lat is None or current_lon is None:
+                    if pd.notna(row.get('current_lat')) and pd.notna(row.get('current_lon')):
+                        current_lat = row['current_lat']
+                        current_lon = row['current_lon']
+                        location_source = "historical"
+                    elif pd.notna(row.get('vehicle_lat')) and pd.notna(row.get('vehicle_lon')):
+                        current_lat = row['vehicle_lat']
+                        current_lon = row['vehicle_lon']
+                        location_source = "historical"
+                    elif pd.notna(row.get('lat')) and pd.notna(row.get('lon')):
+                        current_lat = row['lat']
+                        current_lon = row['lon']
+                        location_source = "historical"
+                
+                # Build location response
                 html = f"<p><strong>Location for VIN {vin}:</strong></p><ul style='margin-top:6px;'>"
                 html += f"<li><strong>City:</strong> {row.get('city', 'N/A')}</li>"
-                if pd.notna(row.get('current_lat')) and pd.notna(row.get('current_lon')):
-                    html += f"<li><strong>Coordinates:</strong> {row['current_lat']:.6f}, {row['current_lon']:.6f}</li>"
-                if pd.notna(row.get('dealer_name')):
-                    html += f"<li><strong>Nearest Dealer:</strong> {row['dealer_name']}</li>"
-                if pd.notna(row.get('dealer_distance_km')):
-                    miles_val = km_to_miles(row['dealer_distance_km'])
-                    if miles_val is not None:
-                        html += f"<li><strong>Distance to Dealer:</strong> {miles_val:.2f} mi</li>"
+                if current_lat is not None and current_lon is not None:
+                    html += f"<li><strong>Coordinates:</strong> {current_lat:.6f}, {current_lon:.6f}"
+                    if is_current_location and location_source == "inference_log":
+                        html += " <span style='color:#94a3b8; font-size:0.85em;'>(most recent)</span>"
+                    html += "</li>"
+                else:
+                    html += f"<li><strong>Coordinates:</strong> Not available</li>"
+                
+                # For current location from inference log, fetch nearest dealers dynamically
+                dealer_name = None
+                dealer_distance_miles = None
+                if location_source == "inference_log" and current_lat is not None and current_lon is not None:
+                    try:
+                        # Fetch nearest dealers dynamically using AWS Location Service
+                        nearest_dealers, from_aws = fetch_nearest_dealers(
+                            current_lat=current_lat,
+                            current_lon=current_lon,
+                            place_index_name=config.aws.place_index_name,
+                            aws_region=config.aws.region,
+                            text_query="Nissan Service Center",
+                            top_n=1,  # Get only the nearest one
+                        )
+                        if nearest_dealers and len(nearest_dealers) > 0:
+                            nearest_dealer = nearest_dealers[0]
+                            dealer_name = nearest_dealer.get('name', 'N/A')
+                            dealer_distance_miles = nearest_dealer.get('distance_miles')
+                            logger.info(f"Fetched nearest dealer dynamically: {dealer_name} ({dealer_distance_miles} mi)")
+                    except Exception as e:
+                        logger.warning(f"Failed to fetch nearest dealers dynamically: {e}")
+                        # Fall through to use historical data
+                
+                # Use historical dealer data if we didn't fetch dynamically
+                if dealer_name is None:
+                    if pd.notna(row.get('dealer_name')):
+                        dealer_name = row['dealer_name']
+                    if pd.notna(row.get('dealer_distance_km')):
+                        miles_val = km_to_miles(row['dealer_distance_km'])
+                        if miles_val is not None:
+                            dealer_distance_miles = miles_val
+                
+                # Display dealer information
+                if dealer_name:
+                    html += f"<li><strong>Nearest Dealer:</strong> {dealer_name}</li>"
+                if dealer_distance_miles is not None:
+                    html += f"<li><strong>Distance to Dealer:</strong> {dealer_distance_miles:.2f} mi</li>"
                 html += "</ul>"
                 
             elif any(word in query_lower for word in ["service center", "dealer", "nearest"]):
-                # Service center query
+                # Service center query - get current location first, then fetch nearest dealer
+                current_lat = None
+                current_lon = None
+                location_source = "historical"
+                
+                # Check inference log first for most recent location
+                if context.df_inference is not None and not context.df_inference.empty:
+                    if "vin" in context.df_inference.columns and "lat" in context.df_inference.columns and "lon" in context.df_inference.columns:
+                        vin_inference = context.df_inference[
+                            context.df_inference["vin"].astype(str).str.strip().str.upper() == vin.upper()
+                        ]
+                        if not vin_inference.empty:
+                            if "timestamp" in vin_inference.columns:
+                                latest_inference = vin_inference.sort_values("timestamp", ascending=False).iloc[0]
+                            else:
+                                latest_inference = vin_inference.iloc[-1]
+                            
+                            if pd.notna(latest_inference.get('lat')) and pd.notna(latest_inference.get('lon')):
+                                current_lat = latest_inference['lat']
+                                current_lon = latest_inference['lon']
+                                location_source = "inference_log"
+                                logger.info(f"Using current location from inference log for service center query, VIN {vin}")
+                
+                # Fall back to historical data if inference log doesn't have location
+                if current_lat is None or current_lon is None:
+                    if pd.notna(row.get('current_lat')) and pd.notna(row.get('current_lon')):
+                        current_lat = row['current_lat']
+                        current_lon = row['current_lon']
+                        location_source = "historical"
+                    elif pd.notna(row.get('vehicle_lat')) and pd.notna(row.get('vehicle_lon')):
+                        current_lat = row['vehicle_lat']
+                        current_lon = row['vehicle_lon']
+                        location_source = "historical"
+                    elif pd.notna(row.get('lat')) and pd.notna(row.get('lon')):
+                        current_lat = row['lat']
+                        current_lon = row['lon']
+                        location_source = "historical"
+                
+                # Fetch nearest dealer dynamically based on current location
+                dealer_name = None
+                dealer_distance_miles = None
+                dealer_lat = None
+                dealer_lon = None
+                
+                if current_lat is not None and current_lon is not None:
+                    try:
+                        nearest_dealers, from_aws = fetch_nearest_dealers(
+                            current_lat=current_lat,
+                            current_lon=current_lon,
+                            place_index_name=config.aws.place_index_name,
+                            aws_region=config.aws.region,
+                            text_query="Nissan Service Center",
+                            top_n=1,  # Get only the nearest one
+                        )
+                        if nearest_dealers and len(nearest_dealers) > 0:
+                            nearest_dealer = nearest_dealers[0]
+                            dealer_name = nearest_dealer.get('name', 'N/A')
+                            dealer_distance_miles = nearest_dealer.get('distance_miles')
+                            dealer_lat = nearest_dealer.get('lat')
+                            dealer_lon = nearest_dealer.get('lon')
+                            logger.info(f"Fetched nearest dealer dynamically: {dealer_name} ({dealer_distance_miles} mi)")
+                    except Exception as e:
+                        logger.warning(f"Failed to fetch nearest dealers dynamically: {e}")
+                        # Fall through to use historical data
+                
+                # Use historical dealer data if we didn't fetch dynamically
+                if dealer_name is None:
+                    if pd.notna(row.get('dealer_name')):
+                        dealer_name = row['dealer_name']
+                    if pd.notna(row.get('dealer_distance_km')):
+                        miles_val = km_to_miles(row['dealer_distance_km'])
+                        if miles_val is not None:
+                            dealer_distance_miles = miles_val
+                    if pd.notna(row.get('dealer_lat')) and pd.notna(row.get('dealer_lon')):
+                        dealer_lat = row['dealer_lat']
+                        dealer_lon = row['dealer_lon']
+                
+                # Build service center response
                 html = f"<p><strong>Nearest service center for VIN {vin}:</strong></p><ul style='margin-top:6px;'>"
-                html += f"<li><strong>Dealer:</strong> {row.get('dealer_name', 'N/A')}</li>"
-                miles_val = km_to_miles(row.get('dealer_distance_km'))
-                distance_text = f"{miles_val:.2f} mi" if miles_val is not None else "N/A"
-                html += f"<li><strong>Distance:</strong> {distance_text}</li>"
-                if pd.notna(row.get('dealer_lat')) and pd.notna(row.get('dealer_lon')):
-                    html += f"<li><strong>Dealer Location:</strong> {row['dealer_lat']:.6f}, {row['dealer_lon']:.6f}</li>"
+                html += f"<li><strong>Dealer:</strong> {dealer_name if dealer_name else 'N/A'}</li>"
+                if dealer_distance_miles is not None:
+                    html += f"<li><strong>Distance:</strong> {dealer_distance_miles:.2f} mi</li>"
+                else:
+                    html += f"<li><strong>Distance:</strong> N/A</li>"
+                if dealer_lat is not None and dealer_lon is not None:
+                    html += f"<li><strong>Dealer Location:</strong> {dealer_lat:.6f}, {dealer_lon:.6f}</li>"
                 html += f"<li><strong>Vehicle City:</strong> {row.get('city', 'N/A')}</li>"
+                if location_source == "inference_log":
+                    html += f"<li style='color:#94a3b8; font-size:0.85em;'>Based on most recent vehicle location</li>"
                 html += "</ul>"
                 
             else:
@@ -239,18 +326,61 @@ class VINQueryHandler(QueryHandler):
             
             logger.info(f"Retrieved info for VIN {vin}")
             return html
-            
+        
         else:
+            # No VIN found in query or context
+            # Check if this is a reference query that failed to find VIN
+            reference_patterns = [r'\b(this|that|the)\s+vin\b', r'\bvin\s+(mentioned|above|before|earlier)\b']
+            is_reference = any(re.search(pattern, query_lower) for pattern in reference_patterns)
+            
+            if is_reference:
+                if not context.conversation_context:
+                    return "<p>I don't have access to conversation history. Please provide a specific VIN number (e.g., '1N4AZMA1800004').</p>"
+                elif len(context.conversation_context.memory) == 0:
+                    return "<p>I couldn't find a VIN in our conversation. Please ask about a specific VIN first, then I can help with follow-up questions.</p>"
+                else:
+                    return "<p>I couldn't find a VIN in our recent conversation. Please provide a specific VIN number (e.g., '1N4AZMA1800004') or ask about a VIN first.</p>"
+            
+            # Check if this is a service center query without VIN
+            if any(word in query_lower for word in ["service center", "dealer", "nearest"]):
+                return "<p>Please specify a VIN to find the nearest service center. For example: 'nearest service center for VIN 1N4AZMA1800004'</p>"
+            
+            # General case - no VIN specified
             # List VINs matching criteria
             if any(word in query_lower for word in ["affected", "failure", "failures", "problem", "issue"]):
                 # VINs with failures
                 affected = df[(df["claims_count"] > 0) | (df["repairs_count"] > 0) | (df["recalls_count"] > 0)]
                 
-                # Filter by part family if mentioned
-                for family in ["Battery", "Brakes", "Transmission", "Engine"]:
+                # Check if query references "these failures" - use LLM to extract context from memory
+                failure_reference_patterns = [
+                    r'\b(these|those|the)\s+failures?\b',
+                    r'\bfailures?\s+(mentioned|above|before|earlier)\b'
+                ]
+                is_failure_reference = any(re.search(pattern, query_lower) for pattern in failure_reference_patterns)
+                
+                context_filters = {}
+                if is_failure_reference and context.conversation_context:
+                    logger.info("Detected failure reference, using LLM to extract context from conversation memory...")
+                    recent_exchanges = context.conversation_context.get_recent_context(window_size=3)
+                    context_filters = extract_context_filters_from_memory(context, recent_exchanges)
+                
+                # Apply filters from current query first
+                for family in ["Battery", "Brakes", "Transmission", "Engine", "Electrical", "Lighting", "HVAC", "Safety", "Steering", "Tires"]:
                     if family.lower() in query_lower and "part_family" in df.columns:
                         affected = affected[affected["part_family"] == family]
                         break
+                
+                # Apply context filters from previous exchange
+                if context_filters:
+                    if "part_family" in context_filters and "part_family" in affected.columns:
+                        affected = affected[affected["part_family"] == context_filters["part_family"]]
+                        logger.info(f"Applied part_family filter: {context_filters['part_family']}")
+                    if "age_bucket" in context_filters and "age_bucket" in affected.columns:
+                        affected = affected[affected["age_bucket"] == context_filters["age_bucket"]]
+                        logger.info(f"Applied age_bucket filter: {context_filters['age_bucket']}")
+                    if "mileage_bucket" in context_filters and "mileage_bucket" in affected.columns:
+                        affected = affected[affected["mileage_bucket"] == context_filters["mileage_bucket"]]
+                        logger.info(f"Applied mileage_bucket filter: {context_filters['mileage_bucket']}")
                 
                 if affected.empty:
                     return "<p>No VINs found matching the failure criteria.</p>"
@@ -258,7 +388,18 @@ class VINQueryHandler(QueryHandler):
                 vin_list = affected["vin"].head(15).tolist()
                 total_affected = len(affected)
                 
-                html = f"<p><strong>VINs affected by failures ({total_affected} total):</strong></p>"
+                # Build description with context info
+                description = "failures"
+                if context_filters:
+                    parts = []
+                    if "part_family" in context_filters:
+                        parts.append(context_filters["part_family"].lower())
+                    if "age_bucket" in context_filters:
+                        parts.append(f"aged {context_filters['age_bucket']}")
+                    if parts:
+                        description = f"{' '.join(parts)} {description}"
+                
+                html = f"<p><strong>VINs affected by {description} ({total_affected} total):</strong></p>"
                 html += "<p style='font-family:monospace; font-size:13px; color:#cfe9ff;'>"
                 for i, vin in enumerate(vin_list[:10]):
                     html += f"{vin}<br>"
@@ -266,119 +407,92 @@ class VINQueryHandler(QueryHandler):
                     html += f"<span style='color:#94a3b8;'>... and {total_affected - 10} more</span>"
                 html += "</p>"
                 
-                logger.info(f"Found {total_affected} affected VINs")
+                logger.info(f"Found {total_affected} affected VINs with context filters: {context_filters}")
                 return html
             
             return "<p>Please specify a VIN (e.g., '1N4AZMA5100456') or search criteria (e.g., 'VINs with Battery failures').</p>"
-
-
-class FailureReasonHandler(QueryHandler):
-    """Handle 'why did X fail' or 'failure reasons' queries"""
+class LocationAnalysisHandler(QueryHandler):
+    """
+    Handle location-based data analysis queries (geographic/dealer analysis).
+    
+    This handler analyzes data BY LOCATION:
+    - Specific city analysis with detailed stats
+    - Dealer-specific analysis
+    - Region analysis with special formatting
+    
+    This is GEOGRAPHIC-CENTRIC (asks about WHERE failures/issues occur).
+    
+    General location breakdown queries ("failures by city", "vehicles by location", etc.)
+    should be handled by TextToSQLHandler.
+    """
     
     def can_handle(self, context: QueryContext) -> bool:
+        """
+        Only handle location queries that require special formatting or analysis:
+        - Specific city analysis with detailed stats
+        - Dealer-specific analysis
+        - Region analysis with special formatting
+        
+        General location breakdown queries ("failures by city", "vehicles by location", etc.)
+        should be handled by TextToSQLHandler.
+        """
         query_lower = context.query.lower()
-        return any(phrase in query_lower for phrase in [
-            "why", "reason", "reasons behind", "root cause", "cause of failure",
-            "failure description", "what caused", "why did", "failure reason"
+        df = context.df_history
+        
+        # Check for location keywords
+        has_location_keyword = any(phrase in query_lower for phrase in [
+            "city", "cities", "location", "locations", "where",
+            "coordinates", "latitude", "longitude", "lat", "lon",
+            "dealers", "dealer", "service center", "region", "regional"
         ])
+        
+        if not has_location_keyword:
+            return False
+        
+        # Only handle if it's a specific analysis query (not a simple breakdown):
+        # 1. Specific city mentioned (not just "by city")
+        if "city" in df.columns:
+            mentioned_city = None
+            for city_name in df["city"].dropna().unique():
+                if str(city_name).lower() in query_lower:
+                    mentioned_city = str(city_name)
+                    break
+            if mentioned_city:
+                # Specific city query - handle with special formatting
+                return True
+        
+        # 2. Specific dealer mentioned
+        if self._mentions_dealer_name(df, query_lower):
+            return True
+        
+        # 3. Region/dealer analysis queries (not simple "by X" breakdowns)
+        is_analysis_query = any(phrase in query_lower for phrase in [
+            "dealer issues", "dealer problems", "dealer failures", 
+            "major issues", "issues from", "problems from", "failures from",
+            "regional analysis", "city analysis", "location analysis", 
+            "area analysis", "geographic", "which dealers", "which region"
+        ])
+        
+        # Don't handle simple breakdown queries - let TextToSQL handle them
+        is_simple_breakdown = bool(re.search(r'\b(by|per)\s+(city|location|region|area)\b', query_lower))
+        
+        # Don't handle time-based breakdowns - let TextToSQL handle them
+        is_time_breakdown = bool(re.search(r'\b(by|per)\s+(month|quarter|year|week|day|time)\b', query_lower))
+        
+        return is_analysis_query and not is_simple_breakdown and not is_time_breakdown
     
     def handle(self, context: QueryContext) -> str:
         df = context.df_history
         query_lower = context.query.lower()
         
-        logger.info(f"FailureReasonHandler processing: '{context.query[:50]}...'")
+        logger.info(f"LocationAnalysisHandler processing: '{context.query[:50]}...'")
         
-        # Check if failure_description column exists
-        if "failure_description" not in df.columns:
-            return "<p>Failure descriptions are not available in the current dataset.</p>"
-        
-        # Filter to actual failures only
-        failures_df = df[(df["claims_count"] > 0) | (df["repairs_count"] > 0) | (df["recalls_count"] > 0)]
-        failures_df = failures_df[failures_df["failure_description"] != "No failure detected"]
-        
-        if failures_df.empty:
-            return "<p>No failure descriptions found in the dataset.</p>"
-        
-        # Detect part family filter
-        part_families = ["Battery", "Brakes", "Transmission", "Engine", "Electrical"]
-        part_family = None
-        for family in part_families:
-            if family.lower() in query_lower:
-                part_family = family
-                break
-        
-        if part_family and "part_family" in failures_df.columns:
-            failures_df = failures_df[failures_df["part_family"] == part_family]
-            context_msg = f"for {part_family} failures"
-        else:
-            context_msg = "across all failures"
-        
-        if failures_df.empty:
-            return f"<p>No failure descriptions found {context_msg}.</p>"
-        
-        # Group by failure description
-        reason_counts = failures_df.groupby("failure_description").agg({
-            "vin": "count",
-            "supplier_name": lambda x: x.mode()[0] if len(x.mode()) > 0 else "Various"
-        }).reset_index()
-        reason_counts.columns = ["Failure Reason", "Count", "Primary Supplier"]
-        reason_counts = reason_counts.sort_values("Count", ascending=False)
-        
-        total_failures = len(failures_df)
-        
-        # Plain English summary
-        top_reason = reason_counts.iloc[0] if not reason_counts.empty else None
-        if top_reason is not None:
-            top_pct = (top_reason['Count'] / total_failures * 100) if total_failures > 0 else 0
-            summary = f"The most common issue is {top_reason['Failure Reason'].lower()}, affecting {top_pct:.1f}% of all failures."
-        else:
-            summary = f"Analysis of {total_failures} total failures shows various root causes."
-        
-        html = f"<p><strong>{summary}</strong></p>"
-        html += f"<p><strong>Detailed breakdown {context_msg} ({total_failures} total failures):</strong></p>"
-        html += "<ul style='margin-top:6px;'>"
-        
-        for _, row in reason_counts.head(8).iterrows():
-            pct = (row['Count'] / total_failures * 100) if total_failures > 0 else 0
-            html += (f"<li><strong>{_html.escape(str(row['Failure Reason']))}</strong> "
-                    f"— {int(row['Count'])} incidents ({pct:.1f}%) "
-                    f"<span style='color:#94a3b8;'>| Supplier: {_html.escape(str(row['Primary Supplier']))}</span></li>")
-        html += "</ul>"
-        
-        logger.info(f"Found {len(reason_counts)} unique failure reasons {context_msg}")
-        return html
-
-
-class LocationQueryHandler(QueryHandler):
-    """Handle location-based queries (vehicles in city, nearby failures, etc.)"""
-    
-    def can_handle(self, context: QueryContext) -> bool:
-        query_lower = context.query.lower()
-        cities = ["california", "texas", "new york", "chicago", "miami", "seattle", 
-                 "boston", "atlanta", "denver", "toronto", "vancouver", "montreal"]
-        
-        return (
-            any(city in query_lower for city in cities) or
-            any(phrase in query_lower for phrase in [
-                "in city", "location", "where are", "vehicles in",
-                "failures in", "near", "nearby", "dealers", "dealer",
-                "service center", "which dealers", "dealer issues",
-                "dealer problems", "dealer failures", "major issues",
-                "issues from", "problems from", "failures from",
-                "failures by", "by region", "by city", "by location",
-                "by area", "regional", "regional analysis", "city analysis",
-                "location analysis", "area analysis", "geographic",
-                "which region", "which city", "which area", "which location"
-            ]) or
-            # Check if query mentions a specific dealer name
-            self._mentions_dealer_name(context.df_history, query_lower)
-        )
-    
-    def handle(self, context: QueryContext) -> str:
-        df = context.df_history
-        query_lower = context.query.lower()
-        
-        logger.info(f"LocationQueryHandler processing: '{context.query[:50]}...'")
+        # Don't handle time-based breakdowns - these should go to TextToSQL
+        is_time_breakdown = bool(re.search(r'\b(by|per)\s+(month|quarter|year|week|day|time)\b', query_lower))
+        if is_time_breakdown:
+            # This shouldn't happen if can_handle is working correctly, but add defensive check
+            logger.warning(f"LocationAnalysisHandler received time-based query, should have been handled by TextToSQL: {context.query}")
+            return None  # Return None to let it fall through to TextToSQL
         
         # Handle region-based queries
         if any(phrase in query_lower for phrase in ["failures by", "by region", "by city", "by location", "by area", "regional", "city analysis", "location analysis", "area analysis", "geographic", "which region", "which city", "which area", "which location"]):
