@@ -3465,33 +3465,44 @@ Respond ONLY with valid JSON:
                     cols_to_show.append(model_col)
                 display_results = display_results[cols_to_show]
         
-        # Rename columns to business-friendly headers
+        # Rename columns to business-friendly headers.
+        # Multiple source columns may map to the same business header (e.g. both
+        # `primary_failed_part` and `primary_failed_part_capital` -> "Failed Part"),
+        # which produces duplicate column names. Disambiguate so subsequent
+        # `display_results[col]` access returns a Series, not a DataFrame.
         display_results = display_results.rename(columns={
             col: self._get_business_header(col) for col in display_results.columns
         })
-        
-        # Round numeric columns to 2 decimal places
+        if display_results.columns.duplicated().any():
+            seen = {}
+            new_cols = []
+            for c in display_results.columns:
+                if c in seen:
+                    seen[c] += 1
+                    new_cols.append(f"{c} ({seen[c]})")
+                else:
+                    seen[c] = 1
+                    new_cols.append(c)
+            display_results.columns = new_cols
+
+        # Round numeric columns to 2 decimal places.
+        def round_value(x):
+            if pd.isna(x):
+                return x
+            try:
+                num_val = float(x)
+                rounded = round(num_val, 2)
+                if rounded == int(rounded):
+                    return int(rounded)
+                return rounded
+            except (ValueError, TypeError):
+                return x
+
         for col in display_results.columns:
             if display_results[col].dtype in ['float64', 'float32', 'int64', 'int32']:
-                # Check if column contains numeric values
                 try:
-                    def round_value(x):
-                        if pd.isna(x):
-                            return x
-                        try:
-                            num_val = float(x)
-                            # Round to 2 decimal places
-                            rounded = round(num_val, 2)
-                            # If it's a whole number, return as int to avoid .00
-                            if rounded == int(rounded):
-                                return int(rounded)
-                            return rounded
-                        except (ValueError, TypeError):
-                            return x
-                    
                     display_results[col] = display_results[col].apply(round_value)
                 except (ValueError, TypeError):
-                    # If conversion fails, leave column as is
                     pass
         
         # build answer header
