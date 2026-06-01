@@ -7,12 +7,14 @@ This is the catch-all handler when no specific handler matches.
 
 from typing import Optional
 import html as _html
+import numpy as np
 import pandas as pd
 
 from chat.handlers import QueryHandler, QueryContext
 from chat_helper import (
     _detect_metric_from_text,
-    _metric_or_fallback_column
+    _metric_or_fallback_column,
+    _compute_model_trends,
 )
 from utils.logger import chat_logger as logger
 
