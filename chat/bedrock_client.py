@@ -5,7 +5,6 @@ Reuses a single boto3 client across all handlers to avoid recreation overhead.
 """
 
 import boto3
-from botocore.exceptions import ClientError
 from typing import Optional
 from config import config
 from utils.logger import chat_logger as logger

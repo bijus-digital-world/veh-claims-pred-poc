@@ -11,20 +11,18 @@ import pandas as pd
 import numpy as np
 import joblib
 import random
-import io
 import re
 import json
 import html as _html
 import base64
 import boto3
 from botocore.exceptions import ClientError
-import time
 
 # Import configuration
 from config import config
 
 # Logging
-from utils.logger import helper_logger as logger, log_function_call
+from utils.logger import helper_logger as logger
 
 # Nissan Brand Color Palette (imported from config for consistency)
 NISSAN_RED = config.colors.nissan_red
@@ -169,36 +167,21 @@ def load_history_data(use_s3: Optional[bool] = None,
     if use_s3 and s3fs is not None:
         s3_path = f"s3://{s3_bucket}/{s3_key}"
         try:
-            # Attempting to load from S3
-            start_time = time.time()
-            
             df = pd.read_csv(s3_path, parse_dates=["date"], storage_options={"anon": False})
-            
-            duration_ms = (time.time() - start_time) * 1000
-            # Loaded from S3 successfully
             return df
         except Exception as e:
             logger.warning(f"S3 load failed, falling back to local file: {e}")
-            # fall back to local
-            pass
     
     if df is None:
         if not os.path.isfile(local_path):
             logger.error(f"Data file not found at {local_path}")
             raise FileNotFoundError(f"Could not find data at S3 or local path ({local_path}).")
-        
-        # Loading from local file
-        start_time = time.time()
-        
-        # Parse date columns
+
         date_columns = ["date"]
         if "telematics_timestamp" in pd.read_csv(local_path, nrows=0).columns:
             date_columns.append("telematics_timestamp")
         df = pd.read_csv(local_path, parse_dates=date_columns)
-        
-        duration_ms = (time.time() - start_time) * 1000
-        # Loaded from local file successfully
-    
+
     return df
 
 # def compute_rate_per_100(df: pd.DataFrame, group_cols):
@@ -1256,7 +1239,6 @@ def get_bedrock_summary(model, part, mileage, age, claim_pct,
     last_diag = []
     
     logger.debug(f"Calling Bedrock API with model_id={model_id_to_call}")
-    start_time = time.time()
 
     try:
         if is_claude:
@@ -1276,8 +1258,6 @@ def get_bedrock_summary(model, part, mileage, age, claim_pct,
             raw = response["body"].read()
             try:
                 resp_json = json.loads(raw)
-                duration_ms = (time.time() - start_time) * 1000
-                # Bedrock API call successful
             except Exception:
                 resp_json = {"__raw": raw.decode() if isinstance(raw, (bytes, bytearray)) else str(raw)}
 

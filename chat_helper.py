@@ -10,13 +10,11 @@ Key behaviour:
 - Replies are natural-language summaries (no raw table dumps), with "overall first, then breakdown" pattern.
 """
 
-from typing import Tuple, List, Dict, Optional
+from typing import Tuple, List, Optional
 import re
 import html as _html
 import pandas as pd
 import numpy as np
-from datetime import datetime, timezone
-import math
 import time
 
 # Import configuration

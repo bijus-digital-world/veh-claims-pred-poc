@@ -3,19 +3,17 @@ from typing import Optional, Dict
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import pydeck as pdk
 from streamlit_autorefresh import st_autorefresh
 import re
 import html as _html
 from datetime import datetime, timezone
-import numpy as np  
-import math
+import numpy as np
 import streamlit.components.v1 as components
 from pathlib import Path
 import time
 
 from config import config
-from utils.logger import app_logger as logger, log_dataframe_info, log_performance
+from utils.logger import app_logger as logger, log_dataframe_info
 try:
     from voice_service import create_voice_service
     voice_service = create_voice_service()
@@ -97,27 +95,21 @@ if config.debug:
 from helper import (
     load_history_data,
     load_model,
-    append_inference_log,
-    append_inference_log_s3,
-    random_inference_row_from_df,
     get_bedrock_summary,
-    fetch_nearest_dealers,
-    reverse_geocode,
     generate_enhanced_prescriptive_summary,
-    load_svg_as_base64
+    load_svg_as_base64,
 )
 
 from chat_helper import (
     build_tf_idf_index,
     generate_reply as chat_generate_reply,
     ensure_failures_column,
-    retrieve_with_faiss_or_tfidf
 )
 
 try:
     import faiss
     HAS_FAISS = True
-except Exception as e:
+except Exception:
     HAS_FAISS = False
     # Logged instead of st.warning so we don't trigger a Streamlit call before set_page_config.
     # The app falls back to TF-IDF retrieval automatically. To enable FAISS: pip install faiss-cpu
@@ -209,13 +201,11 @@ def load_persisted_faiss():
         }
 
     try:
-        start_time = time.time()
         index = faiss.read_index(str(IDX_PATH))
         embs = np.load(EMB_PATH)
         meta = list(np.load(META_PATH, allow_pickle=True))
         d = embs.shape[1]
-        duration_ms = (time.time() - start_time) * 1000
-        
+
         return {
             "available": True,
             "index": index,

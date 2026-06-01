@@ -488,8 +488,6 @@ class TextToSQLHandler(QueryHandler):
         All other queries, including schema queries and date range queries, are handled here.
         Schema queries are handled directly without SQL generation for speed.
         """
-        query_lower = context.query_lower
-        
         return True
     
     def handle(self, context: QueryContext) -> str:
@@ -530,7 +528,7 @@ class TextToSQLHandler(QueryHandler):
                     )
                     if sql_query:
                         self._sql_cache.put(query_hash, sql_query)
-                except Exception as e:
+                except Exception:
                     # Circuit breaker rejected or function failed
                     if self._circuit_breaker.get_state() == "OPEN":
                         logger.warning("Circuit breaker is OPEN - using fallback SQL generation")
@@ -1779,18 +1777,7 @@ RESPONSE (HTML formatted, professional automotive analyst style, using ONLY exac
         user_query: str
     ) -> str:
         response = self._remove_obvious_pii_from_text(response)
-        
-        # Check if results indicate no data (empty or contains N/A/null values)
-        has_no_data = (
-            results.empty or 
-            len(results) == 0 or
-            (len(results) == 1 and any(
-                str(results.iloc[0][col]).upper() in ['N/A', 'NULL', 'NONE', '0', '0.00', '0.0', ''] 
-                for col in results.columns 
-                if pd.api.types.is_numeric_dtype(results[col]) or results[col].dtype == 'object'
-            ))
-        )
-        
+
         # Remove Industry Context section (handles multiline content)
         response = re.sub(
             r'<p><strong>Industry\s+Context:</strong>.*?(?=<p><strong>|</p>\s*<p>|$)',
@@ -3391,7 +3378,6 @@ Respond ONLY with valid JSON:
                 import re
                 max_width_match = re.search(r'max-width:\s*(\d+)px', width_style)
                 if max_width_match:
-                    max_width_val = max_width_match.group(1)
                     enhanced_style = (
                         # Keep chart width constrained to its chat bubble to avoid
                         # horizontal scrollbars, while staying left-aligned.

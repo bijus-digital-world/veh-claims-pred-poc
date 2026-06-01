@@ -7,7 +7,6 @@ conversation state across multiple exchanges.
 
 from typing import List, Dict, Optional, Any
 from datetime import datetime, timezone
-import json
 import logging
 from dataclasses import dataclass, asdict
 

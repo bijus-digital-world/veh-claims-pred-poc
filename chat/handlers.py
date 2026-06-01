@@ -6,7 +6,6 @@ import re
 import html as _html
 import pandas as pd
 
-from config import config
 from utils.logger import chat_logger as logger
 from chat.intent_classifier import classify_intent
 

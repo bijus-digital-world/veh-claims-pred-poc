@@ -9,7 +9,6 @@ Handles queries about:
 import re
 import html as _html
 import pandas as pd
-from typing import Optional
 from chat.handlers import QueryHandler, QueryContext
 from chat.context_utils import (
     extract_context_filters_from_memory,

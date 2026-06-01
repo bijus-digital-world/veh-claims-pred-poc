@@ -17,7 +17,6 @@ from config import config
 from utils.logger import components_logger as logger
 
 from helper import (
-    load_model,
     random_inference_row_from_df,
     append_inference_log,
     append_inference_log_s3,
@@ -70,8 +69,6 @@ def render_predictive_controls():
     Render predictive analysis header with controls (refresh interval and threshold).
     Returns: refresh_interval (seconds)
     """
-    constants = get_constants()
-    
     header_col, slider_col, dropdown_col = st.columns([2.75, 1.25, 1], gap="medium")
     
     with header_col:

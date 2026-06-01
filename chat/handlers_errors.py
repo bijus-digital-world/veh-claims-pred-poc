@@ -3,9 +3,8 @@ Helper functions for generating user-friendly error messages with contextual sug
 """
 
 import re
-import html as _html
 import pandas as pd
-from typing import Optional, Dict, List
+from typing import Optional
 
 from chat.handlers import QueryContext
 
@@ -31,8 +30,7 @@ def generate_user_friendly_error(
         HTML-formatted error message with helpful suggestions
     """
     error_msg = str(error).lower()
-    query_lower = query.lower()
-    
+
     # Initialize error parts
     error_parts = []
     
