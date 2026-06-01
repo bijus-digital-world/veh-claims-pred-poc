@@ -119,7 +119,9 @@ try:
     HAS_FAISS = True
 except Exception as e:
     HAS_FAISS = False
-    st.warning("FAISS not installed — falling back to TF-IDF. To enable vector store, pip install faiss-cpu")
+    # Logged instead of st.warning so we don't trigger a Streamlit call before set_page_config.
+    # The app falls back to TF-IDF retrieval automatically. To enable FAISS: pip install faiss-cpu
+    logger.warning("FAISS not installed - falling back to TF-IDF. To enable vector store: pip install faiss-cpu")
 
 
 # Load configuration paths and constants
