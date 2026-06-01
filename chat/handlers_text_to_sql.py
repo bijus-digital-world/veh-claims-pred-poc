@@ -992,56 +992,182 @@ SQL:"""
         return None
     
     def _pattern_based_sql_generation(self, user_query: str, schema_info: str) -> Optional[str]:
+        """Generate SQL for common query patterns without calling the LLM.
+
+        Used as a fallback when Bedrock is unavailable or throttled. Each branch
+        targets one or two recognisable phrasings; the generic catch-all at the
+        bottom only fires if nothing else matched.
+        """
         query_lower = user_query.lower()
-        
-        # Check for VIN queries
+
+        # ---- VIN-specific queries ----
         if 'vin' in query_lower:
-            # Match VIN pattern: alphanumeric, possibly with ... at the end
             vin_match = re.search(r'vin\s+([A-Z0-9]+(?:\.\.\.)?)', user_query, re.IGNORECASE)
             if vin_match:
                 vin_value = vin_match.group(1).strip()
                 vin_clean = vin_value.replace('...', '').replace('.', '').strip()
-                # Check if partial VIN (contains ... or is shorter than typical VIN length ~17 chars)
                 if '...' in vin_value or len(vin_clean) < 10:
                     return f"SELECT * FROM historical_data WHERE vin LIKE '{vin_clean}%'"
-                else:
-                    return f"SELECT * FROM historical_data WHERE vin = '{vin_clean}'"
-        
-        # Check for date-based grouping (quarter, month, year)
-        if 'quarter' in query_lower or 'q1' in query_lower or 'q2' in query_lower:
-            # Try to find date column from schema
-            date_col = 'date'  # Default
-            if 'date' in schema_info.lower():
-                # Try to extract date column name from schema
-                date_match = re.search(r'(\w*date\w*)', schema_info, re.IGNORECASE)
-                if date_match:
-                    date_col = date_match.group(1)
-            
-            if 'failure' in query_lower:
-                metric = 'SUM(failures_count)'
-            else:
-                metric = 'COUNT(*)'
-            
-            return f"SELECT CASE WHEN strftime('%m', {date_col}) IN ('01','02','03') THEN 'Q1' WHEN strftime('%m', {date_col}) IN ('04','05','06') THEN 'Q2' WHEN strftime('%m', {date_col}) IN ('07','08','09') THEN 'Q3' ELSE 'Q4' END AS quarter, {metric} AS total FROM historical_data WHERE {date_col} IS NOT NULL GROUP BY quarter"
-        
+                return f"SELECT * FROM historical_data WHERE vin = '{vin_clean}'"
+
+        # ---- Helpers for common parameter extraction ----
+        # Map a metric word to the metric expression. "claim", "failure",
+        # "repair", "recall" are treated as synonyms of "failures_count" so a
+        # user asking "claim rate" gets the same aggregation as "failure rate".
+        def _metric_expr() -> str:
+            if 'claim' in query_lower:
+                return 'SUM(claims_count)'
+            if 'repair' in query_lower:
+                return 'SUM(repairs_count)'
+            if 'recall' in query_lower:
+                return 'SUM(recalls_count)'
+            return 'SUM(failures_count)'
+
+        # Detect known Nissan model names (the canonical three for this POC plus
+        # a few common ones a user might type)
+        def _model_filter() -> Optional[str]:
+            for m in ('sentra', 'leaf', 'ariya', 'altima', 'rogue', 'pathfinder',
+                     'frontier', 'titan'):
+                if re.search(rf'\b{m}\b', query_lower):
+                    return m
+            return None
+
+        # Detect a "group by" axis (model / primary_failed_part / mileage_bucket / age_bucket).
+        # Also recognises "which X has the most/highest …" as an implicit group-by-X.
+        def _group_by_col() -> Optional[str]:
+            implicit = re.search(r'\bwhich\s+(model|part|supplier|city)\b', query_lower)
+            if implicit:
+                label = implicit.group(1)
+                mapping_implicit = {
+                    'model': 'model', 'part': 'primary_failed_part',
+                    'supplier': 'supplier_name', 'city': 'city',
+                }
+                return mapping_implicit[label]
+            m = re.search(r'\bby\s+(primary[_\s]failed[_\s]part|failed[_\s]part|part|model|mileage[_\s]bucket|mileage|age[_\s]bucket|age|supplier|dtc[_\s]subsystem|city)\b', query_lower)
+            if not m:
+                return None
+            label = m.group(1).replace(' ', '_').lower()
+            mapping = {
+                'failed_part': 'primary_failed_part',
+                'primary_failed_part': 'primary_failed_part',
+                'part': 'primary_failed_part',
+                'model': 'model',
+                'mileage_bucket': 'mileage_bucket',
+                'mileage': 'mileage_bucket',
+                'age_bucket': 'age_bucket',
+                'age': 'age_bucket',
+                'supplier': 'supplier_name',
+                'dtc_subsystem': 'dtc_subsystem',
+                'city': 'city',
+            }
+            return mapping.get(label)
+
+        wants_rate = bool(re.search(r'\brate\b|\bpercentage\b|\bpercent\b|\b%\b', query_lower))
+        wants_top = bool(re.search(r'\btop\s*\d*\b|\bhighest\b|\bworst\b|\bmost\b', query_lower))
+        wants_bottom = bool(re.search(r'\bbottom\b|\blowest\b|\bbest\b|\bleast\b|\bfewest\b', query_lower))
+        wants_compare = bool(re.search(r'\bcompare\b|\bvs\b|\bversus\b', query_lower))
+
+        # ---- "compare model A vs model B (failure|claim) rates" ----
+        if wants_compare:
+            models = []
+            for m in ('sentra', 'leaf', 'ariya', 'altima', 'rogue', 'pathfinder', 'frontier', 'titan'):
+                if re.search(rf'\b{m}\b', query_lower):
+                    models.append(m)
+            if len(models) >= 2:
+                quoted = ', '.join(f"'{m}'" for m in models)
+                metric = _metric_expr()
+                return (
+                    f"SELECT model, "
+                    f"({metric} * 100.0 / COUNT(*)) AS rate_pct, "
+                    f"COUNT(*) AS records, {metric} AS total_events "
+                    f"FROM historical_data WHERE LOWER(model) IN ({quoted}) "
+                    f"GROUP BY model ORDER BY rate_pct DESC"
+                )
+
+        # ---- "(claim|failure|repair|recall) rate" with optional model filter / group-by ----
+        if wants_rate:
+            metric = _metric_expr()
+            group_col = _group_by_col()
+            model = _model_filter()
+            label = 'rate_pct'
+
+            if group_col:
+                where = f"WHERE LOWER(model) = '{model}'" if model else ''
+                return (
+                    f"SELECT {group_col}, "
+                    f"({metric} * 100.0 / COUNT(*)) AS {label}, "
+                    f"COUNT(*) AS records "
+                    f"FROM historical_data {where} "
+                    f"GROUP BY {group_col} ORDER BY {label} DESC"
+                )
+            if model:
+                return (
+                    f"SELECT '{model.title()}' AS model, "
+                    f"({metric} * 100.0 / COUNT(*)) AS {label}, "
+                    f"COUNT(*) AS records "
+                    f"FROM historical_data WHERE LOWER(model) = '{model}'"
+                )
+            # No filter, no group-by => overall rate
+            return f"SELECT ({metric} * 100.0 / COUNT(*)) AS {label}, COUNT(*) AS records FROM historical_data"
+
+        # ---- "top N failing parts / models / suppliers" / "worst model" ----
+        if wants_top or wants_bottom:
+            metric = _metric_expr()
+            group_col = _group_by_col() or (
+                'primary_failed_part' if 'part' in query_lower
+                else 'model' if 'model' in query_lower
+                else 'supplier_name' if 'supplier' in query_lower
+                else 'primary_failed_part'
+            )
+            n_match = re.search(r'\btop\s*(\d+)|\bbottom\s*(\d+)', query_lower)
+            limit = int(n_match.group(1) or n_match.group(2)) if n_match else 5
+            direction = 'ASC' if wants_bottom else 'DESC'
+            return (
+                f"SELECT {group_col}, {metric} AS total_events, COUNT(*) AS records "
+                f"FROM historical_data GROUP BY {group_col} "
+                f"ORDER BY total_events {direction} LIMIT {limit}"
+            )
+
+        # ---- Date-bucketed (quarter / month / year) ----
+        if 'quarter' in query_lower or re.search(r'\bq[1-4]\b', query_lower):
+            date_col = 'date'
+            metric = 'SUM(failures_count)' if ('failure' in query_lower or 'claim' in query_lower) else 'COUNT(*)'
+            return (
+                f"SELECT CASE WHEN strftime('%m', {date_col}) IN ('01','02','03') THEN 'Q1' "
+                f"WHEN strftime('%m', {date_col}) IN ('04','05','06') THEN 'Q2' "
+                f"WHEN strftime('%m', {date_col}) IN ('07','08','09') THEN 'Q3' ELSE 'Q4' END AS quarter, "
+                f"{metric} AS total FROM historical_data WHERE {date_col} IS NOT NULL GROUP BY quarter ORDER BY quarter"
+            )
+
+        if 'monthly' in query_lower or 'month' in query_lower or 'trend' in query_lower or 'over time' in query_lower:
+            metric = _metric_expr() if any(k in query_lower for k in ('claim','failure','repair','recall')) else 'SUM(failures_count)'
+            return (
+                f"SELECT strftime('%Y-%m', date) AS month, {metric} AS total_events, COUNT(*) AS records "
+                f"FROM historical_data WHERE date IS NOT NULL GROUP BY month ORDER BY month"
+            )
+
+        # ---- Simple count / total / avg ----
         if 'count' in query_lower or 'how many' in query_lower:
-            if 'model' in query_lower:
-                model_match = re.search(r"model\s+(\w+)", query_lower)
-                if model_match:
-                    model = model_match.group(1)
-                    return f"SELECT COUNT(*) FROM historical_data WHERE model = '{model}'"
-            return "SELECT COUNT(*) FROM historical_data"
-        
-        elif 'total' in query_lower or 'sum' in query_lower:
-            if 'failure' in query_lower:
-                return "SELECT SUM(failures_count) FROM historical_data"
-            return "SELECT COUNT(*) FROM historical_data"
-        
-        elif 'average' in query_lower or 'avg' in query_lower:
+            model = _model_filter()
+            if model:
+                return f"SELECT COUNT(*) AS records FROM historical_data WHERE LOWER(model) = '{model}'"
+            return "SELECT COUNT(*) AS records FROM historical_data"
+
+        if 'total' in query_lower or 'sum' in query_lower:
+            metric = _metric_expr()
+            model = _model_filter()
+            if model:
+                return f"SELECT {metric} AS total FROM historical_data WHERE LOWER(model) = '{model}'"
+            return f"SELECT {metric} AS total FROM historical_data"
+
+        if 'average' in query_lower or 'avg' in query_lower:
             if 'mileage' in query_lower:
-                return "SELECT AVG(mileage) FROM historical_data"
-            return "SELECT COUNT(*) FROM historical_data"
-        
+                return "SELECT AVG(mileage) AS avg_mileage FROM historical_data"
+            if 'age' in query_lower:
+                return "SELECT AVG(age) AS avg_age FROM historical_data"
+            return "SELECT COUNT(*) AS records FROM historical_data"
+
+        # ---- Last-resort catch-all (still shows 10 rows so the user sees something) ----
         return "SELECT * FROM historical_data LIMIT 10"
     
     def _clean_sql_query(self, sql_query: str) -> str:
