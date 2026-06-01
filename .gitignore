@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env
+
+# Streamlit
+.streamlit/secrets.toml
+.streamlit/credentials.toml
+
+# Local config / secrets
+.env.local
+.env.development
+.env.production
+*.pem
+*.ppk
+
+# Runtime data (written by the app, not source)
+inference_log.csv
+logs/
+chat_history.csv
+
+# AWS / build outputs
+.aws/
+dist/
+build/
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
