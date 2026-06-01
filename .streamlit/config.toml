@@ -1,0 +1,9 @@
+# Force the Nissan dark theme so the app looks consistent on every machine
+# and browser regardless of the user's OS-level light/dark preference.
+[theme]
+base = "dark"
+primaryColor = "#c3002f"
+backgroundColor = "#0b0f13"
+secondaryBackgroundColor = "#0f172a"
+textColor = "#e6eef8"
+font = "sans serif"
