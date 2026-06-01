@@ -929,34 +929,35 @@ SQL:"""
             except ClientError as e:
                 error_code = e.response.get('Error', {}).get('Code', '')
                 error_message = str(e)
-                
+
                 # Don't retry on client errors (bad request, validation, access denied)
+                # or on throttling. Throttling at this account/region is account-level
+                # quota that does not recover in seconds — retrying just makes chat
+                # feel sluggish before we fall back to pattern SQL anyway. boto3 has
+                # its own short retry budget configured at the client level.
                 non_retryable_errors = [
                     'ValidationException',
                     'AccessDeniedException',
                     'InvalidParameterException',
-                    'ResourceNotFoundException'
+                    'ResourceNotFoundException',
+                    'ThrottlingException',
+                    'Throttling',
+                    'TooManyRequestsException',
                 ]
-                
+
                 if error_code in non_retryable_errors:
                     logger.error(f"Non-retryable Bedrock API error ({error_code}): {e}")
                     return None
-                
-                # Retry on throttling or service errors
+
+                # Retry only on transient server-side errors
                 retryable_errors = [
-                    'ThrottlingException',
-                    'Throttling',
                     'ServiceException',
                     'InternalServerError',
-                    'TooManyRequestsException'
                 ]
-                
+
                 is_retryable = (
                     error_code in retryable_errors or
-                    'throttl' in error_message.lower() or
-                    'rate' in error_message.lower() or
-                    '503' in error_message or
-                    '429' in error_message
+                    '503' in error_message
                 )
                 
                 if is_retryable and attempt < max_retries - 1:

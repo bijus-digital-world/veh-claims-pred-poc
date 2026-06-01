@@ -1193,7 +1193,14 @@ def get_bedrock_summary(model, part, mileage, age, claim_pct,
         risk_label = "Low risk"
     pct_display = f"{round(claim_pct)}%"
 
-    bedrock = boto3.client(service_name="bedrock-runtime", region_name=region)
+    # Conservative boto3 retry footprint so throttled calls fail fast (~200 ms)
+    # and we drop to the configured fallback summary instead of hanging the UI.
+    from botocore.config import Config as _BotoConfig
+    bedrock = boto3.client(
+        service_name="bedrock-runtime",
+        region_name=region,
+        config=_BotoConfig(retries={"max_attempts": 1, "mode": "standard"}),
+    )
 
     user_prompt = (
         "Produce a concise, polished analyst-facing summary in EXACT format:\n\n"

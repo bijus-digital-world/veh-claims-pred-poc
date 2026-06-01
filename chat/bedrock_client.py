@@ -5,6 +5,7 @@ Reuses a single boto3 client across all handlers to avoid recreation overhead.
 """
 
 import boto3
+from botocore.config import Config
 from typing import Optional
 from config import config
 from utils.logger import chat_logger as logger
@@ -12,27 +13,31 @@ from utils.logger import chat_logger as logger
 # Singleton Bedrock client
 _bedrock_client: Optional[boto3.client] = None
 
+# Keep boto3's retry footprint small. Bedrock throttling on a quota-exhausted
+# account does not recover within seconds, so retrying just slows chat to a
+# crawl while we wait to fail. With max_attempts=2 (i.e. 1 retry), a throttled
+# call returns in ~200 ms instead of ~10 s, and the app's own fallback (pattern
+# SQL / simple formatting) kicks in immediately. When Bedrock is healthy, calls
+# succeed on the first try so retry budget is unused.
+_BEDROCK_RETRY_CONFIG = Config(retries={"max_attempts": 1, "mode": "standard"})
+
 
 def get_bedrock_client() -> boto3.client:
-    """
-    Get or create singleton Bedrock client.
-    
-    Returns:
-        Reusable boto3 Bedrock client
-    """
+    """Get or create singleton Bedrock client with conservative retry config."""
     global _bedrock_client
-    
+
     if _bedrock_client is None:
         try:
             _bedrock_client = boto3.client(
                 service_name="bedrock-runtime",
-                region_name=config.aws.region
+                region_name=config.aws.region,
+                config=_BEDROCK_RETRY_CONFIG,
             )
             logger.debug(f"Created singleton Bedrock client for region: {config.aws.region}")
         except Exception as e:
             logger.error(f"Failed to create Bedrock client: {e}")
             raise
-    
+
     return _bedrock_client
 
 
