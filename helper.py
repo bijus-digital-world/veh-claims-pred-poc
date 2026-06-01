@@ -1211,150 +1211,35 @@ def get_bedrock_summary(model, part, mileage, age, claim_pct,
         f"- Age Bucket: {age}\n"
     )
 
-    # Default model ids
-    titan_id = "amazon.titan-text-lite-v1"
-    claude_id = "anthropic.claude-3-haiku-20240307-v1:0"
+    # Resolve the model id. Allow callers to pass full IDs or friendly names.
+    from chat.bedrock_client import build_text_invoke_body, parse_text_invoke_response
+    friendly_to_full = {
+        "titan": "amazon.titan-text-lite-v1",
+        "claude": "anthropic.claude-3-haiku-20240307-v1:0",
+        "nova": "amazon.nova-micro-v1:0",
+    }
+    raw_id = (llm_model_id or "").strip()
+    model_id_to_call = friendly_to_full.get(raw_id.lower(), raw_id) if raw_id else "anthropic.claude-3-haiku-20240307-v1:0"
 
-    # Decide which model id to call
-    model_id_to_call = llm_model_id.strip() if llm_model_id else claude_id
-
-    # Decide type based ON the model id string we will call (guarantees consistency)
-    model_id_lower = model_id_to_call.lower()
-    is_titan = "titan" in model_id_lower
-    is_claude = ("claude" in model_id_lower) or ("anthropic" in model_id_lower)
-
-    # Safety: if caller passed a friendly name 'titan' or 'claude', normalize to canonical ids
-    if llm_model_id:
-        if llm_model_id.lower() == "titan" or llm_model_id.lower().startswith("titan"):
-            model_id_to_call = titan_id
-            is_titan = True
-            is_claude = False
-        elif llm_model_id.lower() == "claude" or "claude" in llm_model_id.lower() or "anthropic" in llm_model_id.lower():
-            model_id_to_call = claude_id
-            is_claude = True
-            is_titan = False
-
-    # Prepare to call Bedrock with the correct schema
-    resp_json = None
-    last_diag = []
-    
     logger.debug(f"Calling Bedrock API with model_id={model_id_to_call}")
 
     try:
-        if is_claude:
-            logger.debug("Using Claude message format")
-            body = {
-                "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 320,
-                "temperature": 0.18,
-                "messages": [{"role": "user", "content": [{"type": "text", "text": user_prompt}]}]
-            }
-            response = bedrock.invoke_model(
-                modelId=model_id_to_call,
-                contentType="application/json",
-                accept="application/json",
-                body=json.dumps(body),
-            )
-            raw = response["body"].read()
-            try:
-                resp_json = json.loads(raw)
-            except Exception:
-                resp_json = {"__raw": raw.decode() if isinstance(raw, (bytes, bytearray)) else str(raw)}
-
-        elif is_titan:
-            titan_body_messages = {
-                "messages": [{"role": "user", "content": [{"type": "text", "text": user_prompt}]}],
-                "textGenerationConfig": {"maxTokenCount": 320, "temperature": 0.2}
-            }
-            titan_body_inputtext = {
-                "inputText": user_prompt,
-                "textGenerationConfig": {"maxTokenCount": 320, "temperature": 0.2}
-            }
-
-            titan_attempts = [("messages+textGen", titan_body_messages), ("inputText+textGen", titan_body_inputtext)]
-
-            for name, body in titan_attempts:
-                try:
-                    response = bedrock.invoke_model(
-                        modelId=model_id_to_call,
-                        contentType="application/json",
-                        accept="application/json",
-                        body=json.dumps(body),
-                    )
-                    raw = response["body"].read()
-                    try:
-                        resp_json = json.loads(raw)
-                    except Exception:
-                        resp_json = {"__raw": raw.decode() if isinstance(raw, (bytes,bytearray)) else str(raw)}
-                    last_diag.append({"attempt": name, "body_preview": body, "success": True})
-                    break
-                except ClientError as e:
-                    err_info = e.response.get("Error", {}) if hasattr(e, "response") else {"Message": str(e)}
-                    last_diag.append({"attempt": name, "body_preview": body, "success": False,
-                                      "error_code": err_info.get("Code"), "error_message": err_info.get("Message")})
-                    continue
-        else:
-            body = {
-                "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 320,
-                "temperature": 0.18,
-                "messages": [{"role": "user", "content": [{"type": "text", "text": user_prompt}]}]
-            }
-            response = bedrock.invoke_model(
-                modelId=model_id_to_call,
-                contentType="application/json",
-                accept="application/json",
-                body=json.dumps(body),
-            )
-            raw = response["body"].read()
-            try:
-                resp_json = json.loads(raw)
-            except Exception:
-                resp_json = {"__raw": raw.decode() if isinstance(raw, (bytes,bytearray)) else str(raw)}
-
+        body = build_text_invoke_body(model_id_to_call, user_prompt, max_tokens=320, temperature=0.18)
+        response = bedrock.invoke_model(
+            modelId=model_id_to_call,
+            contentType="application/json",
+            accept="application/json",
+            body=json.dumps(body),
+        )
+        raw = response["body"].read()
+        resp_json = json.loads(raw)
     except ClientError as e:
         err_info = e.response.get("Error", {}) if hasattr(e, "response") else {"Message": str(e)}
         error_msg = f"InvokeModel failed for model_id '{model_id_to_call}': {err_info.get('Message') or str(e)}"
         logger.error(f"Bedrock API ClientError: {error_msg}", exc_info=True)
         raise RuntimeError(error_msg)
 
-    if resp_json is None:
-        raise RuntimeError(
-            f"No successful response from model_id '{model_id_to_call}'. Attempts diagnostics: {json.dumps(last_diag, indent=2)}"
-        )
-
-    # --- Extract assistant text robustly ---
-    assistant_text = ""
-    # Titan common shape
-    results = resp_json.get("results") or resp_json.get("result") or []
-    if isinstance(results, list) and results:
-        first = results[0]
-        assistant_text = (first.get("outputText") or first.get("output_text")
-                          or first.get("output") or first.get("text") or "")
-
-    # Messages-style content
-    if not assistant_text:
-        messages = resp_json.get("messages") or resp_json.get("message") or []
-        if isinstance(messages, list):
-            for msg in messages:
-                if msg.get("role") in ("assistant", "model", "system"):
-                    for c in msg.get("content", []):
-                        if isinstance(c, dict) and c.get("type") in ("text", "output_text"):
-                            assistant_text += c.get("text", "")
-                        elif isinstance(c, str):
-                            assistant_text += c
-                    if assistant_text:
-                        break
-
-    # fallback: top-level 'content'
-    if not assistant_text and isinstance(resp_json.get("content"), list):
-        for item in resp_json["content"]:
-            if isinstance(item, dict) and item.get("type") in ("text", "output_text"):
-                assistant_text += item.get("text", "")
-            elif isinstance(item, str):
-                assistant_text += item
-
-    assistant_text = (assistant_text or "").strip()
+    assistant_text = parse_text_invoke_response(model_id_to_call, resp_json).strip()
     if not assistant_text:
         raise RuntimeError(f"No assistant text extracted from Bedrock response. Raw JSON: {resp_json!r}")
 

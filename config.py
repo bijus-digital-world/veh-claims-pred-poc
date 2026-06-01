@@ -90,8 +90,11 @@ class ModelConfig:
     """ML Model configuration"""
     embedding_model_name: str = "all-MiniLM-L6-v2"
     
-    # Bedrock LLM settings
-    bedrock_model_id: str = "anthropic.claude-3-haiku-20240307-v1:0"
+    # Bedrock LLM settings.
+    # Default to Amazon Nova Micro because it works on AWS India accounts
+    # without an AWS Marketplace subscription (which Anthropic Claude on
+    # Bedrock requires). Override with BEDROCK_MODEL_ID env var if needed.
+    bedrock_model_id: str = "amazon.nova-micro-v1:0"
     bedrock_max_tokens: int = 320
     bedrock_temperature: float = 0.18
     
@@ -110,7 +113,7 @@ class ModelConfig:
     def from_env(cls):
         return cls(
             embedding_model_name=os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2"),
-            bedrock_model_id=os.getenv("BEDROCK_MODEL_ID", "anthropic.claude-3-haiku-20240307-v1:0"),
+            bedrock_model_id=os.getenv("BEDROCK_MODEL_ID", "amazon.nova-micro-v1:0"),
             bedrock_max_tokens=int(os.getenv("BEDROCK_MAX_TOKENS", "320")),
             bedrock_temperature=float(os.getenv("BEDROCK_TEMPERATURE", "0.18")),
             default_threshold_pct=int(os.getenv("DEFAULT_THRESHOLD_PCT", "30")),

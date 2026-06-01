@@ -9,7 +9,11 @@ import re
 import json
 from typing import Dict, Optional, List
 from chat.handlers import QueryContext
-from chat.bedrock_client import get_bedrock_client
+from chat.bedrock_client import (
+    get_bedrock_client,
+    build_text_invoke_body,
+    parse_text_invoke_response,
+)
 from utils.logger import chat_logger as logger
 from config import config
 
@@ -95,23 +99,18 @@ JSON:"""
         
         bedrock = get_bedrock_client()  # Use singleton client
         model_id = config.model.bedrock_model_id
-        
-        body = {
-            "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": 200,
-            "temperature": 0.1,  # Low temperature for consistent extraction
-            "messages": [{"role": "user", "content": [{"type": "text", "text": prompt}]}]
-        }
-        
+
+        body = build_text_invoke_body(model_id, prompt, max_tokens=200, temperature=0.1)
+
         response = bedrock.invoke_model(
             modelId=model_id,
             contentType="application/json",
             accept="application/json",
             body=json.dumps(body),
         )
-        
+
         response_body = json.loads(response['body'].read())
-        llm_response = response_body['content'][0]['text'].strip()
+        llm_response = parse_text_invoke_response(model_id, response_body).strip()
         
         # Extract JSON from response (handle cases where LLM adds extra text)
         json_match = re.search(r'\{[^}]+\}', llm_response, re.DOTALL)

@@ -41,3 +41,60 @@ def reset_bedrock_client():
     global _bedrock_client
     _bedrock_client = None
 
+
+# ---- Model-family-agnostic request/response helpers ----
+# Different Bedrock model families expect different invoke_model body shapes.
+# These helpers centralize the schema so callers don't repeat it.
+
+def _model_family(model_id: str) -> str:
+    """Return 'nova' | 'titan' | 'claude' based on the model_id."""
+    m = (model_id or "").lower()
+    if "nova" in m:
+        return "nova"
+    if "titan" in m:
+        return "titan"
+    return "claude"
+
+
+def build_text_invoke_body(model_id: str, prompt: str,
+                           max_tokens: int = 500, temperature: float = 0.1) -> dict:
+    """Build the invoke_model body dict for the given model_id and prompt."""
+    family = _model_family(model_id)
+    if family == "nova":
+        return {
+            "messages": [{"role": "user", "content": [{"text": prompt}]}],
+            "inferenceConfig": {"maxTokens": max_tokens, "temperature": temperature},
+        }
+    if family == "titan":
+        return {
+            "inputText": prompt,
+            "textGenerationConfig": {"maxTokenCount": max_tokens, "temperature": temperature},
+        }
+    # default: Anthropic Claude
+    return {
+        "anthropic_version": "bedrock-2023-05-31",
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+        "messages": [{"role": "user", "content": [{"type": "text", "text": prompt}]}],
+    }
+
+
+def parse_text_invoke_response(model_id: str, response_body: dict) -> str:
+    """Extract the assistant text from an invoke_model response body."""
+    family = _model_family(model_id)
+    if family == "nova":
+        try:
+            return response_body["output"]["message"]["content"][0]["text"]
+        except (KeyError, IndexError, TypeError):
+            return ""
+    if family == "titan":
+        results = response_body.get("results") or []
+        if isinstance(results, list) and results:
+            return results[0].get("outputText") or results[0].get("text") or ""
+        return response_body.get("outputText", "")
+    # default: Claude
+    try:
+        return response_body["content"][0]["text"]
+    except (KeyError, IndexError, TypeError):
+        return ""
+

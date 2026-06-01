@@ -13,7 +13,11 @@ import os
 import time
 
 from chat.handlers import QueryHandler, QueryContext
-from chat.bedrock_client import get_bedrock_client
+from chat.bedrock_client import (
+    get_bedrock_client,
+    build_text_invoke_body,
+    parse_text_invoke_response,
+)
 from utils.logger import chat_logger as logger
 
 try:
@@ -901,23 +905,18 @@ SQL:"""
             try:
                 bedrock = get_bedrock_client()  # Use singleton client
                 model_id = config.model.bedrock_model_id
-                
-                body = {
-                    "anthropic_version": "bedrock-2023-05-31",
-                    "max_tokens": 500,
-                    "temperature": 0.1,
-                    "messages": [{"role": "user", "content": [{"type": "text", "text": prompt}]}]
-                }
-                
+
+                body = build_text_invoke_body(model_id, prompt, max_tokens=500, temperature=0.1)
+
                 response = bedrock.invoke_model(
                     modelId=model_id,
                     contentType="application/json",
                     accept="application/json",
                     body=json.dumps(body),
                 )
-                
+
                 response_body = json.loads(response['body'].read())
-                sql_query = response_body['content'][0]['text'].strip()
+                sql_query = parse_text_invoke_response(model_id, response_body).strip()
                 
                 # Log success (only on first attempt to avoid spam)
                 if attempt == 0:
@@ -1351,23 +1350,18 @@ SQL:"""
             
             bedrock = get_bedrock_client()  # Use singleton client
             model_id = config.model.bedrock_model_id
-            
-            body = {
-                "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 1000,
-                "temperature": 0.3,
-                "messages": [{"role": "user", "content": [{"type": "text", "text": prompt}]}]
-            }
-            
+
+            body = build_text_invoke_body(model_id, prompt, max_tokens=1000, temperature=0.3)
+
             response = bedrock.invoke_model(
                 modelId=model_id,
                 contentType="application/json",
                 accept="application/json",
                 body=json.dumps(body),
             )
-            
+
             response_body = json.loads(response['body'].read())
-            natural_response = response_body['content'][0]['text'].strip()
+            natural_response = parse_text_invoke_response(model_id, response_body).strip()
             
             validated_response = self._validate_and_clean_response(natural_response, results, user_query)
             
@@ -2371,23 +2365,18 @@ Chart type:"""
         try:
             bedrock = get_bedrock_client()
             model_id = config.model.bedrock_model_id
-            
-            body = {
-                "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 50,
-                "temperature": 0.1,
-                "messages": [{"role": "user", "content": [{"type": "text", "text": prompt}]}]
-            }
-            
+
+            body = build_text_invoke_body(model_id, prompt, max_tokens=50, temperature=0.1)
+
             response = bedrock.invoke_model(
                 modelId=model_id,
                 contentType="application/json",
                 accept="application/json",
                 body=json.dumps(body),
             )
-            
+
             response_body = json.loads(response['body'].read())
-            chart_type = response_body['content'][0]['text'].strip().lower()
+            chart_type = parse_text_invoke_response(model_id, response_body).strip().lower()
             
             # Validate chart type
             valid_types = ['bar', 'bar_horizontal', 'bar_stacked', 'line', 'scatter', 'donut']
@@ -2495,23 +2484,18 @@ Column name:"""
         try:
             bedrock = get_bedrock_client()
             model_id = config.model.bedrock_model_id
-            
-            body = {
-                "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 30,
-                "temperature": 0.1,
-                "messages": [{"role": "user", "content": [{"type": "text", "text": prompt}]}]
-            }
-            
+
+            body = build_text_invoke_body(model_id, prompt, max_tokens=30, temperature=0.1)
+
             response = bedrock.invoke_model(
                 modelId=model_id,
                 contentType="application/json",
                 accept="application/json",
                 body=json.dumps(body),
             )
-            
+
             response_body = json.loads(response['body'].read())
-            color_col = response_body['content'][0]['text'].strip().lower()
+            color_col = parse_text_invoke_response(model_id, response_body).strip().lower()
             
             # Validate column name
             if color_col == "none" or color_col not in [col.lower() for col in available_cols]:
@@ -2591,23 +2575,18 @@ JSON Response:"""
         try:
             bedrock = get_bedrock_client()
             model_id = config.model.bedrock_model_id
-            
-            body = {
-                "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 200,
-                "temperature": 0.2,
-                "messages": [{"role": "user", "content": [{"type": "text", "text": prompt}]}]
-            }
-            
+
+            body = build_text_invoke_body(model_id, prompt, max_tokens=200, temperature=0.2)
+
             response = bedrock.invoke_model(
                 modelId=model_id,
                 contentType="application/json",
                 accept="application/json",
                 body=json.dumps(body),
             )
-            
+
             response_body = json.loads(response['body'].read())
-            response_text = response_body['content'][0]['text'].strip()
+            response_text = parse_text_invoke_response(model_id, response_body).strip()
             
             # Extract JSON from response (handle markdown code blocks if present)
             # Try to find JSON object with balanced braces
@@ -2669,23 +2648,18 @@ JSON Response:"""
 
 Respond ONLY with valid JSON:
 {{"height": <number>, "width_style": "<css>", "reasoning": "<brief>"}}"""
-                
-                body = {
-                    "anthropic_version": "bedrock-2023-05-31",
-                    "max_tokens": 150,
-                    "temperature": 0.1,
-                    "messages": [{"role": "user", "content": [{"type": "text", "text": simple_prompt}]}]
-                }
-                
+
+                body = build_text_invoke_body(model_id, simple_prompt, max_tokens=150, temperature=0.1)
+
                 response = bedrock.invoke_model(
                     modelId=model_id,
                     contentType="application/json",
                     accept="application/json",
                     body=json.dumps(body),
                 )
-                
+
                 response_body = json.loads(response['body'].read())
-                response_text = response_body['content'][0]['text'].strip()
+                response_text = parse_text_invoke_response(model_id, response_body).strip()
                 
                 # Extract JSON
                 json_start = response_text.find('{')
