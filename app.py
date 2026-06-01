@@ -879,22 +879,10 @@ def render_chat_interface():
         )
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # show faiss status 
-    try:
-        if faiss_res.get("available"):
-            pass
-        else:
-            st.markdown(
-                f"<div style='color:#fca5a5; font-size:12px'>FAISS unavailable: {faiss_res.get('message','missing')}</div>",
-                unsafe_allow_html=True,
-            )
-    except Exception as e:
-        logger.error(f"FAISS status check failed: {e}", exc_info=True)
-        if config.debug:
-            st.warning(f"FAISS status check failed: {e}")
-        st.markdown("<div style='color:#fca5a5; font-size:12px'>FAISS status unknown</div>", unsafe_allow_html=True)
-    
-    # (Conversation context info UI removed per UX request)
+    # FAISS status is internal — the TF-IDF fallback in chat_helper handles
+    # retrieval silently when FAISS isn't installed. No UI surfacing needed.
+
+
 
     # ensure session-state chat history exists
     if "chat_history" not in st.session_state:
